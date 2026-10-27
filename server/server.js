@@ -1063,6 +1063,12 @@ const buildCanonicalOrderSnapshot = (orderIntent, session, resolvedOffer, interi
         return isNaN(n) ? fallback : n;
     };
 
+    // Canonical customer paper preferences: orderIntent already holds the authoritative resolved preference.
+    // Fall back to resolving raw specs ONLY if orderIntent.customer_paper_preferences is undefined.
+    const canonicalPaperPreferences = orderIntent.customer_paper_preferences !== undefined
+        ? orderIntent.customer_paper_preferences
+        : resolveCustomerPaperPreferences(specs.customer_paper_preferences, session.normalized_specs?.customer_paper_preferences);
+
     const snapshot = {
         order_intent_id: orderIntent.order_intent_id,
         public_ref: orderIntent.public_ref,
@@ -1103,10 +1109,10 @@ const buildCanonicalOrderSnapshot = (orderIntent, session, resolvedOffer, interi
             paper_weight_cover: normalizeNum(specs.paper_weight_cover),
             finishing_options: specs.finishing_options || '',
             delivery_country: specs.delivery_country || '',
-            customer_paper_preferences: resolveCustomerPaperPreferences(orderIntent.customer_paper_preferences, specs.customer_paper_preferences || session.normalized_specs?.customer_paper_preferences)
+            customer_paper_preferences: canonicalPaperPreferences
         },
 
-        customer_paper_preferences: resolveCustomerPaperPreferences(orderIntent.customer_paper_preferences, specs.customer_paper_preferences || session.normalized_specs?.customer_paper_preferences),
+        customer_paper_preferences: canonicalPaperPreferences,
 
         production_files: {
             interior_pdf_file_id: interior.file_id,
@@ -1162,7 +1168,9 @@ const buildControlPlaneHandoffPayload = (orderIntent) => {
         lifecycle: orderIntent.lifecycle,
         offer: orderIntent.offer,
         specs: orderIntent.payload?.order_snapshot?.specs || {},
-        customer_paper_preferences: resolveCustomerPaperPreferences(orderIntent.customer_paper_preferences, orderIntent.payload?.order_snapshot?.specs?.customer_paper_preferences),
+        customer_paper_preferences: orderIntent.customer_paper_preferences !== undefined
+            ? orderIntent.customer_paper_preferences
+            : (orderIntent.payload?.order_snapshot?.customer_paper_preferences ?? null),
         production_files: orderIntent.production_files,
         customer: orderIntent.customer,
         totals: orderIntent.totals,
@@ -2526,9 +2534,9 @@ app.post('/api/budget/calculate', [
 
         const offer_session_id = `ofs_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
         const expires_at = new Date(Date.now() + OFFER_SESSION_TTL_MINUTES * 60 * 1000).toISOString();
-        const effectiveCustomerPaperPreferences = Object.keys(customerPaperPreferences).length > 0
+        const effectiveCustomerPaperPreferences = (customerPaperPreferences && typeof customerPaperPreferences === 'object' && Object.keys(customerPaperPreferences).length > 0)
             ? customerPaperPreferences
-            : (req.body.customer_paper_preferences || null);
+            : null;
 
         const normalizedSpecs = {
             ...req.body,
@@ -3106,7 +3114,9 @@ app.post('/api/order-intents', async (req, res) => {
     // Build Canonical Snapshot
     const snapshot = buildCanonicalOrderSnapshot(intentRecord, session, resolvedOffer, interior, cover);
     intentRecord.payload = { order_snapshot: snapshot };
-    intentRecord.customer_paper_preferences = snapshot.customer_paper_preferences || intentRecord.customer_paper_preferences;
+    intentRecord.customer_paper_preferences = snapshot.customer_paper_preferences !== undefined
+        ? snapshot.customer_paper_preferences
+        : intentRecord.customer_paper_preferences;
 
     // Prepare Preflight
     intentRecord.preflight = snapshot.preflight;
@@ -4021,10 +4031,9 @@ async function buildDispatchPackage(intent) {
     }));
 
     const printerIdentity = getPrinterIdentitySafe(intent);
-    const resolvedPaperPreferences = resolveCustomerPaperPreferences(
-        intent.customer_paper_preferences,
-        intent.payload?.order_snapshot?.specs?.customer_paper_preferences
-    );
+    const resolvedPaperPreferences = intent.customer_paper_preferences !== undefined
+        ? intent.customer_paper_preferences
+        : (intent.payload?.order_snapshot?.customer_paper_preferences ?? null);
     const pkg = {
         package_id: packageId,
         order_intent_id: intent.order_intent_id,
@@ -4591,7 +4600,9 @@ app.get('/api/printhouse/queue', async (req, res) => {
             updated_at: j.updated_at,
             customer_summary: j.customer_summary,
             production_specs_summary: j.production_specs,
-            customer_paper_preferences: j.customer_paper_preferences || j.production_specs?.customer_paper_preferences || null,
+            customer_paper_preferences: j.customer_paper_preferences !== undefined
+                ? j.customer_paper_preferences
+                : (j.production_specs?.customer_paper_preferences ?? null),
             files_summary: j.files.map(f => ({ role: f.role, filename: f.filename }))
         }));
 

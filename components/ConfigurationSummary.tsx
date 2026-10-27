@@ -32,21 +32,24 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
 }) => {
   const [mobileExpanded, setMobileExpanded] = useState(false);
 
-  // Compute paper details display
-  const interiorPaperDisplay = payload.paper_mode_interior === 'advanced' && payload.interior_paper_material
-    ? `${payload.interior_paper_material.productName || payload.interior_paper_material.product_name} (${payload.interior_paper_material.brand}) · ${payload.interior_paper_material.gsm} GSM`
-    : `${payload.paper_type_interior.toUpperCase()} · ${payload.paper_weight_interior} GSM`;
+  // Compute paper details display (Economic baseline vs Customer informative preference)
+  const baselineInterior = `${payload.paper_type_interior.toUpperCase()} · ${payload.paper_weight_interior} GSM`;
+  const preferredInterior = payload.paper_mode_interior === 'advanced' && payload.interior_paper_material
+    ? `${payload.interior_paper_material.productName || payload.interior_paper_material.product_name} (${payload.interior_paper_material.brand || 'Catalog'}) · ${payload.interior_paper_material.gsm}g`
+    : null;
 
-  const coverPaperDisplay = payload.paper_mode_cover === 'advanced' && payload.cover_paper_material
-    ? `${payload.cover_paper_material.productName || payload.cover_paper_material.product_name} (${payload.cover_paper_material.brand}) · ${payload.cover_paper_material.gsm} GSM`
-    : `${payload.paper_type_cover.toUpperCase()} · ${payload.paper_weight_cover} GSM`;
+  const baselineCover = `${payload.paper_type_cover.toUpperCase()} · ${payload.paper_weight_cover} GSM`;
+  const preferredCover = payload.paper_mode_cover === 'advanced' && payload.cover_paper_material
+    ? `${payload.cover_paper_material.productName || payload.cover_paper_material.product_name} (${payload.cover_paper_material.brand || 'Catalog'}) · ${payload.cover_paper_material.gsm}g`
+    : null;
 
   const isHardcover = payload.binding_method === 'thread_sewn_hc';
 
-  const endpaperDisplay = isHardcover && payload.endpapers !== 'none'
-    ? (payload.paper_mode_endpaper === 'advanced' && payload.endpaper_material
-        ? `${payload.endpaper_material.productName || payload.endpaper_material.product_name} · ${payload.endpaper_material.gsm} GSM`
-        : `${payload.endpapers.toUpperCase()} · ${payload.paper_weight_endpapers} GSM`)
+  const baselineEndpaper = isHardcover && payload.endpapers !== 'none'
+    ? `${payload.endpapers.toUpperCase()} · ${payload.paper_weight_endpapers} GSM`
+    : null;
+  const preferredEndpaper = isHardcover && payload.endpapers !== 'none' && payload.paper_mode_endpaper === 'advanced' && payload.endpaper_material
+    ? `${payload.endpaper_material.productName || payload.endpaper_material.product_name} · ${payload.endpaper_material.gsm}g`
     : null;
 
   return (
@@ -144,9 +147,14 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             <span className="block text-[9px] font-technical uppercase text-corporate-muted tracking-wider">
               Interior Paper
             </span>
-            <span className="text-xs font-medium text-corporate-text truncate block" title={interiorPaperDisplay}>
-              {interiorPaperDisplay}
+            <span className="text-xs font-medium text-corporate-text truncate block" title={baselineInterior}>
+              {baselineInterior}
             </span>
+            {preferredInterior && (
+              <span className="text-[10px] text-amber-400 font-technical truncate block" title={`Customer preference: ${preferredInterior} (Pending printhouse confirmation)`}>
+                Pref: {preferredInterior} (Unconfirmed)
+              </span>
+            )}
             <span className="text-[10px] text-corporate-muted font-technical">
               Color: {payload.interior_print}
             </span>
@@ -157,9 +165,14 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             <span className="block text-[9px] font-technical uppercase text-corporate-muted tracking-wider">
               Cover Stock
             </span>
-            <span className="text-xs font-medium text-corporate-text truncate block" title={coverPaperDisplay}>
-              {coverPaperDisplay}
+            <span className="text-xs font-medium text-corporate-text truncate block" title={baselineCover}>
+              {baselineCover}
             </span>
+            {preferredCover && (
+              <span className="text-[10px] text-amber-400 font-technical truncate block" title={`Customer preference: ${preferredCover} (Pending printhouse confirmation)`}>
+                Pref: {preferredCover} (Unconfirmed)
+              </span>
+            )}
             <span className="text-[10px] text-corporate-muted font-technical">
               Color: {payload.cover_print}
             </span>
@@ -180,14 +193,19 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
           </div>
 
           {/* Endpapers if hardcover */}
-          {endpaperDisplay && (
+          {baselineEndpaper && (
             <div className="col-span-2 sm:col-span-2">
               <span className="block text-[9px] font-technical uppercase text-corporate-muted tracking-wider">
                 Endpapers
               </span>
               <span className="text-xs font-medium text-corporate-text truncate block">
-                {endpaperDisplay} · Print: {payload.endpapers_print || 'None'}
+                {baselineEndpaper} · Print: {payload.endpapers_print || 'None'}
               </span>
+              {preferredEndpaper && (
+                <span className="text-[10px] text-amber-400 font-technical truncate block">
+                  Pref: {preferredEndpaper} (Unconfirmed)
+                </span>
+              )}
             </div>
           )}
 
@@ -243,11 +261,17 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             <div className="border-t border-white/5 pt-2 text-[11px] space-y-1">
               <div>
                 <span className="text-[9px] text-corporate-muted uppercase">Interior Substrate: </span>
-                <span className="text-white">{interiorPaperDisplay}</span>
+                <span className="text-white">{baselineInterior}</span>
+                {preferredInterior && (
+                  <span className="text-amber-400 block text-[10px]">Pref: {preferredInterior} (Unconfirmed)</span>
+                )}
               </div>
               <div>
                 <span className="text-[9px] text-corporate-muted uppercase">Cover Substrate: </span>
-                <span className="text-white">{coverPaperDisplay}</span>
+                <span className="text-white">{baselineCover}</span>
+                {preferredCover && (
+                  <span className="text-amber-400 block text-[10px]">Pref: {preferredCover} (Unconfirmed)</span>
+                )}
               </div>
               <div>
                 <span className="text-[9px] text-corporate-muted uppercase">Binding: </span>

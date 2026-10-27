@@ -167,20 +167,17 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
     return found ? found.variants : [];
   }, [groupedProducts, currentSelectedProductKey]);
 
-  // Handle switching to Advanced mode
+  // Handle switching to Advanced mode (informative only, does not invalidate quote)
   const handleToggleMode = (newMode: 'standard' | 'advanced') => {
     if (newMode === mode) return;
     onModeChange(newMode);
-    onSpecsInvalidated?.();
   };
 
   // Handle Category tab change
   const handleCategoryChange = (cat: PaperCategory | 'ALL') => {
     setSelectedCategory(cat);
-    // If selected material has a different category, notify of invalidation if it no longer matches
     if (selectedMaterial && cat !== 'ALL' && selectedMaterial.category !== cat) {
       onSelectMaterial(null);
-      onSpecsInvalidated?.();
     }
   };
 
@@ -189,7 +186,7 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
     const product = groupedProducts.find((p) => p.key === productKey);
     if (!product || product.variants.length === 0) return;
 
-    // Pick the first available variant or closest GSM
+    // Pick the first variant
     const defaultVariant = product.variants.find((v) => v.isAvailable) || product.variants[0];
     const newMaterial: SelectedPaperMaterial = {
       productId: defaultVariant.productId,
@@ -207,14 +204,13 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
       sheetWidthMm: defaultVariant.widthMm,
       sheetHeightMm: defaultVariant.heightMm,
       raw_sheet_format: defaultVariant.sheetFormat,
-      availability: defaultVariant.isAvailable ? 'IN_STOCK' : 'ON_DEMAND',
-      isAvailable: defaultVariant.isAvailable,
+      availability: 'CUSTOMER_PREFERENCE_PENDING_CONFIRMATION',
+      isAvailable: true,
       source_catalog: 'CONTROL_PLANE_MASTER_HUB',
       certifications: defaultVariant.certifications || ['FSC Mix Credit', 'ECF'],
     };
 
     onSelectMaterial(newMaterial);
-    onSpecsInvalidated?.();
   };
 
   // Handle selecting a specific variant for the chosen product
@@ -238,20 +234,18 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
       sheetWidthMm: variant.widthMm,
       sheetHeightMm: variant.heightMm,
       raw_sheet_format: variant.sheetFormat,
-      availability: variant.isAvailable ? 'IN_STOCK' : 'ON_DEMAND',
-      isAvailable: variant.isAvailable,
+      availability: 'CUSTOMER_PREFERENCE_PENDING_CONFIRMATION',
+      isAvailable: true,
       source_catalog: 'CONTROL_PLANE_MASTER_HUB',
       certifications: variant.certifications || ['FSC Mix Credit', 'ECF'],
     };
 
     onSelectMaterial(updatedMaterial);
-    onSpecsInvalidated?.();
   };
 
   // Clear specific selection
   const handleClearSelection = () => {
     onSelectMaterial(null);
-    onSpecsInvalidated?.();
   };
 
   return (
@@ -317,6 +311,19 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
       {/* ADVANCED CATALOG VIEW */}
       {mode === 'advanced' && (
         <div className="flex flex-col gap-6 pt-2">
+          {/* Informative Scope Notice (Requirement 5) */}
+          <div className="bg-corporate-primary/80 border border-white/10 p-3.5 flex items-start gap-3">
+            <InformationCircleIcon className="w-4 h-4 text-corporate-accent shrink-0 mt-0.5" />
+            <div className="text-[11px] leading-relaxed">
+              <span className="text-white font-bold font-technical uppercase tracking-wider block mb-0.5">
+                Paper preference only:
+              </span>
+              <span className="text-corporate-text-secondary">
+                Paper preference only. Does not affect this estimate. Subject to print house confirmation and availability.
+              </span>
+            </div>
+          </div>
+
           {/* Category Filter Tabs */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[10px] font-technical uppercase font-bold text-corporate-muted mr-1">
@@ -465,7 +472,6 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
                         currentProductVariants.map((v) => (
                           <option key={v.variantId} value={v.variantId}>
                             {v.gsm} GSM · {v.finish || v.finishSummary || 'Standard'} · {v.sheetFormat}
-                            {!v.isAvailable ? ' (On Demand)' : ''}
                           </option>
                         ))
                       )}
@@ -514,16 +520,29 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
                           </div>
                         )}
                         <div>
-                          Status:{' '}
-                          <span className="text-emerald-400 font-bold uppercase">
-                            {selectedMaterial.availability || (selectedMaterial.isAvailable ? 'IN_STOCK' : 'ON_DEMAND')}
+                          Preference Status:{' '}
+                          <span className="text-amber-400 font-bold uppercase">
+                            Customer Preference (Unconfirmed by Printer)
                           </span>
                         </div>
                       </div>
 
-                      {/* Raw Press Sheet vs Book Trim Size distinction banner */}
+                      {/* Required Scope Notice (Requirement 5 & 7) */}
                       <div className="bg-corporate-secondary border-l-2 border-corporate-accent p-3 mt-2 flex items-start gap-3">
-                        <AdjustmentsHorizontalIcon className="w-4 h-4 text-corporate-accent shrink-0 mt-0.5" />
+                        <InformationCircleIcon className="w-4 h-4 text-corporate-accent shrink-0 mt-0.5" />
+                        <div className="text-[11px] font-technical leading-relaxed">
+                          <p className="text-corporate-text font-bold uppercase tracking-wider">
+                            Paper preference only:
+                          </p>
+                          <p className="text-corporate-text-secondary mt-0.5">
+                            Paper preference only. Does not affect this estimate. Subject to print house confirmation and availability.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Raw Press Sheet vs Book Trim Size distinction banner */}
+                      <div className="bg-corporate-secondary border-l-2 border-white/20 p-3 mt-2 flex items-start gap-3">
+                        <AdjustmentsHorizontalIcon className="w-4 h-4 text-corporate-muted shrink-0 mt-0.5" />
                         <div className="text-[10px] font-technical leading-relaxed">
                           <p className="text-corporate-text font-bold uppercase tracking-wider">
                             Press Sheet Format: {selectedMaterial.raw_sheet_format || (selectedMaterial.sheetWidthMm && selectedMaterial.sheetHeightMm ? `${selectedMaterial.sheetWidthMm}x${selectedMaterial.sheetHeightMm} mm` : '700x1000 mm (B1)')}

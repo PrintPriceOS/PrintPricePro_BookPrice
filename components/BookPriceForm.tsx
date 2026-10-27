@@ -153,54 +153,32 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
     onSpecsInvalidated?.();
   };
 
-  // Advanced Paper Handlers
+  // Advanced Paper Handlers (Informative preferences only - keeps standard calculation parameters intact)
   const handleInteriorPaperSelect = (material: SelectedPaperMaterial | null) => {
     const nextPayload = {
       ...payload,
       interior_paper_material: material,
-      ...(material
-        ? {
-            paper_weight_interior: material.gsm,
-            // Map category to standard fallback
-            paper_type_interior: (material.category === 'COATED' ? 'mc' : material.category === 'CARTON' ? 'artboard' : 'offset') as any,
-          }
-        : {}),
     };
     setPayload(nextPayload);
     onPayloadChange(nextPayload);
-    onSpecsInvalidated?.();
   };
 
   const handleCoverPaperSelect = (material: SelectedPaperMaterial | null) => {
     const nextPayload = {
       ...payload,
       cover_paper_material: material,
-      ...(material
-        ? {
-            paper_weight_cover: material.gsm,
-            paper_type_cover: (material.category === 'COATED' ? 'mc' : material.category === 'CARTON' ? 'artboard' : 'offset') as any,
-          }
-        : {}),
     };
     setPayload(nextPayload);
     onPayloadChange(nextPayload);
-    onSpecsInvalidated?.();
   };
 
   const handleEndpaperSelect = (material: SelectedPaperMaterial | null) => {
     const nextPayload = {
       ...payload,
       endpaper_material: material,
-      ...(material
-        ? {
-            paper_weight_endpapers: material.gsm,
-            paper_type_endpaper: (material.category === 'COATED' ? 'mc' : 'offset') as any,
-          }
-        : {}),
     };
     setPayload(nextPayload);
     onPayloadChange(nextPayload);
-    onSpecsInvalidated?.();
   };
 
   const handleCalculatePrice = () => {
@@ -495,7 +473,6 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                 const next = { ...payload, paper_mode_interior: m };
                 setPayload(next);
                 onPayloadChange(next);
-                onSpecsInvalidated?.();
               }}
               selectedMaterial={payload.interior_paper_material || null}
               onSelectMaterial={handleInteriorPaperSelect}
@@ -617,7 +594,6 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                 const next = { ...payload, paper_mode_cover: m };
                 setPayload(next);
                 onPayloadChange(next);
-                onSpecsInvalidated?.();
               }}
               selectedMaterial={payload.cover_paper_material || null}
               onSelectMaterial={handleCoverPaperSelect}
@@ -728,7 +704,6 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                     const next = { ...payload, paper_mode_endpaper: m };
                     setPayload(next);
                     onPayloadChange(next);
-                    onSpecsInvalidated?.();
                   }}
                   selectedMaterial={payload.endpaper_material || null}
                   onSelectMaterial={handleEndpaperSelect}

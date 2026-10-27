@@ -34,6 +34,7 @@ interface QueueJob {
     shipping?: any;
   };
   production_specs_summary: any;
+  customer_paper_preferences?: any;
   files_summary: Array<{ role: string; filename: string }>;
 }
 
@@ -195,6 +196,11 @@ export const PrinthouseQueue: React.FC = () => {
                       <span className="text-[10px] text-slate-400 uppercase">
                         {job.production_specs_summary?.book_size} • {job.production_specs_summary?.binding_method?.replace(/_/g, ' ')}
                       </span>
+                      {(job.customer_paper_preferences || job.production_specs_summary?.customer_paper_preferences) && (
+                        <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded w-fit mt-0.5">
+                          Paper Preference
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4">

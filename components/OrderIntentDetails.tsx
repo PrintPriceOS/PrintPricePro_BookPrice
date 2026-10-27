@@ -310,7 +310,65 @@ const OrderIntentDetails: React.FC<Props> = ({ orderIntentId, onClose, onReset }
                             <span className="text-[0.75rem] font-bold text-corporate-text-secondary uppercase">{specs.country}</span>
                         </div>
                     )}
+                    <div>
+                        <span className="text-[0.6rem] font-technical uppercase text-corporate-muted block">Paper Interior (Baseline)</span>
+                        <span className="text-[0.75rem] font-bold text-corporate-text-secondary uppercase">
+                          {snapshot?.specs?.paper_weight_interior || rawSpecs?.paper_weight_interior || 90}g {snapshot?.specs?.paper_type_interior || rawSpecs?.paper_type_interior || 'offset'}
+                        </span>
+                    </div>
+                    <div>
+                        <span className="text-[0.6rem] font-technical uppercase text-corporate-muted block">Paper Cover (Baseline)</span>
+                        <span className="text-[0.75rem] font-bold text-corporate-text-secondary uppercase">
+                          {snapshot?.specs?.paper_weight_cover || rawSpecs?.paper_weight_cover || 250}g {snapshot?.specs?.paper_type_cover || rawSpecs?.paper_type_cover || 'mc'}
+                        </span>
+                    </div>
                 </div>
+
+                {/* Customer Paper Preferences (Informative) */}
+                {(() => {
+                    const paperPrefs = (intent as any).customer_paper_preferences || 
+                                       snapshot?.specs?.customer_paper_preferences || 
+                                       (snapshot as any)?.customer_paper_preferences || 
+                                       rawSpecs?.customer_paper_preferences || 
+                                       null;
+                    if (!paperPrefs || (!paperPrefs.interior && !paperPrefs.cover && !paperPrefs.endpaper)) return null;
+
+                    return (
+                        <div className="mt-4 pt-4 border-t border-white/10 bg-corporate-primary/40 p-3.5">
+                            <div className="flex items-center gap-2 mb-1.5">
+                                <span className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
+                                <span className="text-[0.65rem] font-technical font-bold text-amber-400 uppercase tracking-widest">
+                                    Customer Paper Preference (Informative)
+                                </span>
+                            </div>
+                            <p className="text-[0.65rem] text-corporate-muted mb-2 font-technical">
+                                Paper preference only. Does not affect this estimate. Subject to print house confirmation and availability.
+                            </p>
+                            <div className="space-y-1.5 text-[0.7rem] font-technical">
+                                {paperPrefs.interior && (
+                                    <div className="text-corporate-text-secondary">
+                                        <span className="text-corporate-muted uppercase">Preferred Interior: </span>
+                                        <strong className="text-white">{paperPrefs.interior.productName || paperPrefs.interior.product_name}</strong>
+                                        {paperPrefs.interior.brand ? ` (${paperPrefs.interior.brand})` : ''} · {paperPrefs.interior.gsm}g
+                                    </div>
+                                )}
+                                {paperPrefs.cover && (
+                                    <div className="text-corporate-text-secondary">
+                                        <span className="text-corporate-muted uppercase">Preferred Cover: </span>
+                                        <strong className="text-white">{paperPrefs.cover.productName || paperPrefs.cover.product_name}</strong>
+                                        {paperPrefs.cover.brand ? ` (${paperPrefs.cover.brand})` : ''} · {paperPrefs.cover.gsm}g
+                                    </div>
+                                )}
+                                {paperPrefs.endpaper && (
+                                    <div className="text-corporate-text-secondary">
+                                        <span className="text-corporate-muted uppercase">Preferred Endpaper: </span>
+                                        <strong className="text-white">{paperPrefs.endpaper.productName || paperPrefs.endpaper.product_name}</strong> · {paperPrefs.endpaper.gsm}g
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })()}
             </div>
           </div>
 

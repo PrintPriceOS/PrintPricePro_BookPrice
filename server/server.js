@@ -990,8 +990,11 @@ const buildCanonicalOrderSnapshot = (orderIntent, session, resolvedOffer, interi
             paper_type_cover: specs.paper_type_cover || 'mc',
             paper_weight_cover: normalizeNum(specs.paper_weight_cover),
             finishing_options: specs.finishing_options || '',
-            delivery_country: specs.delivery_country || ''
+            delivery_country: specs.delivery_country || '',
+            customer_paper_preferences: specs.customer_paper_preferences || specs.customerPaperPreferences || session.normalized_specs?.customer_paper_preferences || null
         },
+
+        customer_paper_preferences: specs.customer_paper_preferences || specs.customerPaperPreferences || session.normalized_specs?.customer_paper_preferences || null,
 
         production_files: {
             interior_pdf_file_id: interior.file_id,
@@ -1047,6 +1050,7 @@ const buildControlPlaneHandoffPayload = (orderIntent) => {
         lifecycle: orderIntent.lifecycle,
         offer: orderIntent.offer,
         specs: orderIntent.payload?.order_snapshot?.specs || {},
+        customer_paper_preferences: orderIntent.customer_paper_preferences || orderIntent.payload?.order_snapshot?.specs?.customer_paper_preferences || null,
         production_files: orderIntent.production_files,
         customer: orderIntent.customer,
         totals: orderIntent.totals,
@@ -2325,28 +2329,53 @@ app.post('/api/budget/calculate', [
             return 'other';
         };
 
+        // BUDGET-01 Scope Clarification:
+        // The advanced paper selector is strictly an informative customer paper preference.
+        // It does NOT overwrite BPE pricing parameters. Standard parameters remain intact.
+        const customerPaperPreferences = {};
         if (req.body.paper_mode_interior === 'advanced' && req.body.interior_paper_material) {
             const mat = req.body.interior_paper_material;
-            if (mat.gsm && Number(mat.gsm) > 0) {
-                resolvedInteriorWeight = Number(mat.gsm);
-            }
-            resolvedInteriorType = mapCategoryToBpeType(mat.category, mat.brand, mat.finish);
+            customerPaperPreferences.interior = {
+                productId: mat.productId || mat.product_id,
+                variantId: mat.variantId || mat.variant_id,
+                productName: mat.productName || mat.product_name,
+                brand: mat.brand || null,
+                category: mat.category,
+                gsm: Number(mat.gsm),
+                finish: mat.finish || null,
+                rawSheetFormat: mat.rawSheetFormat || mat.raw_sheet_format || null,
+                status: 'CUSTOMER_PREFERENCE_PENDING_CONFIRMATION'
+            };
         }
 
         if (req.body.paper_mode_cover === 'advanced' && req.body.cover_paper_material) {
             const mat = req.body.cover_paper_material;
-            if (mat.gsm && Number(mat.gsm) > 0) {
-                resolvedCoverWeight = Number(mat.gsm);
-            }
-            resolvedCoverType = mapCategoryToBpeType(mat.category, mat.brand, mat.finish);
+            customerPaperPreferences.cover = {
+                productId: mat.productId || mat.product_id,
+                variantId: mat.variantId || mat.variant_id,
+                productName: mat.productName || mat.product_name,
+                brand: mat.brand || null,
+                category: mat.category,
+                gsm: Number(mat.gsm),
+                finish: mat.finish || null,
+                rawSheetFormat: mat.rawSheetFormat || mat.raw_sheet_format || null,
+                status: 'CUSTOMER_PREFERENCE_PENDING_CONFIRMATION'
+            };
         }
 
         if (req.body.paper_mode_endpaper === 'advanced' && req.body.endpaper_material) {
             const mat = req.body.endpaper_material;
-            if (mat.gsm && Number(mat.gsm) > 0) {
-                resolvedEndpaperWeight = Number(mat.gsm);
-            }
-            resolvedEndpaperType = mapCategoryToBpeType(mat.category, mat.brand, mat.finish);
+            customerPaperPreferences.endpaper = {
+                productId: mat.productId || mat.product_id,
+                variantId: mat.variantId || mat.variant_id,
+                productName: mat.productName || mat.product_name,
+                brand: mat.brand || null,
+                category: mat.category,
+                gsm: Number(mat.gsm),
+                finish: mat.finish || null,
+                rawSheetFormat: mat.rawSheetFormat || mat.raw_sheet_format || null,
+                status: 'CUSTOMER_PREFERENCE_PENDING_CONFIRMATION'
+            };
         }
 
         const bpePayload = {
@@ -2417,7 +2446,14 @@ app.post('/api/budget/calculate', [
 
         const offer_session_id = `ofs_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
         const expires_at = new Date(Date.now() + OFFER_SESSION_TTL_MINUTES * 60 * 1000).toISOString();
-        const normalizedSpecs = req.body;
+        const effectiveCustomerPaperPreferences = Object.keys(customerPaperPreferences).length > 0
+            ? customerPaperPreferences
+            : (req.body.customer_paper_preferences || null);
+
+        const normalizedSpecs = {
+            ...req.body,
+            customer_paper_preferences: effectiveCustomerPaperPreferences
+        };
 
         const normalizedOffers = offers.map(o => {
             const offer_id = `offer_${crypto.randomBytes(6).toString('hex')}`;
@@ -2450,8 +2486,8 @@ app.post('/api/budget/calculate', [
         await repositories.offerSessions.create({
             offer_session_id,
             session_id: sessionId,
-            input_specs: req.body,
-            normalized_specs: req.body,
+            input_specs: normalizedSpecs,
+            normalized_specs: normalizedSpecs,
             offers: normalizedOffers,
             expires_at,
             created_at: new Date().toISOString()
@@ -2980,12 +3016,14 @@ app.post('/api/order-intents', async (req, res) => {
             shipping_amount: 0,
             grand_total: resolvedOffer.total_price
         },
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        customer_paper_preferences: session.normalized_specs?.customer_paper_preferences || session.input_specs?.customer_paper_preferences || null
     };
 
     // Build Canonical Snapshot
     const snapshot = buildCanonicalOrderSnapshot(intentRecord, session, resolvedOffer, interior, cover);
     intentRecord.payload = { order_snapshot: snapshot };
+    intentRecord.customer_paper_preferences = snapshot.customer_paper_preferences || intentRecord.customer_paper_preferences;
 
     // Prepare Preflight
     intentRecord.preflight = snapshot.preflight;
@@ -3900,6 +3938,11 @@ async function buildDispatchPackage(intent) {
     }));
 
     const printerIdentity = getPrinterIdentitySafe(intent);
+    const resolvedPaperPreferences = intent.customer_paper_preferences || 
+                                     printerIdentity.specs?.customer_paper_preferences || 
+                                     intent.payload?.order_snapshot?.specs?.customer_paper_preferences || 
+                                     intent.payload?.order_snapshot?.customer_paper_preferences || 
+                                     null;
     const pkg = {
         package_id: packageId,
         order_intent_id: intent.order_intent_id,
@@ -3915,7 +3958,11 @@ async function buildDispatchPackage(intent) {
             issue_count: intent.preflight?.jobs.reduce((sum, j) => sum + (j.issue_count || 0), 0),
             jobs: intent.preflight?.jobs || []
         },
-        production_specs: printerIdentity.specs,
+        production_specs: {
+            ...printerIdentity.specs,
+            customer_paper_preferences: resolvedPaperPreferences
+        },
+        customer_paper_preferences: resolvedPaperPreferences,
         customer_summary: {
             name: intent.customer?.name,
             email: intent.customer?.email,
@@ -4460,6 +4507,7 @@ app.get('/api/printhouse/queue', async (req, res) => {
             updated_at: j.updated_at,
             customer_summary: j.customer_summary,
             production_specs_summary: j.production_specs,
+            customer_paper_preferences: j.customer_paper_preferences || j.production_specs?.customer_paper_preferences || null,
             files_summary: j.files.map(f => ({ role: f.role, filename: f.filename }))
         }));
 

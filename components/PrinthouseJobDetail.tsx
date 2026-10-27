@@ -192,13 +192,82 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
                     <span className="text-sm font-bold text-slate-700 uppercase">{job.production_specs?.binding_method?.replace(/_/g, ' ')}</span>
                  </div>
                  <div className="col-span-2 pt-2 border-t border-slate-200">
-                    <span className="text-[10px] text-slate-400 uppercase block font-bold">Paper Interior</span>
+                    <span className="text-[10px] text-slate-400 uppercase block font-bold">Paper Interior (Standard Baseline)</span>
                     <span className="text-xs text-slate-600">{job.production_specs?.paper_weight_interior}g {job.production_specs?.paper_type_interior}</span>
                  </div>
                  <div className="col-span-2">
-                    <span className="text-[10px] text-slate-400 uppercase block font-bold">Paper Cover</span>
+                    <span className="text-[10px] text-slate-400 uppercase block font-bold">Paper Cover (Standard Baseline)</span>
                     <span className="text-xs text-slate-600">{job.production_specs?.paper_weight_cover}g {job.production_specs?.paper_type_cover}</span>
                  </div>
+
+                 {/* Customer Paper Preferences (Informative - Pending Printer Confirmation) */}
+                 {(() => {
+                   const prefs = job.customer_paper_preferences || 
+                                 job.production_specs?.customer_paper_preferences || 
+                                 job.production_specs_summary?.customer_paper_preferences || 
+                                 null;
+                   if (!prefs || (!prefs.interior && !prefs.cover && !prefs.endpaper)) return null;
+
+                   return (
+                     <div className="col-span-2 mt-3 pt-3 border-t-2 border-dashed border-amber-300 bg-amber-50/70 p-3 rounded-lg">
+                       <div className="flex items-center gap-2 mb-1.5">
+                         <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                         <span className="text-xs font-black text-amber-900 uppercase tracking-tight">
+                           Customer Paper Preferences (Informative)
+                         </span>
+                       </div>
+                       <p className="text-[10px] text-amber-800 leading-relaxed mb-3">
+                         Paper preference only. Does not affect this estimate. Subject to print house confirmation and availability.
+                       </p>
+
+                       <div className="space-y-2">
+                         {prefs.interior && (
+                           <div className="bg-white p-2.5 rounded border border-amber-200">
+                             <span className="text-[9px] uppercase font-bold text-slate-400 block">Preferred Interior Substrate</span>
+                             <div className="text-xs font-bold text-slate-800">
+                               {prefs.interior.productName || prefs.interior.product_name}
+                               {prefs.interior.brand ? ` (${prefs.interior.brand})` : ''} · {prefs.interior.gsm}g
+                             </div>
+                             <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                               Category: {prefs.interior.category} | Finish: {prefs.interior.finish || 'Standard'} | Sheet: {prefs.interior.rawSheetFormat || 'Standard'}
+                             </div>
+                             <span className="inline-block mt-1 px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-bold rounded">
+                               PENDING PRINTHOUSE CONFIRMATION
+                             </span>
+                           </div>
+                         )}
+
+                         {prefs.cover && (
+                           <div className="bg-white p-2.5 rounded border border-amber-200">
+                             <span className="text-[9px] uppercase font-bold text-slate-400 block">Preferred Cover Substrate</span>
+                             <div className="text-xs font-bold text-slate-800">
+                               {prefs.cover.productName || prefs.cover.product_name}
+                               {prefs.cover.brand ? ` (${prefs.cover.brand})` : ''} · {prefs.cover.gsm}g
+                             </div>
+                             <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                               Category: {prefs.cover.category} | Finish: {prefs.cover.finish || 'Standard'} | Sheet: {prefs.cover.rawSheetFormat || 'Standard'}
+                             </div>
+                             <span className="inline-block mt-1 px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-bold rounded">
+                               PENDING PRINTHOUSE CONFIRMATION
+                             </span>
+                           </div>
+                         )}
+
+                         {prefs.endpaper && (
+                           <div className="bg-white p-2.5 rounded border border-amber-200">
+                             <span className="text-[9px] uppercase font-bold text-slate-400 block">Preferred Endpaper Substrate</span>
+                             <div className="text-xs font-bold text-slate-800">
+                               {prefs.endpaper.productName || prefs.endpaper.product_name} · {prefs.endpaper.gsm}g
+                             </div>
+                             <span className="inline-block mt-1 px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-bold rounded">
+                               PENDING PRINTHOUSE CONFIRMATION
+                             </span>
+                           </div>
+                         )}
+                       </div>
+                     </div>
+                   );
+                 })()}
               </div>
             </section>
 

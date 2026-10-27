@@ -387,6 +387,118 @@ const getOrCreateSessionId = (req, res) => {
     return sessionId;
 };
 
+// ---- BUDGET-01: Canonical Paper Preferences Validation & Resolution ----
+const CANONICAL_PAPER_CATEGORIES = ['OFFSET', 'COATED', 'CARTON', 'DESIGN', 'DIGITAL', 'OTHER'];
+const PAPER_ID_REGEX = /^[a-zA-Z0-9_-]{1,100}$/;
+
+/**
+ * Validates and sanitizes a single paper section preference (interior, cover, endpaper).
+ * - Validates allowed fields, data types, string lengths, and ID patterns.
+ * - Forces status and availability to CUSTOMER_PREFERENCE_PENDING_CONFIRMATION on the server.
+ * Returns sanitized object, or null if invalid.
+ */
+function sanitizePaperSectionPreference(sectionPref) {
+    if (!sectionPref || typeof sectionPref !== 'object' || Array.isArray(sectionPref)) {
+        return null;
+    }
+
+    const productId = sectionPref.productId || sectionPref.product_id;
+    const variantId = sectionPref.variantId || sectionPref.variant_id;
+    const productName = sectionPref.productName || sectionPref.product_name;
+
+    if (typeof productId !== 'string' || !PAPER_ID_REGEX.test(productId)) {
+        return null;
+    }
+    if (typeof variantId !== 'string' || !PAPER_ID_REGEX.test(variantId)) {
+        return null;
+    }
+    if (typeof productName !== 'string' || productName.trim().length === 0 || productName.length > 150) {
+        return null;
+    }
+
+    const gsmNum = Number(sectionPref.gsm);
+    if (!Number.isInteger(gsmNum) || gsmNum < 30 || gsmNum > 1000) {
+        return null;
+    }
+
+    const rawCategory = typeof sectionPref.category === 'string' ? sectionPref.category.toUpperCase().trim() : 'OTHER';
+    const category = CANONICAL_PAPER_CATEGORIES.includes(rawCategory) ? rawCategory : 'OTHER';
+
+    const brand = typeof sectionPref.brand === 'string' && sectionPref.brand.trim().length > 0 && sectionPref.brand.length <= 100
+        ? sectionPref.brand.trim()
+        : null;
+
+    const finish = typeof sectionPref.finish === 'string' && sectionPref.finish.trim().length > 0 && sectionPref.finish.length <= 100
+        ? sectionPref.finish.trim()
+        : null;
+
+    const rawSheet = sectionPref.rawSheetFormat || sectionPref.raw_sheet_format || sectionPref.sheetFormat || sectionPref.sheet_format;
+    const rawSheetFormat = typeof rawSheet === 'string' && rawSheet.trim().length > 0 && rawSheet.length <= 100
+        ? rawSheet.trim()
+        : null;
+
+    return {
+        productId,
+        variantId,
+        productName: productName.trim(),
+        brand,
+        category,
+        gsm: gsmNum,
+        finish,
+        rawSheetFormat,
+        // Server-governed: stock is strictly subject to printhouse confirmation
+        availability: 'CUSTOMER_PREFERENCE_PENDING_CONFIRMATION',
+        status: 'CUSTOMER_PREFERENCE_PENDING_CONFIRMATION'
+    };
+}
+
+/**
+ * Resolves updated customer paper preferences against existing baseline preferences.
+ * Adheres strictly to the 3-state protocol:
+ * 1. Campo omitido (undefined): conservar preferencia anterior.
+ * 2. Null explícito (null): eliminar preferencia (retorna null).
+ * 3. Objeto válido: sustituir secciones o eliminar secciones si son null.
+ */
+function resolveCustomerPaperPreferences(incoming, previous) {
+    // 1. Campo omitido (undefined): conservar preferencia anterior
+    if (incoming === undefined) {
+        return previous !== undefined ? previous : null;
+    }
+
+    // 2. Null explícito: eliminar preferencia por completo
+    if (incoming === null) {
+        return null;
+    }
+
+    // Si viene un valor no válido (ej. string, boolean o array), conservar anterior o null
+    if (typeof incoming !== 'object' || Array.isArray(incoming)) {
+        return previous || null;
+    }
+
+    const prev = (previous && typeof previous === 'object') ? previous : {};
+    const result = {};
+    const sections = ['interior', 'cover', 'endpaper'];
+
+    for (const sec of sections) {
+        if (incoming[sec] === undefined) {
+            // Omitido: conservar valor previo
+            if (prev[sec]) {
+                result[sec] = prev[sec];
+            }
+        } else if (incoming[sec] === null) {
+            // Null explícito para la sección: eliminar sección
+        } else {
+            // Objeto para la sección: validar y sustituir
+            const sanitized = sanitizePaperSectionPreference(incoming[sec]);
+            if (sanitized) {
+                result[sec] = sanitized;
+            }
+        }
+    }
+
+    return Object.keys(result).length > 0 ? result : null;
+}
+
 /**
  * Resolves the authenticated or anonymous identity of the requester.
  * (v5.3 - Phase 9 Hardening)
@@ -991,10 +1103,10 @@ const buildCanonicalOrderSnapshot = (orderIntent, session, resolvedOffer, interi
             paper_weight_cover: normalizeNum(specs.paper_weight_cover),
             finishing_options: specs.finishing_options || '',
             delivery_country: specs.delivery_country || '',
-            customer_paper_preferences: orderIntent.customer_paper_preferences || specs.customer_paper_preferences || specs.customerPaperPreferences || session.normalized_specs?.customer_paper_preferences || null
+            customer_paper_preferences: resolveCustomerPaperPreferences(orderIntent.customer_paper_preferences, specs.customer_paper_preferences || session.normalized_specs?.customer_paper_preferences)
         },
 
-        customer_paper_preferences: orderIntent.customer_paper_preferences || specs.customer_paper_preferences || specs.customerPaperPreferences || session.normalized_specs?.customer_paper_preferences || null,
+        customer_paper_preferences: resolveCustomerPaperPreferences(orderIntent.customer_paper_preferences, specs.customer_paper_preferences || session.normalized_specs?.customer_paper_preferences),
 
         production_files: {
             interior_pdf_file_id: interior.file_id,
@@ -1050,7 +1162,7 @@ const buildControlPlaneHandoffPayload = (orderIntent) => {
         lifecycle: orderIntent.lifecycle,
         offer: orderIntent.offer,
         specs: orderIntent.payload?.order_snapshot?.specs || {},
-        customer_paper_preferences: orderIntent.customer_paper_preferences || orderIntent.payload?.order_snapshot?.specs?.customer_paper_preferences || null,
+        customer_paper_preferences: resolveCustomerPaperPreferences(orderIntent.customer_paper_preferences, orderIntent.payload?.order_snapshot?.specs?.customer_paper_preferences),
         production_files: orderIntent.production_files,
         customer: orderIntent.customer,
         totals: orderIntent.totals,
@@ -2332,51 +2444,19 @@ app.post('/api/budget/calculate', [
         // BUDGET-01 Scope Clarification:
         // The advanced paper selector is strictly an informative customer paper preference.
         // It does NOT overwrite BPE pricing parameters. Standard parameters remain intact.
-        const customerPaperPreferences = {};
-        if (req.body.paper_mode_interior === 'advanced' && req.body.interior_paper_material) {
-            const mat = req.body.interior_paper_material;
-            customerPaperPreferences.interior = {
-                productId: mat.productId || mat.product_id,
-                variantId: mat.variantId || mat.variant_id,
-                productName: mat.productName || mat.product_name,
-                brand: mat.brand || null,
-                category: mat.category,
-                gsm: Number(mat.gsm),
-                finish: mat.finish || null,
-                rawSheetFormat: mat.rawSheetFormat || mat.raw_sheet_format || null,
-                status: 'CUSTOMER_PREFERENCE_PENDING_CONFIRMATION'
-            };
-        }
+        const rawCalcPreferences = req.body.customer_paper_preferences !== undefined
+            ? req.body.customer_paper_preferences
+            : ((req.body.paper_mode_interior === 'advanced' && req.body.interior_paper_material) ||
+               (req.body.paper_mode_cover === 'advanced' && req.body.cover_paper_material) ||
+               (req.body.paper_mode_endpaper === 'advanced' && req.body.endpaper_material)
+                ? {
+                    interior: req.body.interior_paper_material || null,
+                    cover: req.body.cover_paper_material || null,
+                    endpaper: req.body.endpaper_material || null
+                  }
+                : undefined);
 
-        if (req.body.paper_mode_cover === 'advanced' && req.body.cover_paper_material) {
-            const mat = req.body.cover_paper_material;
-            customerPaperPreferences.cover = {
-                productId: mat.productId || mat.product_id,
-                variantId: mat.variantId || mat.variant_id,
-                productName: mat.productName || mat.product_name,
-                brand: mat.brand || null,
-                category: mat.category,
-                gsm: Number(mat.gsm),
-                finish: mat.finish || null,
-                rawSheetFormat: mat.rawSheetFormat || mat.raw_sheet_format || null,
-                status: 'CUSTOMER_PREFERENCE_PENDING_CONFIRMATION'
-            };
-        }
-
-        if (req.body.paper_mode_endpaper === 'advanced' && req.body.endpaper_material) {
-            const mat = req.body.endpaper_material;
-            customerPaperPreferences.endpaper = {
-                productId: mat.productId || mat.product_id,
-                variantId: mat.variantId || mat.variant_id,
-                productName: mat.productName || mat.product_name,
-                brand: mat.brand || null,
-                category: mat.category,
-                gsm: Number(mat.gsm),
-                finish: mat.finish || null,
-                rawSheetFormat: mat.rawSheetFormat || mat.raw_sheet_format || null,
-                status: 'CUSTOMER_PREFERENCE_PENDING_CONFIRMATION'
-            };
-        }
+        const customerPaperPreferences = resolveCustomerPaperPreferences(rawCalcPreferences, null);
 
         const bpePayload = {
             copies: Number(req.body.copies),
@@ -3017,7 +3097,10 @@ app.post('/api/order-intents', async (req, res) => {
             grand_total: resolvedOffer.total_price
         },
         created_at: new Date().toISOString(),
-        customer_paper_preferences: req.body.customer_paper_preferences || session.normalized_specs?.customer_paper_preferences || session.input_specs?.customer_paper_preferences || null
+        customer_paper_preferences: resolveCustomerPaperPreferences(
+            req.body.customer_paper_preferences,
+            session.normalized_specs?.customer_paper_preferences || session.input_specs?.customer_paper_preferences
+        )
     };
 
     // Build Canonical Snapshot
@@ -3938,11 +4021,10 @@ async function buildDispatchPackage(intent) {
     }));
 
     const printerIdentity = getPrinterIdentitySafe(intent);
-    const resolvedPaperPreferences = intent.customer_paper_preferences || 
-                                     printerIdentity.specs?.customer_paper_preferences || 
-                                     intent.payload?.order_snapshot?.specs?.customer_paper_preferences || 
-                                     intent.payload?.order_snapshot?.customer_paper_preferences || 
-                                     null;
+    const resolvedPaperPreferences = resolveCustomerPaperPreferences(
+        intent.customer_paper_preferences,
+        intent.payload?.order_snapshot?.specs?.customer_paper_preferences
+    );
     const pkg = {
         package_id: packageId,
         order_intent_id: intent.order_intent_id,
@@ -3959,6 +4041,7 @@ async function buildDispatchPackage(intent) {
             jobs: intent.preflight?.jobs || []
         },
         production_specs: {
+            ...(intent.payload?.order_snapshot?.specs || {}),
             ...printerIdentity.specs,
             customer_paper_preferences: resolvedPaperPreferences
         },

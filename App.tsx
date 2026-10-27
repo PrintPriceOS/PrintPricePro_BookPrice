@@ -1064,12 +1064,14 @@ const App: React.FC = () => {
           },
           user_id: user?.user_id,
           control_plane_order_id: controlPlaneOrderId || undefined,
-          customer_paper_preferences: (bookPricePayload?.interior_paper_material || bookPricePayload?.cover_paper_material)
-            ? {
-                interior: bookPricePayload.interior_paper_material || null,
-                cover: bookPricePayload.cover_paper_material || null,
-              }
-            : (cartItem?.specs?.customer_paper_preferences || undefined)
+          customer_paper_preferences: (bookPricePayload?.paper_mode_interior === 'standard' && bookPricePayload?.paper_mode_cover === 'standard' && !bookPricePayload?.interior_paper_material && !bookPricePayload?.cover_paper_material)
+            ? null
+            : (bookPricePayload?.interior_paper_material || bookPricePayload?.cover_paper_material)
+              ? {
+                  interior: bookPricePayload.interior_paper_material || null,
+                  cover: bookPricePayload.cover_paper_material || null,
+                }
+              : (cartItem?.specs?.customer_paper_preferences ?? undefined)
         }),
       });
       if (!res.ok) {

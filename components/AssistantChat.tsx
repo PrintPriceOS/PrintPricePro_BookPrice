@@ -305,6 +305,14 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
       if (heuristicPatch.endpapers !== undefined) finalPatch.endpapers = heuristicPatch.endpapers;
       if (heuristicPatch.endpapers_print !== undefined) finalPatch.endpapers_print = heuristicPatch.endpapers_print;
 
+      // Binding/endpaper invariant:
+      // Perfect Bound is softcover and must not carry standard endpapers.
+      const effectiveBinding = finalPatch.binding_method ?? specs.binding_method;
+      if (effectiveBinding === 'perfect_bound') {
+        finalPatch.endpapers = 'none';
+        finalPatch.endpapers_print = 'none';
+      }
+
       console.log('Final merged patch to apply:', finalPatch);
       const appliedSpecs = { ...specs, ...finalPatch };
 

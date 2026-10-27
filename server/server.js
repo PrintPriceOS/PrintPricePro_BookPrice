@@ -2206,6 +2206,88 @@ app.post('/api/auth/register',
     }
 );
 
+// 📜 Paper Catalog Gateway (Control Plane Paper Supplier Hub)
+app.get('/api/budget/paper/catalog', async (req, res) => {
+    try {
+        const cpUrl = `${CONTROL_PLANE_BASE_URL}/api/marketplace/paper-catalog`;
+        let response;
+        try {
+            const headers = buildControlPlaneHeaders();
+            response = await axios.get(cpUrl, { headers, timeout: 8000 });
+        } catch (cpErr) {
+            if (cpErr.response?.status === 401 || cpErr.response?.status === 403 || !process.env.BPE_JWT_SECRET) {
+                response = await axios.get(cpUrl, { timeout: 8000 });
+            } else {
+                throw cpErr;
+            }
+        }
+
+        if (response.data && response.data.ok) {
+            return res.json({
+                ok: true,
+                data: response.data.data
+            });
+        }
+        return res.status(502).json({
+            ok: false,
+            error: 'CONTROL_PLANE_CATALOG_UNAVAILABLE',
+            message: 'Failed to retrieve paper catalog from Control Plane.'
+        });
+    } catch (err) {
+        console.error('[BUDGET_PAPER_CATALOG_ERROR]', err.message);
+        return res.status(502).json({
+            ok: false,
+            error: 'CONTROL_PLANE_CATALOG_UNAVAILABLE',
+            message: 'Paper catalog service is temporarily unreachable.'
+        });
+    }
+});
+
+app.get('/api/budget/paper/search', async (req, res) => {
+    try {
+        const params = new URLSearchParams();
+        if (req.query.q) params.set('q', req.query.q);
+        if (req.query.query) params.set('query', req.query.query);
+        if (req.query.category) params.set('category', req.query.category);
+        if (req.query.finish) params.set('finish', req.query.finish);
+        if (req.query.gsm) params.set('gsm', req.query.gsm);
+        if (req.query.limit) params.set('limit', req.query.limit);
+        if (req.query.offset) params.set('offset', req.query.offset);
+
+        const cpUrl = `${CONTROL_PLANE_BASE_URL}/api/marketplace/paper-catalog?${params.toString()}`;
+        let response;
+        try {
+            const headers = buildControlPlaneHeaders();
+            response = await axios.get(cpUrl, { headers, timeout: 8000 });
+        } catch (cpErr) {
+            if (cpErr.response?.status === 401 || cpErr.response?.status === 403 || !process.env.BPE_JWT_SECRET) {
+                response = await axios.get(cpUrl, { timeout: 8000 });
+            } else {
+                throw cpErr;
+            }
+        }
+
+        if (response.data && response.data.ok) {
+            return res.json({
+                ok: true,
+                data: response.data.data
+            });
+        }
+        return res.status(502).json({
+            ok: false,
+            error: 'CONTROL_PLANE_SEARCH_FAILED',
+            message: 'Failed to search paper materials in Control Plane.'
+        });
+    } catch (err) {
+        console.error('[BUDGET_PAPER_SEARCH_ERROR]', err.message);
+        return res.status(502).json({
+            ok: false,
+            error: 'CONTROL_PLANE_SEARCH_UNAVAILABLE',
+            message: 'Paper material search is temporarily unreachable.'
+        });
+    }
+});
+
 // 📊 BPE PROXY: Budget Calculation
 app.post('/api/budget/calculate', [
     body('copies').isInt({ min: 1 }),
@@ -2223,6 +2305,50 @@ app.post('/api/budget/calculate', [
         const bpeUrl = BPE_MARKETPLACE_OFFERS_URL;
         const headers = buildControlPlaneHeaders();
 
+        // 1. Resolve Paper Specifications (Simple Presets vs Advanced Catalog Material)
+        let resolvedInteriorType = req.body.paper_type_interior || 'offset';
+        let resolvedInteriorWeight = Number(req.body.paper_weight_interior ?? 135);
+        let resolvedCoverType = req.body.paper_type_cover || 'mc';
+        let resolvedCoverWeight = Number(req.body.paper_weight_cover ?? 250);
+        let resolvedEndpaperType = req.body.paper_type_endpaper || 'offset';
+        let resolvedEndpaperWeight = Number(req.body.paper_weight_endpapers ?? 115);
+
+        // Helper to map technical catalog category to canonical BPE generic paper category
+        const mapCategoryToBpeType = (category, brand, finish) => {
+            const cat = String(category || '').toUpperCase();
+            const b = String(brand || '').toUpperCase();
+            if (b.includes('MUNKEN')) return 'munken';
+            if (cat === 'OFFSET' || cat === 'UNCOATED') return 'offset';
+            if (cat === 'COATED') return 'mc';
+            if (cat === 'CARTON') return 'artboard';
+            if (cat === 'DESIGN') return 'lux';
+            return 'other';
+        };
+
+        if (req.body.paper_mode_interior === 'advanced' && req.body.interior_paper_material) {
+            const mat = req.body.interior_paper_material;
+            if (mat.gsm && Number(mat.gsm) > 0) {
+                resolvedInteriorWeight = Number(mat.gsm);
+            }
+            resolvedInteriorType = mapCategoryToBpeType(mat.category, mat.brand, mat.finish);
+        }
+
+        if (req.body.paper_mode_cover === 'advanced' && req.body.cover_paper_material) {
+            const mat = req.body.cover_paper_material;
+            if (mat.gsm && Number(mat.gsm) > 0) {
+                resolvedCoverWeight = Number(mat.gsm);
+            }
+            resolvedCoverType = mapCategoryToBpeType(mat.category, mat.brand, mat.finish);
+        }
+
+        if (req.body.paper_mode_endpaper === 'advanced' && req.body.endpaper_material) {
+            const mat = req.body.endpaper_material;
+            if (mat.gsm && Number(mat.gsm) > 0) {
+                resolvedEndpaperWeight = Number(mat.gsm);
+            }
+            resolvedEndpaperType = mapCategoryToBpeType(mat.category, mat.brand, mat.finish);
+        }
+
         const bpePayload = {
             copies: Number(req.body.copies),
             interior_pages: Number(req.body.interior_pages),
@@ -2232,10 +2358,12 @@ app.post('/api/budget/calculate', [
             orientation: req.body.orientation || 'portrait',
             interior_print: req.body.interior_print || '1/1',
             cover_print: req.body.cover_print || '4/0',
-            paper_type_interior: req.body.paper_type_interior || 'offset',
-            paper_weight_interior: Number(req.body.paper_weight_interior ?? 135),
-            paper_type_cover: req.body.paper_type_cover || 'mc',
-            paper_weight_cover: Number(req.body.paper_weight_cover ?? 250),
+            paper_type_interior: resolvedInteriorType,
+            paper_weight_interior: resolvedInteriorWeight,
+            paper_type_cover: resolvedCoverType,
+            paper_weight_cover: resolvedCoverWeight,
+            paper_type_endpaper: resolvedEndpaperType,
+            paper_weight_endpapers: resolvedEndpaperWeight,
             binding_method: req.body.binding_method || 'perfect_bound',
             finishing_options: req.body.finishing_options || '',
             uv_varnish: req.body.uv_varnish === true,
@@ -2331,6 +2459,7 @@ app.post('/api/budget/calculate', [
 
         res.json({
             ok: true,
+            success: true,
             offer_session_id,
             expires_at,
             offers: normalizedOffers.map(({ raw_offer_snapshot, signature, ...rest }) => ({

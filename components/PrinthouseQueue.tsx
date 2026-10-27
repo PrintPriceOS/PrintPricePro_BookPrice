@@ -71,14 +71,14 @@ export const PrinthouseQueue: React.FC = () => {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'QUEUED': return <Clock className="w-4 h-4 text-blue-500" />;
+      case 'QUEUED': return <Clock className="w-4 h-4 text-slate-500" />;
       case 'REVIEWING': return <Search className="w-4 h-4 text-amber-500" />;
       case 'ACCEPTED': return <CheckCircle className="w-4 h-4 text-green-500" />;
       case 'REJECTED': return <XCircle className="w-4 h-4 text-red-500" />;
       case 'IN_PREPRESS': return <Clipboard className="w-4 h-4 text-indigo-500" />;
       case 'IN_PRODUCTION': return <Settings className="w-4 h-4 text-purple-500 animate-spin" />;
       case 'COMPLETED': return <Package className="w-4 h-4 text-emerald-500" />;
-      case 'SHIPPED': return <Truck className="w-4 h-4 text-sky-500" />;
+      case 'SHIPPED': return <Truck className="w-4 h-4 text-emerald-500" />;
       default: return <Clock className="w-4 h-4 text-gray-500" />;
     }
   };
@@ -86,14 +86,14 @@ export const PrinthouseQueue: React.FC = () => {
   const getStatusBadgeClass = (status: string) => {
     const base = "px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ";
     switch (status) {
-      case 'QUEUED': return base + "bg-blue-100 text-blue-800";
+      case 'QUEUED': return base + "bg-slate-100 text-slate-800";
       case 'REVIEWING': return base + "bg-amber-100 text-amber-800";
       case 'ACCEPTED': return base + "bg-green-100 text-green-800";
       case 'REJECTED': return base + "bg-red-100 text-red-800";
       case 'IN_PREPRESS': return base + "bg-indigo-100 text-indigo-800";
       case 'IN_PRODUCTION': return base + "bg-purple-100 text-purple-800";
       case 'COMPLETED': return base + "bg-emerald-100 text-emerald-800";
-      case 'SHIPPED': return base + "bg-sky-100 text-sky-800";
+      case 'SHIPPED': return base + "bg-emerald-100 text-emerald-800";
       default: return base + "bg-gray-100 text-gray-800";
     }
   };
@@ -103,7 +103,7 @@ export const PrinthouseQueue: React.FC = () => {
       <div className="p-6 border-b border-slate-100 bg-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-            <Package className="text-blue-600" />
+            <Package className="text-corporate-accent" />
             Printhouse Production Queue
           </h2>
           <p className="text-sm text-slate-500">Manage manufacturing lifecycle for marketplace orders.</p>
@@ -113,7 +113,7 @@ export const PrinthouseQueue: React.FC = () => {
           <div className="relative">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <select 
-              className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
+              className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-corporate-accent outline-none appearance-none"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
@@ -130,7 +130,7 @@ export const PrinthouseQueue: React.FC = () => {
           </div>
           <button 
             onClick={fetchQueue}
-            className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            className="p-2 text-slate-500 hover:text-corporate-accent hover:bg-corporate-accent/10 rounded-lg transition-colors"
             title="Refresh Queue"
           >
             <Clock className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
@@ -177,7 +177,7 @@ export const PrinthouseQueue: React.FC = () => {
                       <span className="text-sm font-bold text-slate-800">{job.public_ref}</span>
                       <span className="text-[10px] text-slate-400 font-technical">{job.package_id}</span>
                       {job.control_plane_order_ref && (
-                        <span className="text-[10px] text-blue-600 font-medium">CP: {job.control_plane_order_ref}</span>
+                        <span className="text-[10px] text-corporate-accent font-medium">CP: {job.control_plane_order_ref}</span>
                       )}
                     </div>
                   </td>
@@ -204,7 +204,7 @@ export const PrinthouseQueue: React.FC = () => {
                         <span className="text-[10px] font-bold text-slate-600">PREFLIGHT: {job.preflight_status}</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <div className={`w-2 h-2 rounded-full ${job.payment_status === 'PAID' ? 'bg-green-500' : 'bg-blue-500'}`}></div>
+                        <div className={`w-2 h-2 rounded-full ${job.payment_status === 'PAID' ? 'bg-green-500' : 'bg-corporate-accent'}`}></div>
                         <span className="text-[10px] font-bold text-slate-600">PAY: {job.payment_status}</span>
                       </div>
                     </div>
@@ -221,7 +221,7 @@ export const PrinthouseQueue: React.FC = () => {
                   <td className="px-6 py-4 text-right">
                     <button 
                       onClick={() => setSelectedJobId(job.package_id)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg text-xs font-bold transition-all shadow-sm"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-corporate-accent/10 text-corporate-accent hover:bg-corporate-accent hover:text-white rounded-lg text-xs font-bold transition-all shadow-sm"
                     >
                       <Eye className="w-3.5 h-3.5" />
                       View Job

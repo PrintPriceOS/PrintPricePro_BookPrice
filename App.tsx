@@ -44,6 +44,7 @@ import BookPriceForm from './components/BookPriceForm';
 import PrintOffersPanel from './components/PrintOffersPanel';
 import CartPanel from './components/CartPanel';
 import Header from './components/Header';
+import ConfigurationSummary from './components/ConfigurationSummary';
 import { AuthModal } from './components/UserMenu';
 import type { AuthUser } from './components/UserMenu';
 import Toast from './components/Toast';
@@ -266,6 +267,7 @@ const App: React.FC = () => {
     useState<InitialBookPricePayload>(INITIAL_BOOK_PRICE_PAYLOAD);
 
   const [offers, setOffers] = useState<BookPriceResponse | null>(null);
+  const [isSpecsStale, setIsSpecsStale] = useState<boolean>(false);
   const [loadingPdf, setLoadingPdf] = useState<boolean>(false);
   const [loadingOffers, setLoadingOffers] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -520,6 +522,14 @@ const App: React.FC = () => {
           custom_height: bookPricePayload.custom_height,
         }
         : {}),
+
+      // Advanced Paper Catalog selection (Control Plane Paper Supplier Hub)
+      ...(bookPricePayload.paper_mode_interior ? { paper_mode_interior: bookPricePayload.paper_mode_interior } : {}),
+      ...(bookPricePayload.interior_paper_material ? { interior_paper_material: bookPricePayload.interior_paper_material } : {}),
+      ...(bookPricePayload.paper_mode_cover ? { paper_mode_cover: bookPricePayload.paper_mode_cover } : {}),
+      ...(bookPricePayload.cover_paper_material ? { cover_paper_material: bookPricePayload.cover_paper_material } : {}),
+      ...(bookPricePayload.paper_mode_endpaper ? { paper_mode_endpaper: bookPricePayload.paper_mode_endpaper } : {}),
+      ...(bookPricePayload.endpaper_material ? { endpaper_material: bookPricePayload.endpaper_material } : {}),
     };
   }, [bookPricePayload]);
 
@@ -606,6 +616,7 @@ const App: React.FC = () => {
       }
 
       setOffers(normalised);
+      setIsSpecsStale(false);
       setTimeout(() => offersRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
     } catch (err: any) {
       console.error('Error calculating price:', err);
@@ -1198,8 +1209,8 @@ const App: React.FC = () => {
             <section className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] items-start">
               {/* Left: PDF + form */}
               <div className="space-y-6">
-                <div className="bg-corporate-secondary p-6 md:p-8 border-l border-white/5 transition-all hover:bg-corporate-primary/50">
-                  <h2 className="text-[0.7rem] font-technical font-black tracking-monolith text-corporate-accent mb-6 uppercase">
+                <div className="bg-corporate-secondary p-4 sm:p-6 md:p-8 border-l border-white/5 transition-all hover:bg-corporate-primary/50">
+                  <h2 className="text-[0.7rem] font-technical font-black tracking-wider sm:tracking-monolith text-corporate-accent mb-6 uppercase break-words">
                     {t('upload_pdf_instructions')}
                   </h2>
                   <PdfUploadDropzone
@@ -1225,11 +1236,20 @@ const App: React.FC = () => {
                   loading={loadingOffers}
                   hasPdf={!!pdfFile}
                   isAdmin={isAdmin}
+                  onSpecsInvalidated={() => setIsSpecsStale(true)}
                 />
               </div>
 
-              {/* Right: Offers */}
+              {/* Right: Configuration Snapshot & Offers */}
               <div className="flex flex-col gap-6">
+                <ConfigurationSummary
+                  payload={bookPricePayload}
+                  offers={offers}
+                  isSpecsStale={isSpecsStale}
+                  onRecalculate={handleCalculatePrice}
+                  loading={loadingOffers}
+                />
+
                 <div ref={offersRef}>
                   <PrintOffersPanel
                     offers={offers}
@@ -1275,7 +1295,7 @@ const App: React.FC = () => {
                   !loadingPdf &&
                   !loadingOffers &&
                   !offers && (
-                    <div className="flex-1 flex items-center justify-center border border-white/5 bg-corporate-secondary p-12">
+                    <div className="flex-1 flex items-center justify-center border border-white/5 bg-corporate-secondary p-6 sm:p-12">
                       <div className="text-center text-corporate-muted font-technical text-xs tracking-widest uppercase">
                         {t('enter_specs_or_upload_pdf')}
                       </div>

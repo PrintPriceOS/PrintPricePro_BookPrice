@@ -68,10 +68,10 @@ const Header: React.FC<HeaderProps> = ({
 
           {/* View Switcher (Only if logged in or for testing) */}
           {onViewChange && (
-            <div className="hidden lg:flex items-center bg-black/20 p-1 rounded-lg border border-white/5">
+            <div className="hidden lg:flex items-center bg-black/20 p-1 border border-white/5">
               <button
                 onClick={() => onViewChange('marketplace')}
-                className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-monolith transition-all rounded ${currentView === 'marketplace'
+                className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-monolith transition-all ${currentView === 'marketplace'
                     ? 'bg-corporate-accent text-white shadow-lg'
                     : 'text-corporate-muted hover:text-white'
                   }`}
@@ -80,7 +80,7 @@ const Header: React.FC<HeaderProps> = ({
               </button>
               <button
                 onClick={() => onViewChange('printhouse')}
-                className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-monolith transition-all rounded ${currentView === 'printhouse'
+                className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-monolith transition-all ${currentView === 'printhouse'
                     ? 'bg-corporate-accent text-white shadow-lg'
                     : 'text-corporate-muted hover:text-white'
                   }`}
@@ -137,7 +137,7 @@ const Header: React.FC<HeaderProps> = ({
             >
               <ShoppingCartIcon className="w-5 h-5" />
               {cartCount > 0 && (
-                <span className="absolute top-1 right-1 flex items-center justify-center w-4 h-4 rounded-full bg-corporate-accent text-white text-[0.5rem] font-black leading-none">
+                <span className="absolute top-1 right-1 flex items-center justify-center w-4 h-4 bg-corporate-accent text-white text-[0.5rem] font-black leading-none">
                   {cartCount > 9 ? '9+' : cartCount}
                 </span>
               )}

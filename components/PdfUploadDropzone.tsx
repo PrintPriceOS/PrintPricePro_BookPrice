@@ -62,7 +62,7 @@ const PdfUploadDropzone: React.FC<PdfUploadDropzoneProps> = ({ onFileSelect, loa
 
   return (
     <div
-      className={`relative p-12 border-2 border-dashed transition-all duration-300 text-center group
+      className={`relative p-6 sm:p-12 border-2 border-dashed transition-all duration-300 text-center group
         ${isDragging ? 'border-corporate-accent bg-corporate-accent/5' : 'border-white/10 bg-corporate-primary'}
         ${error ? 'border-corporate-accent/50 bg-corporate-accent/5' : ''}
       `}

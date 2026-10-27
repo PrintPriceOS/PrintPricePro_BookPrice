@@ -36,6 +36,73 @@ export type PaperTypeCover = 'mc' | 'artboard' | 'offset' | 'wfmc' | 'other' | '
 
 export type PaperTypeEndpaper = 'offset' | 'mc' | 'other' | 'none';
 
+// ---- Advanced Paper Catalog Contract (Control Plane Paper Hub) ----
+export type PaperCategory =
+  | 'OFFSET'
+  | 'COATED'
+  | 'CARTON'
+  | 'DESIGN'
+  | 'DIGITAL'
+  | 'OTHER';
+
+export interface CatalogPaperVariant {
+  variantId: string;
+  productId: string;
+  productName: string;
+  brand?: string | null;
+  manufacturer?: string | null;
+  category: PaperCategory | string;
+  finishSummary?: string | null;
+  description?: string | null;
+  gsm: number;
+  widthMm: number;
+  heightMm: number;
+  caliperUm?: number | null;
+  caliperMm?: number | null;
+  finish?: string | null;
+  grainDirection?: 'LONG_GRAIN' | 'SHORT_GRAIN' | 'UNKNOWN';
+  certifications?: string[];
+  supplierName?: string | null;
+  isAvailable?: boolean;
+}
+
+export interface CatalogPaperProduct {
+  productId: string;
+  productName: string;
+  brand?: string | null;
+  manufacturer?: string | null;
+  category: PaperCategory | string;
+  finishSummary?: string | null;
+  description?: string | null;
+  certifications?: string[];
+  variants: CatalogPaperVariant[];
+}
+
+export interface SelectedPaperMaterial {
+  variantId: string;
+  productId: string;
+  productName: string;
+  brand?: string | null;
+  category: PaperCategory | string;
+  gsm: number;
+  finish?: string | null;
+  sheetWidthMm?: number;
+  sheetHeightMm?: number;
+  caliperUm?: number | null;
+  certifications?: string[];
+  supplierName?: string | null;
+  isAvailable?: boolean;
+
+  // Compatibility aliases
+  variant_id?: string;
+  product_id?: string;
+  product_name?: string;
+  caliper_um?: number | null;
+  availability?: string;
+  raw_sheet_format?: string;
+  source_catalog?: string;
+}
+
 /**
  * The core specification payload for the Book Price Engine.
  * Must match the BPE contract exactly.
@@ -73,6 +140,14 @@ export interface BookPricePayload {
   interior_pdf_url?: string;
   cover_pdf_url?: string;
 
+  // Advanced Paper Catalog selection (Control Plane Paper Hub)
+  paper_mode_interior?: 'standard' | 'advanced';
+  interior_paper_material?: SelectedPaperMaterial | null;
+  paper_mode_cover?: 'standard' | 'advanced';
+  cover_paper_material?: SelectedPaperMaterial | null;
+  paper_mode_endpaper?: 'standard' | 'advanced';
+  endpaper_material?: SelectedPaperMaterial | null;
+
   // Security / debug
   hp_field?: string;
   submission_token?: string;
@@ -107,6 +182,7 @@ export interface BookPriceOffer {
   printer_id?: string;
   print_house_id?: string;
   print_house: string;
+  print_house_name?: string;
 
   // Pricing
   total_price: number;
@@ -460,6 +536,7 @@ export interface OrderIntentInvoice {
 export interface OrderIntentPayment {
   provider: 'stripe' | 'bank_transfer' | null;
   status: 'NOT_STARTED' | 'PENDING' | 'PAID' | 'FAILED' | 'CANCELLED' | 'NOT_CONFIGURED';
+  currency?: string;
   checkout_url?: string;
   payment_intent_id?: string;
   bank_transfer_reference?: string;

@@ -88,7 +88,7 @@ const ProductionFilesPanel: React.FC<ProductionFilesPanelProps> = ({
               </span>
             )}
             {draft.status === 'LINK_PROVIDED' && (
-              <span className="bg-blue-500/10 text-blue-500 text-[8px] font-technical font-black px-1.5 py-0.5 border border-blue-500/20 tracking-tighter uppercase">
+              <span className="bg-white/10 text-corporate-text text-[8px] font-technical font-black px-1.5 py-0.5 border border-white/20 tracking-tighter uppercase">
                 LINK PROVIDED
               </span>
             )}

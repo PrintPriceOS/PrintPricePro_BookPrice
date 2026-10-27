@@ -46,9 +46,9 @@ interface UserOrdersProps {
 // ---------------------------------------------------------------------------
 const STATUS_COLORS: Record<string, string> = {
   pending:    'bg-yellow-500/10 text-yellow-400 border-yellow-500/30',
-  confirmed:  'bg-blue-500/10 text-blue-400 border-blue-500/30',
+  confirmed:  'bg-corporate-accent/10 text-corporate-accent border-corporate-accent/30',
   processing: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
-  shipped:    'bg-indigo-500/10 text-indigo-400 border-indigo-500/30',
+  shipped:    'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
   delivered:  'bg-green-500/10 text-green-400 border-green-500/30',
   cancelled:  'bg-red-500/10 text-red-400 border-red-500/30',
 };
@@ -60,7 +60,7 @@ const StatusBadge: React.FC<{ status: string; variant?: 'default' | 'success' | 
   if (variant === 'success') colors = 'bg-green-500/10 text-green-400 border-green-500/30';
   if (variant === 'warning') colors = 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30';
   if (variant === 'error') colors = 'bg-red-500/10 text-red-400 border-red-500/30';
-  if (variant === 'info') colors = 'bg-blue-500/10 text-blue-400 border-blue-500/30';
+  if (variant === 'info') colors = 'bg-white/10 text-corporate-text border-white/20';
 
   return (
     <span className={`inline-flex items-center px-1.5 py-0.5 text-[0.55rem] font-black uppercase tracking-widest border ${colors}`}>

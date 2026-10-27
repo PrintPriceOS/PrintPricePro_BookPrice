@@ -95,7 +95,7 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
     return (
       <div className="bg-white rounded-xl h-full flex items-center justify-center p-12">
         <div className="flex flex-col items-center gap-3">
-          <Settings className="w-8 h-8 text-blue-500 animate-spin" />
+          <Settings className="w-8 h-8 text-corporate-accent animate-spin" />
           <span className="text-slate-500 font-medium font-technical text-sm">LOADING_JOB_METADATA...</span>
         </div>
       </div>
@@ -131,14 +131,14 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
       {/* Header */}
       <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
         <div className="flex items-center gap-3">
-          <div className="bg-blue-600 p-2 rounded-lg text-white shadow-md">
+          <div className="bg-corporate-accent p-2 rounded-lg text-white shadow-md">
             <Clipboard className="w-5 h-5" />
           </div>
           <div>
             <h2 className="text-lg font-bold text-slate-800 leading-tight">Job #{job.public_ref}</h2>
             <div className="flex items-center gap-2">
                <span className="text-[10px] font-technical text-slate-400">{job.package_id}</span>
-               <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-bold rounded uppercase">
+               <span className="px-1.5 py-0.5 bg-corporate-accent/10 text-corporate-accent text-[9px] font-bold rounded uppercase">
                  {job.printhouse_name}
                </span>
             </div>
@@ -157,7 +157,7 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
            <div className="flex items-center gap-4">
               <div className="flex flex-col">
                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Current Status</span>
-                 <span className="text-lg font-black text-blue-400 uppercase">{currentStatus}</span>
+                 <span className="text-lg font-black text-corporate-accent uppercase">{currentStatus}</span>
               </div>
            </div>
            <div className="text-right">
@@ -171,7 +171,7 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
           <div className="space-y-8">
             <section>
               <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <FileText className="w-4 h-4 text-blue-500" />
+                <FileText className="w-4 h-4 text-corporate-accent" />
                 Production Specifications
               </h3>
               <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 grid grid-cols-2 gap-y-3 gap-x-4">
@@ -287,7 +287,7 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
                 Operator Workflow Notes
               </h3>
               <textarea 
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none resize-none min-h-[80px]"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-700 focus:ring-2 focus:ring-corporate-accent outline-none resize-none min-h-[80px]"
                 placeholder="Internal production notes, prepress findings, etc..."
                 value={operatorNotes}
                 onChange={(e) => setOperatorNotes(e.target.value)}

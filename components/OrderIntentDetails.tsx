@@ -487,7 +487,7 @@ const OrderIntentDetails: React.FC<Props> = ({ orderIntentId, onClose, onReset }
                                     <div>
                                         <span className="text-[0.6rem] font-technical uppercase tracking-widest text-corporate-muted block mb-1">Handoff Status</span>
                                         <div className="flex items-center gap-2">
-                                            <div className={`w-1.5 h-1.5 rounded-full ${intent.printhouse_handoff?.status === 'SENT' ? 'bg-green-500' : 'bg-blue-500 animate-pulse'}`} />
+                                            <div className={`w-1.5 h-1.5 ${intent.printhouse_handoff?.status === 'SENT' ? 'bg-emerald-500' : 'bg-corporate-accent animate-pulse'}`} />
                                             <span className="text-[0.7rem] font-black uppercase tracking-widest text-corporate-text">
                                                 {intent.printhouse_handoff?.status || '—'}
                                             </span>

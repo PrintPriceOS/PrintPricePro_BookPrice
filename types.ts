@@ -147,6 +147,7 @@ export interface BookPricePayload {
   cover_paper_material?: SelectedPaperMaterial | null;
   paper_mode_endpaper?: 'standard' | 'advanced';
   endpaper_material?: SelectedPaperMaterial | null;
+  customer_paper_preferences?: any;
 
   // Security / debug
   hp_field?: string;

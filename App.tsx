@@ -1063,7 +1063,13 @@ const App: React.FC = () => {
             role: user?.role
           },
           user_id: user?.user_id,
-          control_plane_order_id: controlPlaneOrderId || undefined
+          control_plane_order_id: controlPlaneOrderId || undefined,
+          customer_paper_preferences: (bookPricePayload?.interior_paper_material || bookPricePayload?.cover_paper_material)
+            ? {
+                interior: bookPricePayload.interior_paper_material || null,
+                cover: bookPricePayload.cover_paper_material || null,
+              }
+            : (cartItem?.specs?.customer_paper_preferences || undefined)
         }),
       });
       if (!res.ok) {

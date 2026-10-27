@@ -991,10 +991,10 @@ const buildCanonicalOrderSnapshot = (orderIntent, session, resolvedOffer, interi
             paper_weight_cover: normalizeNum(specs.paper_weight_cover),
             finishing_options: specs.finishing_options || '',
             delivery_country: specs.delivery_country || '',
-            customer_paper_preferences: specs.customer_paper_preferences || specs.customerPaperPreferences || session.normalized_specs?.customer_paper_preferences || null
+            customer_paper_preferences: orderIntent.customer_paper_preferences || specs.customer_paper_preferences || specs.customerPaperPreferences || session.normalized_specs?.customer_paper_preferences || null
         },
 
-        customer_paper_preferences: specs.customer_paper_preferences || specs.customerPaperPreferences || session.normalized_specs?.customer_paper_preferences || null,
+        customer_paper_preferences: orderIntent.customer_paper_preferences || specs.customer_paper_preferences || specs.customerPaperPreferences || session.normalized_specs?.customer_paper_preferences || null,
 
         production_files: {
             interior_pdf_file_id: interior.file_id,
@@ -3017,7 +3017,7 @@ app.post('/api/order-intents', async (req, res) => {
             grand_total: resolvedOffer.total_price
         },
         created_at: new Date().toISOString(),
-        customer_paper_preferences: session.normalized_specs?.customer_paper_preferences || session.input_specs?.customer_paper_preferences || null
+        customer_paper_preferences: req.body.customer_paper_preferences || session.normalized_specs?.customer_paper_preferences || session.input_specs?.customer_paper_preferences || null
     };
 
     // Build Canonical Snapshot
@@ -4322,6 +4322,7 @@ app.post('/api/order-intents/:id/dispatch-package/create', async (req, res) => {
         await repositories.dispatchPackages.create(pkg);
 
         // 5. Update Intent
+        if (!intent.printhouse_handoff) intent.printhouse_handoff = {};
         intent.printhouse_handoff.status = 'READY_FOR_PRINTHOUSE';
         intent.lifecycle.printhouse_handoff_status = 'READY_FOR_PRINTHOUSE';
         intent.dispatch_package_id = pkg.package_id;

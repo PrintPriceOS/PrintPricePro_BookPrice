@@ -209,7 +209,7 @@ Se ha implementado y ejecutado el script reproducible `server/scripts/verify_bud
 ### 6.1 Repositorio Principal: Budget App (`PrintPricePro_BookPrice`)
 - **Pull Request:** [PR #1](https://github.com/PrintPriceOS/PrintPricePro_BookPrice/pull/1)
 - **Rama:** `feat/budget-01-visual-identity-and-paper-selector` → `main`
-- **Nuevo Commit SHA:** `PENDIENTE_DE_REGISTRAR` (se actualizará tras el commit local)
+- **Commit SHA Actualizado:** `78f84b1425ddcfc3cad5f8bce2e2d8900b50d9de`
 - **Archivos Remediados / Añadidos:**
   - `server/server.js` (Remediación H-01 y operadores estrictos)
   - `.github/workflows/ci.yml` (Pipeline de CI automatizado)

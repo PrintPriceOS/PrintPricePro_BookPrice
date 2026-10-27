@@ -191,7 +191,8 @@ Se ha implementado y ejecutado el script reproducible `server/scripts/verify_bud
   pull_request:
     branches: [ main, v1.9.0, phase-10-intelligence-layer, phase-39.2-tenant-management-console, feat/paper-supplier-hub-completion ]
   ```
-- **Resultado:** Commit `a378ff53` subido a `feat/budget-01-marketplace-paper-catalog`. El check de CI se disparó automáticamente en GitHub Actions (ejecución `40525269929`).
+- **Resultado CI:** Commit `a378ff53` subido a `feat/budget-01-marketplace-paper-catalog`. El check de CI se ejecutó automáticamente en GitHub Actions y resultó en **PASS (2m23s)**:
+  - Check URL: [GitHub Actions Run 40525269929](https://github.com/PrintPriceOS/ppos-control-plane/actions/runs/40525269929/job/122263017385)
 
 ### 5.2 Budget App (`PrintPricePro_BookPrice`)
 - **Implementación:** Archivo `.github/workflows/ci.yml` configurado con:
@@ -201,6 +202,8 @@ Se ha implementado y ejecutado el script reproducible `server/scripts/verify_bud
   - Compilación de producción: `npm run build`.
   - Suite de regresión automatizada: `node server/scripts/verify_budget_01d_regression.js`.
 - **Triggers:** `push` en ramas `main` y `feat/**`; `pull_request` contra `main`.
+- **Resultado CI:** Commit `c719051` subido a `feat/budget-01-visual-identity-and-paper-selector`. El check de CI se ejecutó automáticamente en GitHub Actions y resultó en **PASS (35s)**:
+  - Check URL: [GitHub Actions Run 40526165294](https://github.com/PrintPriceOS/PrintPricePro_BookPrice/actions/runs/40526165294/job/122266229055)
 
 ---
 
@@ -209,25 +212,30 @@ Se ha implementado y ejecutado el script reproducible `server/scripts/verify_bud
 ### 6.1 Repositorio Principal: Budget App (`PrintPricePro_BookPrice`)
 - **Pull Request:** [PR #1](https://github.com/PrintPriceOS/PrintPricePro_BookPrice/pull/1)
 - **Rama:** `feat/budget-01-visual-identity-and-paper-selector` → `main`
-- **Commit SHA Actualizado:** `78f84b1425ddcfc3cad5f8bce2e2d8900b50d9de`
+- **Commit SHA Definitivo:** `c71905135f4f82510c7f99eefe09ac4f7531da93`
+- **Estado de Checks:** **PASS** (`Validation & Regression Suite` superado en 35s).
 - **Archivos Remediados / Añadidos:**
-  - `server/server.js` (Remediación H-01 y operadores estrictos)
-  - `.github/workflows/ci.yml` (Pipeline de CI automatizado)
-  - `server/scripts/verify_budget_01d_regression.js` (10 escenarios de regresión)
+  - `server/server.js` (Remediación H-01 y operadores estrictos `!== undefined`)
+  - `types.ts` (Soporte de valor `'none'` en `EndpapersPrint`)
+  - `.github/workflows/ci.yml` (Pipeline de CI automatizado con dependencias y regresión)
+  - `server/scripts/verify_budget_01d_regression.js` (10 escenarios de regresión con inspección directa en persistencia)
   - `docs/BUDGET-01D_H01_REMEDIATION_REPORT.md` (Informe de remediación)
 
 ### 6.2 Repositorio Secundario: Control Plane (`ppos-control-plane`)
 - **Pull Request:** [PR #6](https://github.com/PrintPriceOS/ppos-control-plane/pull/6)
 - **Rama:** `feat/budget-01-marketplace-paper-catalog` → `feat/paper-supplier-hub-completion`
-- **Commit SHA Actualizado:** `a378ff534125cb2f3ed6b4c016388bda2035254a`
-- **Estado de Checks:** CI Activo y Enlazado en GitHub Actions (`build`).
+- **Commit SHA Definitivo:** `a378ff534125cb2f3ed6b4c016388bda2035254a`
+- **Estado de Checks:** **PASS** (`build` superado en 2m23s).
+- **Archivos Modificados:**
+  - `.github/workflows/ci.yml` (Habilitación de trigger PR hacia rama base `feat/paper-supplier-hub-completion`)
+  - `src/api/routes/marketplacePublic.js` (Catálogo público de papel saneado sin credenciales ni sobreescritura de tenant)
 
 ---
 
 ## 7. Dictamen Final y Recomendación
 
 ### Dictamen: **BUDGET-01C_PASS**
-El defecto crítico H-01 ha quedado completamente eliminado. Las 10 pruebas de regresión, los 26 tests adversariales, el chequeo de TypeScript y el build de producción se encuentran superados al 100%.
+El defecto crítico H-01 ha quedado completamente eliminado. Las 10 pruebas de regresión, los 26 tests adversariales, el chequeo de TypeScript, el build de producción y los pipelines oficiales de GitHub Actions en ambos repositorios se encuentran acreditados al **100% PASS**.
 
 ### Directriz Operativa:
 - **NO MERGE:** Ambos pull requests deben permanecer en estado OPEN sin fusionar hasta que el revisor o Lead de Operaciones emita la orden formal de merge.

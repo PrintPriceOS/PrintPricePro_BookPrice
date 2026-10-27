@@ -28,7 +28,7 @@ export type FinishingOption =
 
 export type EndpapersOption = 'none' | 'standard';
 
-export type EndpapersPrint = '' | '1/0' | '4/0' | '1/1' | '4/4';
+export type EndpapersPrint = '' | '1/0' | '4/0' | '1/1' | '4/4' | 'none';
 
 export type PaperTypeInterior = 'offset' | 'mc' | 'lux' | 'munken' | 'other';
 

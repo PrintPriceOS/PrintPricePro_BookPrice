@@ -37,6 +37,9 @@ export interface CatalogItem {
   caliperRevision?: number | null;
   finish: string | null;
   grainDirection: string;
+  paperType?: string | null;
+  coatingStatus?: string | null;
+  originalCode?: string | null;
   isReel: boolean;
   isAvailable: boolean;
   certifications?: string[];
@@ -256,7 +259,11 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
     brand: variant.brand || variant.manufacturer || 'Control Plane Certified',
     category: variant.category,
     gsm: variant.gsm,
-    finish: variant.finish || variant.finishSummary || undefined,
+    finish: (variant.finish && variant.finish !== 'UNKNOWN') ? variant.finish : (variant.finishSummary && variant.finishSummary !== 'UNKNOWN' ? variant.finishSummary : undefined),
+    paperType: variant.paperType || variant.category || 'OTHER',
+    coatingStatus: variant.coatingStatus || 'UNKNOWN',
+    grainDirection: variant.grainDirection || 'UNKNOWN',
+    originalCode: variant.originalCode || null,
     caliperUm: variant.caliperUm ?? null,
     caliper_um: variant.caliperUm ?? null,
     caliperMm: variant.caliperMm ?? null,
@@ -547,7 +554,7 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
                         ) : (
                           currentProductVariants.map((v) => (
                             <option key={v.variantId} value={v.variantId}>
-                              {v.gsm} GSM · {v.finish || v.finishSummary || 'Standard'}{v.caliperUm ? ` · ${v.caliperUm} µm` : ''} · {v.sheetFormat || `${v.widthMm}x${v.heightMm} mm`}
+                              {v.gsm} GSM · {(v.finish && v.finish !== 'UNKNOWN') ? v.finish : (v.finishSummary && v.finishSummary !== 'UNKNOWN' ? v.finishSummary : 'Finish unspecified')} · {(v.grainDirection && v.grainDirection !== 'UNKNOWN') ? v.grainDirection : 'Grain unspecified'}{v.caliperUm ? ` · ${v.caliperUm} µm` : ''} · {v.sheetFormat || `${v.widthMm}x${v.heightMm} mm`}
                             </option>
                           ))
                         )}
@@ -646,7 +653,7 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
                         </div>
                         <div>
                           <span className="text-[9px] text-corporate-muted uppercase block">Surface Finish</span>
-                          <span className="text-corporate-text font-bold uppercase">{selectedMaterial.finish || 'Standard'}</span>
+                          <span className="text-corporate-text font-bold uppercase">{(selectedMaterial.finish && selectedMaterial.finish !== 'UNKNOWN') ? selectedMaterial.finish : 'Finish unspecified'} · {(selectedMaterial.grainDirection && selectedMaterial.grainDirection !== 'UNKNOWN') ? selectedMaterial.grainDirection : 'Grain unspecified'}</span>
                         </div>
                         <div>
                           <span className="text-[9px] text-corporate-muted uppercase block">Parent Sheet (mm)</span>

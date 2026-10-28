@@ -64,7 +64,10 @@ export interface CatalogPaperVariant {
   caliperConfidenceStatus?: string | null;
   caliperRevision?: number | null;
   finish?: string | null;
-  grainDirection?: 'LONG_GRAIN' | 'SHORT_GRAIN' | 'UNKNOWN';
+  paperType?: string | null;
+  coatingStatus?: string | null;
+  grainDirection?: 'LONG_GRAIN' | 'SHORT_GRAIN' | 'UNKNOWN' | string | null;
+  originalCode?: string | null;
   certifications?: string[];
   supplierName?: string | null;
   isAvailable?: boolean;
@@ -90,6 +93,10 @@ export interface SelectedPaperMaterial {
   category: PaperCategory | string;
   gsm: number;
   finish?: string | null;
+  paperType?: string | null;
+  coatingStatus?: string | null;
+  grainDirection?: 'LONG_GRAIN' | 'SHORT_GRAIN' | 'UNKNOWN' | string | null;
+  originalCode?: string | null;
   sheetWidthMm?: number;
   sheetHeightMm?: number;
   caliperUm?: number | null;

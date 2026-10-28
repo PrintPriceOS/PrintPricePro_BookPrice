@@ -44,6 +44,7 @@ import BookPriceForm from './components/BookPriceForm';
 import PrintOffersPanel from './components/PrintOffersPanel';
 import CartPanel from './components/CartPanel';
 import Header from './components/Header';
+import ConfigurationSummary from './components/ConfigurationSummary';
 import { AuthModal } from './components/UserMenu';
 import type { AuthUser } from './components/UserMenu';
 import Toast from './components/Toast';
@@ -62,6 +63,7 @@ import OrderIntentDetails from './components/OrderIntentDetails';
 import { PrinthouseQueue } from './components/PrinthouseQueue';
 import UserOrders from './components/UserOrders';
 import { CustomerRemediationPage } from './components/CustomerRemediationPage';
+import { QuoteRevisionReview } from './components/QuoteRevisionReview';
 
 // ==== Helpers para extraer info del PDF ====
 
@@ -246,19 +248,32 @@ const App: React.FC = () => {
 
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('theme') === 'dark';
+      try {
+        const stored = localStorage.getItem('ppos-theme') || localStorage.getItem('theme');
+        if (stored === 'light' || stored === 'dark') {
+          return stored === 'dark';
+        }
+      } catch {
+        // ignore storage errors
+      }
     }
-    return false;
+    return true; // Default to PrintPrice OS Dark Theme (matches printprice.pro & control.printprice.pro)
   });
 
-  // Sync theme with DOM
+  // Sync theme with DOM & Control Plane ppos-theme key
   useEffect(() => {
     if (isDark) {
       document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
+      try {
+        localStorage.setItem('theme', 'dark');
+        localStorage.setItem('ppos-theme', 'dark');
+      } catch {}
     } else {
       document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
+      try {
+        localStorage.setItem('theme', 'light');
+        localStorage.setItem('ppos-theme', 'light');
+      } catch {}
     }
   }, [isDark]);
 
@@ -266,9 +281,17 @@ const App: React.FC = () => {
     useState<InitialBookPricePayload>(INITIAL_BOOK_PRICE_PAYLOAD);
 
   const [offers, setOffers] = useState<BookPriceResponse | null>(null);
+  const [isSpecsStale, setIsSpecsStale] = useState<boolean>(false);
   const [loadingPdf, setLoadingPdf] = useState<boolean>(false);
   const [loadingOffers, setLoadingOffers] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const calculationSeqRef = useRef<number>(0);
+  const [quoteRevisionToken, setQuoteRevisionToken] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const match = window.location.pathname.match(/^\/(?:quote-)?revision\/([^/]+)/);
+    if (match) return match[1];
+    return new URLSearchParams(window.location.search).get('revision_token');
+  });
 
   const [creatingOrder, setCreatingOrder] = useState(false);
   const [controlPlaneOrderId, setControlPlaneOrderId] = useState<string | null>(null);
@@ -520,10 +543,18 @@ const App: React.FC = () => {
           custom_height: bookPricePayload.custom_height,
         }
         : {}),
+
+      // Advanced Paper Catalog selection (Control Plane Paper Supplier Hub)
+      ...(bookPricePayload.paper_mode_interior ? { paper_mode_interior: bookPricePayload.paper_mode_interior } : {}),
+      ...(bookPricePayload.interior_paper_material ? { interior_paper_material: bookPricePayload.interior_paper_material } : {}),
+      ...(bookPricePayload.paper_mode_cover ? { paper_mode_cover: bookPricePayload.paper_mode_cover } : {}),
+      ...(bookPricePayload.cover_paper_material ? { cover_paper_material: bookPricePayload.cover_paper_material } : {}),
+      ...(bookPricePayload.paper_mode_endpaper ? { paper_mode_endpaper: bookPricePayload.paper_mode_endpaper } : {}),
+      ...(bookPricePayload.endpaper_material ? { endpaper_material: bookPricePayload.endpaper_material } : {}),
     };
   }, [bookPricePayload]);
 
-  // Botón manual "Calculate Price"
+  // Botón manual "Calculate Price" (Protected against out-of-order race conditions)
   const handleCalculatePrice = useCallback(async () => {
     setError(null);
     setOffers(null);
@@ -537,6 +568,7 @@ const App: React.FC = () => {
       return;
     }
 
+    const currentSeq = ++calculationSeqRef.current;
     setLoadingOffers(true);
 
     try {
@@ -583,6 +615,12 @@ const App: React.FC = () => {
 
       const data = await response.json();
       
+      // Guard against race conditions: if a newer calculation was triggered, discard this result
+      if (currentSeq !== calculationSeqRef.current) {
+        console.log(`[BPE_RACE_CONDITION_PREVENTED] Discarding response from calculation #${currentSeq}`);
+        return;
+      }
+
       // v5.3 Phase 4: Handle ok property and session data
       if (data.ok && !data.success) {
           data.success = true;
@@ -606,13 +644,17 @@ const App: React.FC = () => {
       }
 
       setOffers(normalised);
+      setIsSpecsStale(false);
       setTimeout(() => offersRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
     } catch (err: any) {
+      if (currentSeq !== calculationSeqRef.current) return;
       console.error('Error calculating price:', err);
       setError(err?.message || t('api_error_message'));
       setOffers(null);
     } finally {
-      setLoadingOffers(false);
+      if (currentSeq === calculationSeqRef.current) {
+        setLoadingOffers(false);
+      }
     }
   }, [bookPricePayload, buildBookPricePayload]);
 
@@ -1052,7 +1094,15 @@ const App: React.FC = () => {
             role: user?.role
           },
           user_id: user?.user_id,
-          control_plane_order_id: controlPlaneOrderId || undefined
+          control_plane_order_id: controlPlaneOrderId || undefined,
+          customer_paper_preferences: (bookPricePayload?.paper_mode_interior === 'standard' && bookPricePayload?.paper_mode_cover === 'standard' && !bookPricePayload?.interior_paper_material && !bookPricePayload?.cover_paper_material)
+            ? null
+            : (bookPricePayload?.interior_paper_material || bookPricePayload?.cover_paper_material)
+              ? {
+                  interior: bookPricePayload.interior_paper_material || null,
+                  cover: bookPricePayload.cover_paper_material || null,
+                }
+              : (cartItem?.specs?.customer_paper_preferences ?? undefined)
         }),
       });
       if (!res.ok) {
@@ -1145,7 +1195,7 @@ const App: React.FC = () => {
   const remediationMatch = window.location.pathname.match(/^\/remediation\/([^/]+)\/([^/]+)/);
 
   return (
-    <div className="flex flex-col min-h-screen bg-corporate-primary selection:bg-corporate-accent selection:text-white">
+    <div className="flex flex-col min-h-screen bg-corporate-primary tactical-grid text-corporate-text selection:bg-corporate-accent selection:text-white">
       {/* Honeypot Node - Anti-Bot */}
       <input type="text" id="hp_node" style={{ display: 'none' }} tabIndex={-1} autoComplete="off" />
 
@@ -1165,12 +1215,34 @@ const App: React.FC = () => {
         onViewChange={ENABLE_PUBLIC_CONSOLE ? setCurrentView : undefined}
       />
 
-      <main className="flex-1 container mx-auto px-4 py-8 md:py-12 max-w-[1400px]">
+      <main className="flex-1 w-full mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6 md:py-8 max-w-[1400px] pb-24 lg:pb-12">
         {remediationMatch ? (
           <CustomerRemediationPage
             orderId={remediationMatch[1]}
             token={remediationMatch[2]}
           />
+        ) : quoteRevisionToken ? (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between pb-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setQuoteRevisionToken(null);
+                  window.history.pushState({}, '', '/');
+                }}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-corporate-border hover:border-corporate-accent bg-corporate-secondary text-corporate-text-secondary hover:text-corporate-accent text-[10px] font-technical uppercase font-bold tracking-wider sm:tracking-monolith transition-all shadow-sm"
+              >
+                ← Return to Calculator
+              </button>
+            </div>
+            <QuoteRevisionReview
+              token={quoteRevisionToken}
+              onClose={() => {
+                setQuoteRevisionToken(null);
+                window.history.pushState({}, '', '/');
+              }}
+            />
+          </div>
         ) : currentView === 'marketplace' ? (
           <>
             {/* Visual Workflow Guidance */}
@@ -1195,11 +1267,11 @@ const App: React.FC = () => {
               selectedOfferId={selectedOfferId}
             />
 
-            <section className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] items-start">
+            <section className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.12fr)_minmax(0,0.88fr)] gap-6 items-start">
               {/* Left: PDF + form */}
-              <div className="space-y-6">
-                <div className="bg-corporate-secondary p-6 md:p-8 border-l border-white/5 transition-all hover:bg-corporate-primary/50">
-                  <h2 className="text-[0.7rem] font-technical font-black tracking-monolith text-corporate-accent mb-6 uppercase">
+              <div className="space-y-6 min-w-0">
+                <div className="bg-corporate-secondary p-4 sm:p-6 md:p-8 rounded-2xl shadow-sm border border-corporate-border border-l-4 border-l-corporate-accent transition-all">
+                  <h2 className="text-[0.7rem] font-technical font-black tracking-wider sm:tracking-monolith text-corporate-accent mb-6 uppercase break-words">
                     {t('upload_pdf_instructions')}
                   </h2>
                   <PdfUploadDropzone
@@ -1225,12 +1297,21 @@ const App: React.FC = () => {
                   loading={loadingOffers}
                   hasPdf={!!pdfFile}
                   isAdmin={isAdmin}
+                  onSpecsInvalidated={() => setIsSpecsStale(true)}
                 />
               </div>
 
-              {/* Right: Offers */}
-              <div className="flex flex-col gap-6">
-                <div ref={offersRef}>
+              {/* Right: Configuration Snapshot & Offers */}
+              <div className="flex flex-col gap-6 min-w-0">
+                <ConfigurationSummary
+                  payload={bookPricePayload}
+                  offers={offers}
+                  isSpecsStale={isSpecsStale}
+                  onRecalculate={handleCalculatePrice}
+                  loading={loadingOffers}
+                />
+
+                <div ref={offersRef} className="min-w-0">
                   <PrintOffersPanel
                     offers={offers}
                     loading={loadingOffers}
@@ -1241,7 +1322,7 @@ const App: React.FC = () => {
                 </div>
 
                 {orderSuccess && (
-                  <div className="bg-corporate-secondary border border-corporate-accent/30 p-8 flex items-start gap-6">
+                  <div className="bg-corporate-secondary rounded-2xl shadow-sm border border-corporate-accent/30 p-6 sm:p-8 flex items-start gap-6">
                     <div className="w-2 h-2 mt-1 bg-corporate-accent shrink-0" />
                     <div>
                       <p className="text-[0.7rem] font-technical font-black tracking-monolith text-corporate-accent uppercase mb-2">
@@ -1254,7 +1335,7 @@ const App: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => selectedIntentId && setSelectedIntentId(selectedIntentId)}
-                          className="bg-corporate-accent hover:bg-corporate-accent-hover px-4 py-1.5 text-[10px] font-black uppercase tracking-monolith text-white transition-colors"
+                          className="bg-corporate-accent hover:bg-corporate-accent-hover px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-monolith text-white transition-colors"
                         >
                           View Details & Preflight
                         </button>
@@ -1275,7 +1356,7 @@ const App: React.FC = () => {
                   !loadingPdf &&
                   !loadingOffers &&
                   !offers && (
-                    <div className="flex-1 flex items-center justify-center border border-white/5 bg-corporate-secondary p-12">
+                    <div className="flex-1 flex items-center justify-center rounded-2xl shadow-sm border border-corporate-border bg-corporate-secondary p-6 sm:p-10">
                       <div className="text-center text-corporate-muted font-technical text-xs tracking-widest uppercase">
                         {t('enter_specs_or_upload_pdf')}
                       </div>
@@ -1286,7 +1367,7 @@ const App: React.FC = () => {
 
             {/* Production Files Step (v5.3) */}
             {cart.length > 0 && (
-              <div ref={productionFilesRef} className="mt-8 border-t border-white/5 pt-12">
+              <div ref={productionFilesRef} className="mt-8 border-t border-corporate-border pt-10">
                 <ProductionFilesPanel
                   cartItem={cart[0]}
                   filesState={productionFiles}

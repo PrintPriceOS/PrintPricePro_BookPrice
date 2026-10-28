@@ -39,7 +39,7 @@ const PdfUploadDropzone: React.FC<PdfUploadDropzoneProps> = ({ onFileSelect, loa
       if (file.type === 'application/pdf') {
         onFileSelect(file);
       } else {
-        alert('Please drop a PDF file.'); // Simple alert for non-PDF files
+        alert('Please drop a PDF file.');
       }
       e.dataTransfer.clearData();
     }
@@ -51,7 +51,7 @@ const PdfUploadDropzone: React.FC<PdfUploadDropzoneProps> = ({ onFileSelect, loa
       if (file.type === 'application/pdf') {
         onFileSelect(file);
       } else {
-        alert('Please select a PDF file.'); // Simple alert for non-PDF files
+        alert('Please select a PDF file.');
       }
     }
   }, [onFileSelect]);
@@ -62,9 +62,9 @@ const PdfUploadDropzone: React.FC<PdfUploadDropzoneProps> = ({ onFileSelect, loa
 
   return (
     <div
-      className={`relative p-12 border-2 border-dashed transition-all duration-300 text-center group
-        ${isDragging ? 'border-corporate-accent bg-corporate-accent/5' : 'border-white/10 bg-corporate-primary'}
-        ${error ? 'border-corporate-accent/50 bg-corporate-accent/5' : ''}
+      className={`relative p-4 sm:p-7 rounded-xl border-2 border-dashed transition-all duration-200 text-center group min-w-0
+        ${isDragging ? 'border-corporate-accent bg-corporate-accent/5' : 'border-corporate-border-strong bg-corporate-elevated/60 hover:border-corporate-accent/50'}
+        ${error ? 'border-corporate-accent/60 bg-corporate-accent/5' : ''}
       `}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
@@ -80,30 +80,42 @@ const PdfUploadDropzone: React.FC<PdfUploadDropzoneProps> = ({ onFileSelect, loa
         disabled={loading}
       />
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-6">
-          <div className="w-8 h-8 border-2 border-corporate-accent border-b-transparent animate-spin" />
-          <p className="mt-6 text-[0.6rem] font-technical font-black tracking-monolith text-corporate-accent uppercase">{t('processing_pdf')}</p>
+        <div className="flex flex-col items-center justify-center py-4">
+          <div className="w-7 h-7 rounded-full border-2 border-corporate-accent border-b-transparent animate-spin" />
+          <p className="mt-4 text-[10px] font-technical font-black tracking-wider sm:tracking-monolith text-corporate-accent uppercase">
+            {t('processing_pdf')}
+          </p>
         </div>
       ) : fileName ? (
-        <div className="flex items-center justify-between space-x-4 text-corporate-accent font-technical font-black uppercase tracking-monolith text-[0.7rem] bg-corporate-accent/5 p-4 border border-corporate-accent/20">
-          <div className="flex items-center space-x-3 truncate">
-            <DocumentTextIcon className="h-5 w-5" />
+        <div className="flex items-center justify-between gap-3 text-corporate-accent font-technical font-black uppercase tracking-wider text-xs bg-corporate-accent/5 p-3.5 rounded-xl border border-corporate-accent/30 min-w-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <DocumentTextIcon className="h-5 w-5 shrink-0" />
             <span className="truncate">{fileName}</span>
           </div>
           <button
+            type="button"
             onClick={(e) => { e.stopPropagation(); handleRemoveFile(); }}
-            className="text-white hover:text-corporate-accent transition-colors duration-200"
+            className="text-corporate-text hover:text-corporate-accent transition-colors duration-200 relative z-10 shrink-0"
             aria-label="Remove PDF file"
           >
             <XCircleIcon className="h-5 w-5" />
           </button>
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center py-6">
-          <ArrowUpTrayIcon className="h-10 w-10 text-corporate-accent/40 group-hover:text-corporate-accent transition-colors duration-300" />
-          <p className="mt-6 text-[0.6rem] font-sans font-black tracking-monolith text-corporate-text-secondary uppercase group-hover:text-white transition-colors duration-300">{t('upload_pdf_instructions')}</p>
-          <p className="mt-2 text-[0.5rem] font-technical text-corporate-muted uppercase tracking-widest leading-none">Accepted node: application/pdf</p>
+        <div className="flex flex-col items-center justify-center py-2 sm:py-3">
+          <ArrowUpTrayIcon className="h-6 w-6 sm:h-7 sm:w-7 text-corporate-text-secondary group-hover:text-corporate-accent transition-colors duration-200" />
+          <p className="mt-2.5 text-[11px] font-sans font-black tracking-wider sm:tracking-monolith text-corporate-text uppercase break-words">
+            {t('upload_pdf_instructions')}
+          </p>
+          <p className="mt-1 text-[9px] font-technical text-corporate-muted uppercase tracking-wider">
+            PDF Page Count &amp; Trim Size Auto-Detection
+          </p>
         </div>
+      )}
+      {error && (
+        <p className="mt-3 text-[10px] text-corporate-accent font-technical uppercase tracking-wider break-words">
+          [!] {error}
+        </p>
       )}
     </div>
   );

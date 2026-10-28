@@ -1,0 +1,37 @@
+name: Budget App CI
+
+on:
+  push:
+    branches: [ main, 'feat/**' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate-and-test:
+    name: Validation & Regression Suite
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'npm'
+
+      - name: Install Root Dependencies
+        run: npm ci
+
+      - name: Install Server Dependencies
+        run: npm ci --prefix server
+
+      - name: TypeScript Typecheck
+        run: npx tsc --noEmit
+
+      - name: Production Vite Build
+        run: npm run build
+
+      - name: Run BUDGET-01D Mandatory Regression Suite
+        run: node server/scripts/verify_budget_01d_regression.js

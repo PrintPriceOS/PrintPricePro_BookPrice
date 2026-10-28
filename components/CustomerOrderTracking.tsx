@@ -148,9 +148,9 @@ export const CustomerOrderTracking: React.FC<CustomerOrderTrackingProps> = ({ or
 
   return (
     <div className="fixed inset-0 z-[60] bg-corporate-primary/95 backdrop-blur-xl flex items-center justify-center p-4 md:p-8">
-      <div className="bg-corporate-secondary border border-white/10 w-full max-w-4xl h-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+      <div className="bg-corporate-secondary border border-corporate-border w-full max-w-4xl h-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
         {/* Header */}
-        <div className="bg-black/40 border-b border-white/5 p-6 flex items-center justify-between">
+        <div className="bg-black/40 border-b border-corporate-border p-6 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-3 mb-1">
               <span className="text-[0.6rem] font-technical font-black tracking-monolith text-corporate-muted uppercase">
@@ -160,11 +160,11 @@ export const CustomerOrderTracking: React.FC<CustomerOrderTrackingProps> = ({ or
                 {tracking.public_ref}
               </span>
             </div>
-            <h1 className="text-xl font-black text-white tracking-tight">Order Tracking View</h1>
+            <h1 className="text-xl font-black text-corporate-text tracking-tight">Order Tracking View</h1>
           </div>
           <button 
             onClick={onClose}
-            className="p-2 hover:bg-white/5 text-corporate-muted hover:text-white transition-all"
+            className="p-2 hover:bg-corporate-elevated text-corporate-muted hover:text-corporate-text transition-all"
           >
             <XMarkIcon className="w-6 h-6" />
           </button>
@@ -175,13 +175,13 @@ export const CustomerOrderTracking: React.FC<CustomerOrderTrackingProps> = ({ or
           <div className="grid gap-8 lg:grid-cols-[1fr_300px]">
             {/* Main Status */}
             <div className="space-y-8">
-              <div className="bg-corporate-primary/50 border border-white/5 p-8 flex items-start gap-6">
+              <div className="bg-corporate-primary/50 border border-corporate-border p-8 flex items-start gap-6">
                 <div className="p-4 bg-corporate-accent/10 rounded-lg">
                   {getStatusIcon(tracking.customer_status)}
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-2">
-                    <h2 className="text-2xl font-black text-white tracking-tight">{tracking.headline}</h2>
+                    <h2 className="text-2xl font-black text-corporate-text tracking-tight">{tracking.headline}</h2>
                     <span className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded ${
                       tracking.customer_status === 'SHIPPED' ? 'bg-corporate-accent text-white' : 
                       tracking.customer_status === 'ACTION_REQUIRED' ? 'bg-red-500 text-white' : 'bg-white/10 text-corporate-muted'
@@ -192,7 +192,7 @@ export const CustomerOrderTracking: React.FC<CustomerOrderTrackingProps> = ({ or
                   <p className="text-corporate-text-secondary text-sm mb-4">{tracking.description}</p>
                   
                   {tracking.next_action && (
-                    <div className="flex items-center gap-2 text-[10px] font-technical font-black tracking-monolith text-corporate-accent uppercase pt-4 border-t border-white/5">
+                    <div className="flex items-center gap-2 text-[10px] font-technical font-black tracking-monolith text-corporate-accent uppercase pt-4 border-t border-corporate-border">
                       <ChevronRightIcon className="w-3 h-3" />
                       Next Action: {tracking.next_action}
                     </div>
@@ -218,7 +218,7 @@ export const CustomerOrderTracking: React.FC<CustomerOrderTrackingProps> = ({ or
                       <div className="pb-4">
                         <div className="flex items-center gap-3 mb-1">
                           <span className={`text-[11px] font-black uppercase tracking-widest ${
-                            step.status === 'DONE' ? 'text-white' : (step.status === 'CURRENT' ? 'text-corporate-accent' : 'text-corporate-muted')
+                            step.status === 'DONE' ? 'text-corporate-text' : (step.status === 'CURRENT' ? 'text-corporate-accent' : 'text-corporate-muted')
                           }`}>
                             {step.label}
                           </span>
@@ -241,7 +241,7 @@ export const CustomerOrderTracking: React.FC<CustomerOrderTrackingProps> = ({ or
             {/* Sidebar Details */}
             <div className="space-y-6">
               {/* Payment Summary */}
-              <div className="bg-corporate-primary/30 border border-white/5 p-6 rounded-lg">
+              <div className="bg-corporate-primary/30 border border-corporate-border p-6 rounded-lg">
                 <h4 className="text-[0.6rem] font-technical font-black tracking-monolith text-corporate-muted uppercase mb-4">Payment Summary</h4>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
@@ -250,14 +250,14 @@ export const CustomerOrderTracking: React.FC<CustomerOrderTrackingProps> = ({ or
                       {tracking.payment.status}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center pt-2 border-t border-white/5">
+                  <div className="flex justify-between items-center pt-2 border-t border-corporate-border">
                     <span className="text-[10px] text-corporate-muted uppercase">Amount</span>
-                    <span className="text-[11px] font-black text-white">
+                    <span className="text-[11px] font-black text-corporate-text">
                       {tracking.payment.amount?.toFixed(2)} {tracking.payment.currency}
                     </span>
                   </div>
                   {tracking.payment.invoice_number && (
-                    <div className="pt-2 border-t border-white/5">
+                    <div className="pt-2 border-t border-corporate-border">
                        <span className="text-[8px] text-corporate-muted uppercase block mb-1">Invoice</span>
                        <span className="text-[10px] font-technical text-corporate-accent break-all">
                          {tracking.payment.invoice_number}
@@ -268,20 +268,20 @@ export const CustomerOrderTracking: React.FC<CustomerOrderTrackingProps> = ({ or
               </div>
 
               {/* Production/Shipping */}
-              <div className="bg-corporate-primary/30 border border-white/5 p-6 rounded-lg">
+              <div className="bg-corporate-primary/30 border border-corporate-border p-6 rounded-lg">
                 <h4 className="text-[0.6rem] font-technical font-black tracking-monolith text-corporate-muted uppercase mb-4">Fulfillment</h4>
                 <div className="space-y-4">
                   <div>
                     <span className="text-[8px] text-corporate-muted uppercase block mb-1">Facility</span>
-                    <span className="text-[10px] font-black text-white uppercase">{tracking.production.printhouse_name || 'Awaiting Dispatch'}</span>
+                    <span className="text-[10px] font-black text-corporate-text uppercase">{tracking.production.printhouse_name || 'Awaiting Dispatch'}</span>
                   </div>
                   
                   {tracking.shipping.carrier && (
-                    <div className="pt-4 border-t border-white/5">
+                    <div className="pt-4 border-t border-corporate-border">
                       <span className="text-[8px] text-corporate-muted uppercase block mb-1">Shipping</span>
                       <div className="flex items-center gap-2 mb-1">
                         <TruckIcon className="w-3 h-3 text-corporate-accent" />
-                        <span className="text-[10px] font-black text-white uppercase">{tracking.shipping.carrier}</span>
+                        <span className="text-[10px] font-black text-corporate-text uppercase">{tracking.shipping.carrier}</span>
                       </div>
                       <div className="bg-black/40 p-2 rounded text-[10px] font-technical text-corporate-accent select-all cursor-copy">
                         {tracking.shipping.tracking_number}
@@ -305,7 +305,7 @@ export const CustomerOrderTracking: React.FC<CustomerOrderTrackingProps> = ({ or
         </div>
 
         {/* Footer */}
-        <div className="bg-black/20 border-t border-white/5 p-4 flex justify-center">
+        <div className="bg-black/20 border-t border-corporate-border p-4 flex justify-center">
            <p className="text-[8px] font-technical text-corporate-muted uppercase tracking-[0.2em]">
              Forensic Production Tracking System v5.3 • Internal Link Encrypted
            </p>

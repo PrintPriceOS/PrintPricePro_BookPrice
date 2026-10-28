@@ -2,80 +2,178 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ==========================================================================
+   PRINTPRICE OS — UNIFIED DESIGN SYSTEM TOKENS (CORPORATE + CONTROL PLANE)
+   ========================================================================== */
+
 :root {
-  /* BACKGROUNDS - LIGHT (DEFAULT) */
-  --bg-primary: #f6f6f7;      /* The Canvas (Surface) */
-  --bg-secondary: #ffffff;    /* Surface Container Lowest (Recessed) */
-  --bg-elevated: #e5e5e7;     /* Surface Bright (Technical Insets) */
-  --bg-surface-glass: rgba(0, 0, 0, 0.03); /* Reactive depth */
+  /* BACKGROUNDS — LIGHT MODE (WCAG AA High Contrast) */
+  --ppos-bg: #f8fafc;
+  --ppos-surface: #ffffff;
+  --ppos-surface-muted: #f1f5f9;
+  --ppos-border: #e2e8f0;
+  --ppos-text: #0f172a;
+  --ppos-text-muted: #64748b;
+  --ppos-accent: #dc0000;
 
-  /* ACCENTS */
-  --accent-primary: #dc0000;  /* Unified Red Signal (Primary Action) */
-  --accent-hover: #ff0000;    /* Interactive Overdrive */
-  --accent-container: rgba(220, 0, 0, 0.05); /* Status Recess */
+  --bg-primary: #f8fafc;                    /* Canvas background */
+  --bg-secondary: #ffffff;                  /* Primary card/panel surface */
+  --bg-elevated: #f1f5f9;                   /* Technical inset / input surface */
+  --bg-surface-glass: rgba(15, 23, 42, 0.04);
 
-  /* TEXT - LIGHT */
-  --text-primary: #131314;    /* On-Surface High Contrast */
-  --text-secondary: #5e5e62;  /* Neutral Supporting Text */
-  --text-muted: #8d8d91;      /* Infrastructure De-emphasis */
+  /* ACCENTS — PRINTPRICE INDUSTRIAL RED */
+  --accent-primary: #dc0000;
+  --accent-hover: #b90000;
+  --accent-text: #b90000;
+  --accent-container: rgba(185, 0, 0, 0.07);
 
-  /* BORDERS - LIGHT */
-  --border-subtle: rgba(0, 0, 0, 0.08); /* Ghost boundaries */
-  --border-active: rgba(220, 0, 0, 0.2);      /* Focus indicators */
-  
+  /* TEXT — LIGHT MODE */
+  --text-primary: #0f172a;                  /* High contrast primary text (16.8:1) */
+  --text-secondary: #334155;                /* Supporting labels & specs (9.8:1) */
+  --text-muted: #475569;                    /* Metadata & helper copy (>= 6.7:1 on #f1f5f9) */
+
+  /* BORDERS — LIGHT MODE */
+  --border-subtle: #e2e8f0;                 /* Structural panel & input border */
+  --border-strong: #cbd5e1;                 /* Interactive control border */
+  --border-active: rgba(185, 0, 0, 0.45);   /* Active / focus signal border */
+
+  /* SEMANTIC STATUS — LIGHT MODE */
+  --status-success-text: #065f46;
+  --status-success-bg: rgba(16, 185, 129, 0.10);
+  --status-success-border: rgba(16, 185, 129, 0.30);
+
+  --status-warning-text: #92400e;
+  --status-warning-bg: rgba(245, 158, 11, 0.10);
+  --status-warning-border: rgba(245, 158, 11, 0.35);
+
   /* SPACING */
-  --monolith-gap: clamp(4rem, 12vw, 10rem);
+  --monolith-gap: clamp(3rem, 8vw, 6rem);
 }
 
 .dark {
-  /* BACKGROUNDS - DARK */
-  --bg-primary: #131314;      /* The Canvas (Surface) */
-  --bg-secondary: #0e0e0f;    /* Surface Container Lowest (Recessed) */
-  --bg-elevated: #1e1e1f;     /* Surface Bright (Technical Insets) */
-  --bg-surface-glass: rgba(255, 255, 255, 0.03); /* Reactive depth */
+  /* BACKGROUNDS — DARK MODE (DEFAULT — Matches printprice.pro & control.printprice.pro) */
+  --ppos-bg: #0e0e0f;
+  --ppos-surface: #131314;
+  --ppos-surface-muted: #1a1a1b;
+  --ppos-border: rgba(255, 255, 255, 0.10);
+  --ppos-text: #f4f4f5;
+  --ppos-text-muted: #a1a1aa;
+  --ppos-accent: #dc0000;
+
+  --bg-primary: #0e0e0f;                    /* Deep Monolith Canvas */
+  --bg-secondary: #131314;                  /* Primary Panel Surface */
+  --bg-elevated: #1a1a1b;                   /* Elevated Technical Inset / Input */
+  --bg-surface-glass: rgba(255, 255, 255, 0.04);
 
   /* ACCENTS */
   --accent-primary: #dc0000;
-  --accent-hover: #ff0000;
-  --accent-container: rgba(220, 0, 0, 0.1);
+  --accent-hover: #b90000;
+  --accent-text: #ff5252;
+  --accent-container: rgba(220, 0, 0, 0.12);
 
-  /* TEXT - DARK */
-  --text-primary: #e5e2e3;    /* On-Surface High Contrast */
-  --text-secondary: #8d8d91;  /* Neutral Supporting Text */
-  --text-muted: #5e3f3a;      /* Infrastructure De-emphasis */
+  /* TEXT — DARK MODE */
+  --text-primary: #f4f4f5;                  /* Crisp Off-White (17.4:1) */
+  --text-secondary: #a1a1aa;                /* Zinc-400 Supporting Text (7.8:1) */
+  --text-muted: #9ca3af;                    /* Gray-400 Technical Metadata (>= 5.8:1 on #1a1a1b) */
 
-  /* BORDERS - DARK */
-  --border-subtle: rgba(255, 255, 255, 0.08); /* Ghost boundaries */
-  --border-active: rgba(220, 0, 0, 0.3);      /* Focus indicators */
+  /* BORDERS — DARK MODE */
+  --border-subtle: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --border-active: rgba(220, 0, 0, 0.50);
+
+  /* SEMANTIC STATUS — DARK MODE */
+  --status-success-text: #34d399;
+  --status-success-bg: rgba(16, 185, 129, 0.12);
+  --status-success-border: rgba(16, 185, 129, 0.30);
+
+  --status-warning-text: #fbbf24;
+  --status-warning-bg: rgba(245, 158, 11, 0.12);
+  --status-warning-border: rgba(245, 158, 11, 0.35);
 }
 
-/* Global Reset & Dark Mode Enforcement */
-body {
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
   margin: 0;
+  padding: 0;
+  max-width: 100%;
+  overflow-x: hidden;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
+  transition: background-color 0.2s linear, color 0.2s linear;
 }
 
-/* Strict 0px Border Radius Law */
-* {
-  border-radius: 0 !important;
+/* Native select option legibility across themes */
+select option {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+/* Accessible Visible Focus Indicator (Aligned with Control Plane) */
+:focus-visible,
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid #dc0000 !important;
+  outline-offset: 2px !important;
+}
+
+/* Tactical Industrial Grid Background (Shared with Control Plane) */
+.tactical-grid {
+  background-image:
+    linear-gradient(rgba(15, 23, 42, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.03) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.dark .tactical-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Semantic Status Utility Classes */
+.badge-success {
+  color: var(--status-success-text);
+  background-color: var(--status-success-bg);
+  border-color: var(--status-success-border);
+}
+
+.badge-warning {
+  color: var(--status-warning-text);
+  background-color: var(--status-warning-bg);
+  border-color: var(--status-warning-border);
 }
 
 /* Custom styles for transitions */
 .fade-in {
-  animation: fadeIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: fadeIn 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* Scrollbar styling - Monolith Dark */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -86,27 +184,36 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--bg-elevated);
+  background: var(--border-strong);
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--accent-primary);
 }
 
-/* Monolith Selection */
+/* Selection */
 ::selection {
   background-color: var(--accent-primary);
-  color: white;
+  color: #ffffff;
 }
 
 /* Utilities */
 .bg-glass {
   background: var(--bg-surface-glass);
-  backdrop-filter: blur(20px);
+  backdrop-filter: blur(16px);
 }
 
-.text-signal {
-  color: var(--accent-primary);
+.text-signal,
+.text-corporate-accent {
+  color: var(--accent-text) !important;
+}
+
+.bg-corporate-accent {
+  background-color: #b90000 !important;
+}
+
+.dark .bg-corporate-accent {
+  background-color: #dc0000 !important;
 }
 
 .border-signal {

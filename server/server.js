@@ -387,6 +387,118 @@ const getOrCreateSessionId = (req, res) => {
     return sessionId;
 };
 
+// ---- BUDGET-01: Canonical Paper Preferences Validation & Resolution ----
+const CANONICAL_PAPER_CATEGORIES = ['OFFSET', 'COATED', 'CARTON', 'DESIGN', 'DIGITAL', 'OTHER'];
+const PAPER_ID_REGEX = /^[a-zA-Z0-9_-]{1,100}$/;
+
+/**
+ * Validates and sanitizes a single paper section preference (interior, cover, endpaper).
+ * - Validates allowed fields, data types, string lengths, and ID patterns.
+ * - Forces status and availability to CUSTOMER_PREFERENCE_PENDING_CONFIRMATION on the server.
+ * Returns sanitized object, or null if invalid.
+ */
+function sanitizePaperSectionPreference(sectionPref) {
+    if (!sectionPref || typeof sectionPref !== 'object' || Array.isArray(sectionPref)) {
+        return null;
+    }
+
+    const productId = sectionPref.productId || sectionPref.product_id;
+    const variantId = sectionPref.variantId || sectionPref.variant_id;
+    const productName = sectionPref.productName || sectionPref.product_name;
+
+    if (typeof productId !== 'string' || !PAPER_ID_REGEX.test(productId)) {
+        return null;
+    }
+    if (typeof variantId !== 'string' || !PAPER_ID_REGEX.test(variantId)) {
+        return null;
+    }
+    if (typeof productName !== 'string' || productName.trim().length === 0 || productName.length > 150) {
+        return null;
+    }
+
+    const gsmNum = Number(sectionPref.gsm);
+    if (!Number.isInteger(gsmNum) || gsmNum < 30 || gsmNum > 1000) {
+        return null;
+    }
+
+    const rawCategory = typeof sectionPref.category === 'string' ? sectionPref.category.toUpperCase().trim() : 'OTHER';
+    const category = CANONICAL_PAPER_CATEGORIES.includes(rawCategory) ? rawCategory : 'OTHER';
+
+    const brand = typeof sectionPref.brand === 'string' && sectionPref.brand.trim().length > 0 && sectionPref.brand.length <= 100
+        ? sectionPref.brand.trim()
+        : null;
+
+    const finish = typeof sectionPref.finish === 'string' && sectionPref.finish.trim().length > 0 && sectionPref.finish.length <= 100
+        ? sectionPref.finish.trim()
+        : null;
+
+    const rawSheet = sectionPref.rawSheetFormat || sectionPref.raw_sheet_format || sectionPref.sheetFormat || sectionPref.sheet_format;
+    const rawSheetFormat = typeof rawSheet === 'string' && rawSheet.trim().length > 0 && rawSheet.length <= 100
+        ? rawSheet.trim()
+        : null;
+
+    return {
+        productId,
+        variantId,
+        productName: productName.trim(),
+        brand,
+        category,
+        gsm: gsmNum,
+        finish,
+        rawSheetFormat,
+        // Server-governed: stock is strictly subject to printhouse confirmation
+        availability: 'CUSTOMER_PREFERENCE_PENDING_CONFIRMATION',
+        status: 'CUSTOMER_PREFERENCE_PENDING_CONFIRMATION'
+    };
+}
+
+/**
+ * Resolves updated customer paper preferences against existing baseline preferences.
+ * Adheres strictly to the 3-state protocol:
+ * 1. Campo omitido (undefined): conservar preferencia anterior.
+ * 2. Null explícito (null): eliminar preferencia (retorna null).
+ * 3. Objeto válido: sustituir secciones o eliminar secciones si son null.
+ */
+function resolveCustomerPaperPreferences(incoming, previous) {
+    // 1. Campo omitido (undefined): conservar preferencia anterior
+    if (incoming === undefined) {
+        return previous !== undefined ? previous : null;
+    }
+
+    // 2. Null explícito: eliminar preferencia por completo
+    if (incoming === null) {
+        return null;
+    }
+
+    // Si viene un valor no válido (ej. string, boolean o array), conservar anterior o null
+    if (typeof incoming !== 'object' || Array.isArray(incoming)) {
+        return previous || null;
+    }
+
+    const prev = (previous && typeof previous === 'object') ? previous : {};
+    const result = {};
+    const sections = ['interior', 'cover', 'endpaper'];
+
+    for (const sec of sections) {
+        if (incoming[sec] === undefined) {
+            // Omitido: conservar valor previo
+            if (prev[sec]) {
+                result[sec] = prev[sec];
+            }
+        } else if (incoming[sec] === null) {
+            // Null explícito para la sección: eliminar sección
+        } else {
+            // Objeto para la sección: validar y sustituir
+            const sanitized = sanitizePaperSectionPreference(incoming[sec]);
+            if (sanitized) {
+                result[sec] = sanitized;
+            }
+        }
+    }
+
+    return Object.keys(result).length > 0 ? result : null;
+}
+
 /**
  * Resolves the authenticated or anonymous identity of the requester.
  * (v5.3 - Phase 9 Hardening)
@@ -951,6 +1063,12 @@ const buildCanonicalOrderSnapshot = (orderIntent, session, resolvedOffer, interi
         return isNaN(n) ? fallback : n;
     };
 
+    // Canonical customer paper preferences: orderIntent already holds the authoritative resolved preference.
+    // Fall back to resolving raw specs ONLY if orderIntent.customer_paper_preferences is undefined.
+    const canonicalPaperPreferences = orderIntent.customer_paper_preferences !== undefined
+        ? orderIntent.customer_paper_preferences
+        : resolveCustomerPaperPreferences(specs.customer_paper_preferences, session.normalized_specs?.customer_paper_preferences);
+
     const snapshot = {
         order_intent_id: orderIntent.order_intent_id,
         public_ref: orderIntent.public_ref,
@@ -990,8 +1108,11 @@ const buildCanonicalOrderSnapshot = (orderIntent, session, resolvedOffer, interi
             paper_type_cover: specs.paper_type_cover || 'mc',
             paper_weight_cover: normalizeNum(specs.paper_weight_cover),
             finishing_options: specs.finishing_options || '',
-            delivery_country: specs.delivery_country || ''
+            delivery_country: specs.delivery_country || '',
+            customer_paper_preferences: canonicalPaperPreferences
         },
+
+        customer_paper_preferences: canonicalPaperPreferences,
 
         production_files: {
             interior_pdf_file_id: interior.file_id,
@@ -1047,6 +1168,9 @@ const buildControlPlaneHandoffPayload = (orderIntent) => {
         lifecycle: orderIntent.lifecycle,
         offer: orderIntent.offer,
         specs: orderIntent.payload?.order_snapshot?.specs || {},
+        customer_paper_preferences: orderIntent.customer_paper_preferences !== undefined
+            ? orderIntent.customer_paper_preferences
+            : (orderIntent.payload?.order_snapshot?.customer_paper_preferences ?? null),
         production_files: orderIntent.production_files,
         customer: orderIntent.customer,
         totals: orderIntent.totals,
@@ -2206,6 +2330,121 @@ app.post('/api/auth/register',
     }
 );
 
+// 📜 Paper Catalog Gateway (Control Plane Paper Supplier Hub)
+app.get('/api/budget/paper/catalog', async (req, res) => {
+    try {
+        const cpUrl = `${CONTROL_PLANE_BASE_URL}/api/marketplace/paper-catalog`;
+        let response;
+        try {
+            const headers = buildControlPlaneHeaders();
+            response = await axios.get(cpUrl, { headers, timeout: 8000 });
+        } catch (cpErr) {
+            if (cpErr.response?.status === 401 || cpErr.response?.status === 403 || !process.env.BPE_JWT_SECRET) {
+                response = await axios.get(cpUrl, { timeout: 8000 });
+            } else {
+                throw cpErr;
+            }
+        }
+
+        if (response.data && response.data.ok) {
+            return res.json({
+                ok: true,
+                data: response.data.data
+            });
+        }
+        return res.status(502).json({
+            ok: false,
+            error: 'CONTROL_PLANE_CATALOG_UNAVAILABLE',
+            message: 'Failed to retrieve paper catalog from Control Plane.'
+        });
+    } catch (err) {
+        console.error('[BUDGET_PAPER_CATALOG_ERROR]', err.message);
+        return res.status(502).json({
+            ok: false,
+            error: 'CONTROL_PLANE_CATALOG_UNAVAILABLE',
+            message: 'Paper catalog service is temporarily unreachable.'
+        });
+    }
+});
+
+app.get('/api/budget/paper/search', async (req, res) => {
+    try {
+        const params = new URLSearchParams();
+        if (req.query.q) params.set('q', req.query.q);
+        if (req.query.query) params.set('query', req.query.query);
+        if (req.query.category) params.set('category', req.query.category);
+        if (req.query.finish) params.set('finish', req.query.finish);
+        if (req.query.gsm) params.set('gsm', req.query.gsm);
+        if (req.query.limit) params.set('limit', req.query.limit);
+        if (req.query.offset) params.set('offset', req.query.offset);
+
+        const cpUrl = `${CONTROL_PLANE_BASE_URL}/api/marketplace/paper-catalog?${params.toString()}`;
+        let response;
+        try {
+            const headers = buildControlPlaneHeaders();
+            response = await axios.get(cpUrl, { headers, timeout: 8000 });
+        } catch (cpErr) {
+            if (cpErr.response?.status === 401 || cpErr.response?.status === 403 || !process.env.BPE_JWT_SECRET) {
+                response = await axios.get(cpUrl, { timeout: 8000 });
+            } else {
+                throw cpErr;
+            }
+        }
+
+        if (response.data && response.data.ok) {
+            return res.json({
+                ok: true,
+                data: response.data.data
+            });
+        }
+        return res.status(502).json({
+            ok: false,
+            error: 'CONTROL_PLANE_SEARCH_FAILED',
+            message: 'Failed to search paper materials in Control Plane.'
+        });
+    } catch (err) {
+        console.error('[BUDGET_PAPER_SEARCH_ERROR]', err.message);
+        return res.status(502).json({
+            ok: false,
+            error: 'CONTROL_PLANE_SEARCH_UNAVAILABLE',
+            message: 'Paper material search is temporarily unreachable.'
+        });
+    }
+});
+
+// 📑 PROXY: Quote Revision Review & Consent (PR #8 & PR #9 / BUDGET-02D-04)
+app.get('/api/budget/quote-revisions/review/:token', async (req, res) => {
+    try {
+        const rawToken = req.params.token;
+        const cpUrl = `${CONTROL_PLANE_BASE_URL}/api/marketplace/quote-revisions/review/${encodeURIComponent(rawToken)}`;
+        const headers = buildControlPlaneHeaders();
+        const response = await axios.get(cpUrl, { headers, timeout: 8000 });
+        return res.json(response.data);
+    } catch (err) {
+        const status = err.response?.status || 500;
+        return res.status(status).json(err.response?.data || {
+            ok: false,
+            error: { code: 'REVISION_FETCH_FAILED', message: err.message }
+        });
+    }
+});
+
+app.post('/api/budget/quote-revisions/review/:token/respond', async (req, res) => {
+    try {
+        const rawToken = req.params.token;
+        const cpUrl = `${CONTROL_PLANE_BASE_URL}/api/marketplace/quote-revisions/review/${encodeURIComponent(rawToken)}/respond`;
+        const headers = buildControlPlaneHeaders();
+        const response = await axios.post(cpUrl, req.body, { headers, timeout: 10000 });
+        return res.json(response.data);
+    } catch (err) {
+        const status = err.response?.status || 500;
+        return res.status(status).json(err.response?.data || {
+            ok: false,
+            error: { code: 'REVISION_RESPONSE_FAILED', message: err.message }
+        });
+    }
+});
+
 // 📊 BPE PROXY: Budget Calculation
 app.post('/api/budget/calculate', [
     body('copies').isInt({ min: 1 }),
@@ -2223,6 +2462,65 @@ app.post('/api/budget/calculate', [
         const bpeUrl = BPE_MARKETPLACE_OFFERS_URL;
         const headers = buildControlPlaneHeaders();
 
+        // 1. Resolve Paper Specifications (Simple Presets vs Advanced Catalog Material)
+        let resolvedInteriorType = req.body.paper_type_interior || 'offset';
+        let resolvedInteriorWeight = Number(req.body.paper_weight_interior ?? 135);
+        let resolvedCoverType = req.body.paper_type_cover || 'mc';
+        let resolvedCoverWeight = Number(req.body.paper_weight_cover ?? 250);
+        let resolvedEndpaperType = req.body.paper_type_endpaper || 'offset';
+        let resolvedEndpaperWeight = Number(req.body.paper_weight_endpapers ?? 115);
+
+        // Helper to map authoritative catalog technical attributes (category + finish) to canonical BPE paper family without brand/name heuristics
+        const mapCategoryToBpeType = (category, finish, fallbackType = 'offset') => {
+            const cat = String(category || '').toUpperCase();
+            const fin = String(finish || '').toUpperCase();
+            if (cat === 'OFFSET' || cat === 'UNCOATED') return 'offset';
+            if (cat === 'COATED') return 'mc';
+            if (cat === 'CARTON') return 'artboard';
+            if (cat === 'DESIGN') return 'lux';
+            if (fin.includes('UNCOATED') || fin.includes('OFFSET')) {
+                return 'offset';
+            }
+            if (fin.includes('SILK') || fin.includes('GLOSS') || fin.includes('MATT') || fin.includes('SATIN') || fin.includes('COATED')) {
+                return 'mc';
+            }
+            if (fin.includes('BOARD') || fin.includes('CARTON')) {
+                return 'artboard';
+            }
+            return fallbackType || 'offset';
+        };
+
+        // BUDGET-02D-04: If an authoritative catalog material is chosen, map its technical attributes to BPE
+        if (req.body.interior_paper_material?.gsm || req.body.customer_paper_preferences?.interior?.gsm) {
+            const mat = req.body.interior_paper_material || req.body.customer_paper_preferences.interior;
+            resolvedInteriorWeight = Number(mat.gsm);
+            resolvedInteriorType = mapCategoryToBpeType(mat.category, mat.finish, resolvedInteriorType);
+        }
+        if (req.body.cover_paper_material?.gsm || req.body.customer_paper_preferences?.cover?.gsm) {
+            const mat = req.body.cover_paper_material || req.body.customer_paper_preferences.cover;
+            resolvedCoverWeight = Number(mat.gsm);
+            resolvedCoverType = mapCategoryToBpeType(mat.category, mat.finish, resolvedCoverType);
+        }
+        if (req.body.endpaper_material?.gsm || req.body.customer_paper_preferences?.endpaper?.gsm) {
+            const mat = req.body.endpaper_material || req.body.customer_paper_preferences.endpaper;
+            resolvedEndpaperWeight = Number(mat.gsm);
+            resolvedEndpaperType = mapCategoryToBpeType(mat.category, mat.finish, resolvedEndpaperType);
+        }
+
+        const rawCalcPreferences = req.body.customer_paper_preferences !== undefined
+            ? req.body.customer_paper_preferences
+            : ((req.body.paper_mode_interior === 'advanced' && req.body.interior_paper_material) ||
+               (req.body.paper_mode_cover === 'advanced' && req.body.cover_paper_material) ||
+               (req.body.paper_mode_endpaper === 'advanced' && req.body.endpaper_material)
+                ? {
+                    interior: req.body.interior_paper_material || null,
+                    cover: req.body.cover_paper_material || null,
+                    endpaper: req.body.endpaper_material || null
+                  }
+                : undefined);
+
+        const customerPaperPreferences = resolveCustomerPaperPreferences(rawCalcPreferences, null);
+
         const bpePayload = {
             copies: Number(req.body.copies),
             interior_pages: Number(req.body.interior_pages),
@@ -2232,10 +2530,12 @@ app.post('/api/budget/calculate', [
             orientation: req.body.orientation || 'portrait',
             interior_print: req.body.interior_print || '1/1',
             cover_print: req.body.cover_print || '4/0',
-            paper_type_interior: req.body.paper_type_interior || 'offset',
-            paper_weight_interior: Number(req.body.paper_weight_interior ?? 135),
-            paper_type_cover: req.body.paper_type_cover || 'mc',
-            paper_weight_cover: Number(req.body.paper_weight_cover ?? 250),
+            paper_type_interior: resolvedInteriorType,
+            paper_weight_interior: resolvedInteriorWeight,
+            paper_type_cover: resolvedCoverType,
+            paper_weight_cover: resolvedCoverWeight,
+            paper_type_endpaper: resolvedEndpaperType,
+            paper_weight_endpapers: resolvedEndpaperWeight,
             binding_method: req.body.binding_method || 'perfect_bound',
             finishing_options: req.body.finishing_options || '',
             uv_varnish: req.body.uv_varnish === true,
@@ -2289,7 +2589,14 @@ app.post('/api/budget/calculate', [
 
         const offer_session_id = `ofs_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
         const expires_at = new Date(Date.now() + OFFER_SESSION_TTL_MINUTES * 60 * 1000).toISOString();
-        const normalizedSpecs = req.body;
+        const effectiveCustomerPaperPreferences = (customerPaperPreferences && typeof customerPaperPreferences === 'object' && Object.keys(customerPaperPreferences).length > 0)
+            ? customerPaperPreferences
+            : null;
+
+        const normalizedSpecs = {
+            ...req.body,
+            customer_paper_preferences: effectiveCustomerPaperPreferences
+        };
 
         const normalizedOffers = offers.map(o => {
             const offer_id = `offer_${crypto.randomBytes(6).toString('hex')}`;
@@ -2322,8 +2629,8 @@ app.post('/api/budget/calculate', [
         await repositories.offerSessions.create({
             offer_session_id,
             session_id: sessionId,
-            input_specs: req.body,
-            normalized_specs: req.body,
+            input_specs: normalizedSpecs,
+            normalized_specs: normalizedSpecs,
             offers: normalizedOffers,
             expires_at,
             created_at: new Date().toISOString()
@@ -2331,6 +2638,7 @@ app.post('/api/budget/calculate', [
 
         res.json({
             ok: true,
+            success: true,
             offer_session_id,
             expires_at,
             offers: normalizedOffers.map(({ raw_offer_snapshot, signature, ...rest }) => ({
@@ -2851,12 +3159,19 @@ app.post('/api/order-intents', async (req, res) => {
             shipping_amount: 0,
             grand_total: resolvedOffer.total_price
         },
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        customer_paper_preferences: resolveCustomerPaperPreferences(
+            req.body.customer_paper_preferences,
+            session.normalized_specs?.customer_paper_preferences || session.input_specs?.customer_paper_preferences
+        )
     };
 
     // Build Canonical Snapshot
     const snapshot = buildCanonicalOrderSnapshot(intentRecord, session, resolvedOffer, interior, cover);
     intentRecord.payload = { order_snapshot: snapshot };
+    intentRecord.customer_paper_preferences = snapshot.customer_paper_preferences !== undefined
+        ? snapshot.customer_paper_preferences
+        : intentRecord.customer_paper_preferences;
 
     // Prepare Preflight
     intentRecord.preflight = snapshot.preflight;
@@ -3771,6 +4086,9 @@ async function buildDispatchPackage(intent) {
     }));
 
     const printerIdentity = getPrinterIdentitySafe(intent);
+    const resolvedPaperPreferences = intent.customer_paper_preferences !== undefined
+        ? intent.customer_paper_preferences
+        : (intent.payload?.order_snapshot?.customer_paper_preferences ?? null);
     const pkg = {
         package_id: packageId,
         order_intent_id: intent.order_intent_id,
@@ -3786,7 +4104,12 @@ async function buildDispatchPackage(intent) {
             issue_count: intent.preflight?.jobs.reduce((sum, j) => sum + (j.issue_count || 0), 0),
             jobs: intent.preflight?.jobs || []
         },
-        production_specs: printerIdentity.specs,
+        production_specs: {
+            ...(intent.payload?.order_snapshot?.specs || {}),
+            ...printerIdentity.specs,
+            customer_paper_preferences: resolvedPaperPreferences
+        },
+        customer_paper_preferences: resolvedPaperPreferences,
         customer_summary: {
             name: intent.customer?.name,
             email: intent.customer?.email,
@@ -4146,6 +4469,7 @@ app.post('/api/order-intents/:id/dispatch-package/create', async (req, res) => {
         await repositories.dispatchPackages.create(pkg);
 
         // 5. Update Intent
+        if (!intent.printhouse_handoff) intent.printhouse_handoff = {};
         intent.printhouse_handoff.status = 'READY_FOR_PRINTHOUSE';
         intent.lifecycle.printhouse_handoff_status = 'READY_FOR_PRINTHOUSE';
         intent.dispatch_package_id = pkg.package_id;
@@ -4331,6 +4655,9 @@ app.get('/api/printhouse/queue', async (req, res) => {
             updated_at: j.updated_at,
             customer_summary: j.customer_summary,
             production_specs_summary: j.production_specs,
+            customer_paper_preferences: j.customer_paper_preferences !== undefined
+                ? j.customer_paper_preferences
+                : (j.production_specs?.customer_paper_preferences ?? null),
             files_summary: j.files.map(f => ({ role: f.role, filename: f.filename }))
         }));
 

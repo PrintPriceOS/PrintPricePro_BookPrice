@@ -95,7 +95,7 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
     return (
       <div className="bg-white rounded-xl h-full flex items-center justify-center p-12">
         <div className="flex flex-col items-center gap-3">
-          <Settings className="w-8 h-8 text-blue-500 animate-spin" />
+          <Settings className="w-8 h-8 text-corporate-accent animate-spin" />
           <span className="text-slate-500 font-medium font-technical text-sm">LOADING_JOB_METADATA...</span>
         </div>
       </div>
@@ -131,14 +131,14 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
       {/* Header */}
       <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
         <div className="flex items-center gap-3">
-          <div className="bg-blue-600 p-2 rounded-lg text-white shadow-md">
+          <div className="bg-corporate-accent p-2 rounded-lg text-white shadow-md">
             <Clipboard className="w-5 h-5" />
           </div>
           <div>
             <h2 className="text-lg font-bold text-slate-800 leading-tight">Job #{job.public_ref}</h2>
             <div className="flex items-center gap-2">
                <span className="text-[10px] font-technical text-slate-400">{job.package_id}</span>
-               <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-bold rounded uppercase">
+               <span className="px-1.5 py-0.5 bg-corporate-accent/10 text-corporate-accent text-[9px] font-bold rounded uppercase">
                  {job.printhouse_name}
                </span>
             </div>
@@ -153,11 +153,11 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
       <div className="flex-1 overflow-y-auto p-6 space-y-8">
         
         {/* Status Ribbon */}
-        <div className="flex items-center justify-between p-4 bg-slate-900 text-white rounded-xl shadow-inner">
+        <div className="flex items-center justify-between p-4 bg-slate-900 text-corporate-text rounded-xl shadow-inner">
            <div className="flex items-center gap-4">
               <div className="flex flex-col">
                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Current Status</span>
-                 <span className="text-lg font-black text-blue-400 uppercase">{currentStatus}</span>
+                 <span className="text-lg font-black text-corporate-accent uppercase">{currentStatus}</span>
               </div>
            </div>
            <div className="text-right">
@@ -171,7 +171,7 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
           <div className="space-y-8">
             <section>
               <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <FileText className="w-4 h-4 text-blue-500" />
+                <FileText className="w-4 h-4 text-corporate-accent" />
                 Production Specifications
               </h3>
               <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 grid grid-cols-2 gap-y-3 gap-x-4">
@@ -192,13 +192,82 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
                     <span className="text-sm font-bold text-slate-700 uppercase">{job.production_specs?.binding_method?.replace(/_/g, ' ')}</span>
                  </div>
                  <div className="col-span-2 pt-2 border-t border-slate-200">
-                    <span className="text-[10px] text-slate-400 uppercase block font-bold">Paper Interior</span>
+                    <span className="text-[10px] text-slate-400 uppercase block font-bold">Paper Interior (Standard Baseline)</span>
                     <span className="text-xs text-slate-600">{job.production_specs?.paper_weight_interior}g {job.production_specs?.paper_type_interior}</span>
                  </div>
                  <div className="col-span-2">
-                    <span className="text-[10px] text-slate-400 uppercase block font-bold">Paper Cover</span>
+                    <span className="text-[10px] text-slate-400 uppercase block font-bold">Paper Cover (Standard Baseline)</span>
                     <span className="text-xs text-slate-600">{job.production_specs?.paper_weight_cover}g {job.production_specs?.paper_type_cover}</span>
                  </div>
+
+                 {/* Customer Paper Preferences (Informative - Pending Printer Confirmation) */}
+                 {(() => {
+                   const prefs = job.customer_paper_preferences || 
+                                 job.production_specs?.customer_paper_preferences || 
+                                 job.production_specs_summary?.customer_paper_preferences || 
+                                 null;
+                   if (!prefs || (!prefs.interior && !prefs.cover && !prefs.endpaper)) return null;
+
+                   return (
+                     <div className="col-span-2 mt-3 pt-3 border-t-2 border-dashed border-amber-300 bg-amber-50/70 p-3 rounded-lg">
+                       <div className="flex items-center gap-2 mb-1.5">
+                         <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                         <span className="text-xs font-black text-amber-900 uppercase tracking-tight">
+                           Customer Paper Preferences (Informative)
+                         </span>
+                       </div>
+                       <p className="text-[10px] text-amber-800 leading-relaxed mb-3">
+                         Paper preference only. Does not affect this estimate. Subject to print house confirmation and availability.
+                       </p>
+
+                       <div className="space-y-2">
+                         {prefs.interior && (
+                           <div className="bg-white p-2.5 rounded border border-amber-200">
+                             <span className="text-[9px] uppercase font-bold text-slate-400 block">Preferred Interior Substrate</span>
+                             <div className="text-xs font-bold text-slate-800">
+                               {prefs.interior.productName || prefs.interior.product_name}
+                               {prefs.interior.brand ? ` (${prefs.interior.brand})` : ''} · {prefs.interior.gsm}g
+                             </div>
+                             <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                               Category: {prefs.interior.category} | Finish: {prefs.interior.finish || 'Standard'} | Sheet: {prefs.interior.rawSheetFormat || 'Standard'}
+                             </div>
+                             <span className="inline-block mt-1 px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-bold rounded">
+                               PENDING PRINTHOUSE CONFIRMATION
+                             </span>
+                           </div>
+                         )}
+
+                         {prefs.cover && (
+                           <div className="bg-white p-2.5 rounded border border-amber-200">
+                             <span className="text-[9px] uppercase font-bold text-slate-400 block">Preferred Cover Substrate</span>
+                             <div className="text-xs font-bold text-slate-800">
+                               {prefs.cover.productName || prefs.cover.product_name}
+                               {prefs.cover.brand ? ` (${prefs.cover.brand})` : ''} · {prefs.cover.gsm}g
+                             </div>
+                             <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                               Category: {prefs.cover.category} | Finish: {prefs.cover.finish || 'Standard'} | Sheet: {prefs.cover.rawSheetFormat || 'Standard'}
+                             </div>
+                             <span className="inline-block mt-1 px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-bold rounded">
+                               PENDING PRINTHOUSE CONFIRMATION
+                             </span>
+                           </div>
+                         )}
+
+                         {prefs.endpaper && (
+                           <div className="bg-white p-2.5 rounded border border-amber-200">
+                             <span className="text-[9px] uppercase font-bold text-slate-400 block">Preferred Endpaper Substrate</span>
+                             <div className="text-xs font-bold text-slate-800">
+                               {prefs.endpaper.productName || prefs.endpaper.product_name} · {prefs.endpaper.gsm}g
+                             </div>
+                             <span className="inline-block mt-1 px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-bold rounded">
+                               PENDING PRINTHOUSE CONFIRMATION
+                             </span>
+                           </div>
+                         )}
+                       </div>
+                     </div>
+                   );
+                 })()}
               </div>
             </section>
 
@@ -287,7 +356,7 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
                 Operator Workflow Notes
               </h3>
               <textarea 
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none resize-none min-h-[80px]"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-700 focus:ring-2 focus:ring-corporate-accent outline-none resize-none min-h-[80px]"
                 placeholder="Internal production notes, prepress findings, etc..."
                 value={operatorNotes}
                 onChange={(e) => setOperatorNotes(e.target.value)}
@@ -307,7 +376,7 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
               targetStatus="REVIEWING" 
               label="Start Review" 
               icon={Search} 
-              colorClass="bg-amber-100 text-amber-700 hover:bg-amber-600 hover:text-white" 
+              colorClass="bg-amber-100 text-amber-700 hover:bg-amber-600 hover:text-corporate-text" 
             />
           )}
 
@@ -321,7 +390,7 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
               />
               <button
                 onClick={() => setShowRejectionForm(true)}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold bg-red-50 text-red-600 hover:bg-red-600 hover:text-corporate-text transition-all shadow-sm"
               >
                 <Ban className="w-4 h-4" />
                 Reject Job
@@ -343,7 +412,7 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
               targetStatus="IN_PRODUCTION" 
               label="Start Production" 
               icon={Play} 
-              colorClass="bg-purple-600 text-white hover:bg-purple-700" 
+              colorClass="bg-purple-600 text-corporate-text hover:bg-purple-700" 
             />
           )}
 
@@ -376,7 +445,7 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
                 targetStatus="SHIPPED" 
                 label="Confirm Shipment" 
                 icon={Truck} 
-                colorClass="bg-sky-600 text-white hover:bg-sky-700" 
+                colorClass="bg-sky-600 text-corporate-text hover:bg-sky-700" 
               />
             </div>
           )}

@@ -7,7 +7,8 @@ import {
   CheckCircleIcon,
   ExclamationCircleIcon,
 } from '@heroicons/react/24/outline';
-import { InitialBookPricePayload, BookPriceResponse } from '../types';
+import { InitialBookPricePayload, BookPriceResponse, SpineCalculationResult } from '../types';
+import { SpinePanelStatus } from './BookSpineGeometryPanel';
 
 export interface ConfigurationSummaryProps {
   payload: InitialBookPricePayload;
@@ -15,6 +16,8 @@ export interface ConfigurationSummaryProps {
   isSpecsStale: boolean;
   onRecalculate: () => void;
   loading: boolean;
+  spineResult?: SpineCalculationResult | null;
+  spineStatus?: SpinePanelStatus;
 }
 
 export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
@@ -23,13 +26,19 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   isSpecsStale,
   onRecalculate,
   loading,
+  spineResult = null,
+  spineStatus,
 }) => {
   const [mobileExpanded, setMobileExpanded] = React.useState(false);
 
   const baselineInterior = `${payload.paper_type_interior.toUpperCase()} · ${payload.paper_weight_interior} GSM`;
   const preferredInterior =
     payload.paper_mode_interior === 'advanced' && payload.interior_paper_material
-      ? `${payload.interior_paper_material.productName || payload.interior_paper_material.product_name} (${payload.interior_paper_material.brand || 'Catalog'}) · ${payload.interior_paper_material.gsm}g`
+      ? `${payload.interior_paper_material.productName || payload.interior_paper_material.product_name} (${payload.interior_paper_material.brand || 'Catalog'}) · ${payload.interior_paper_material.gsm}g${
+          payload.interior_paper_material.caliperUm || payload.interior_paper_material.caliper_um
+            ? ` · ${payload.interior_paper_material.caliperUm || payload.interior_paper_material.caliper_um} µm`
+            : ''
+        }`
       : null;
 
   const baselineCover = `${payload.paper_type_cover.toUpperCase()} · ${payload.paper_weight_cover} GSM`;
@@ -51,6 +60,19 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
     payload.endpaper_material
       ? `${payload.endpaper_material.productName || payload.endpaper_material.product_name} · ${payload.endpaper_material.gsm}g`
       : null;
+
+  const spineSummaryLine =
+    spineResult && spineResult.spineWidthMm !== null && spineResult.coverGeometry
+      ? `${spineResult.spineWidthMm.toFixed(1)} mm spine · ${spineResult.coverGeometry.netCoverWidthMm.toFixed(1)}×${spineResult.coverGeometry.netCoverHeightMm.toFixed(1)} mm cover`
+      : spineStatus === 'CALIPER_VERIFICATION_REQUIRED'
+        ? 'Caliper (µm) required'
+        : spineStatus === 'HARDCOVER_PROFILE_PARAMETERS_REQUIRED'
+          ? 'Hardcover profile params required'
+          : spineStatus === 'INVALID_BOOK_DIMENSIONS'
+            ? 'Invalid book dimensions'
+            : spineStatus === 'SPINE_NOT_AVAILABLE'
+              ? 'SPINE_NOT_AVAILABLE'
+              : null;
 
   return (
     <>
@@ -217,6 +239,30 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
             </div>
           )}
 
+          {/* Spine & Extended Cover Snapshot */}
+          <div className="min-w-0">
+            <span className="block text-[9px] font-technical uppercase text-corporate-muted tracking-wider">
+              Spine &amp; Cover Spread
+            </span>
+            {spineResult && spineResult.spineWidthMm !== null && spineResult.coverGeometry ? (
+              <span
+                data-testid="summary-spine-dimensions"
+                className="text-xs font-bold text-corporate-accent font-technical tabular-nums block truncate"
+              >
+                {spineResult.spineWidthMm.toFixed(1)} mm ·{' '}
+                {spineResult.coverGeometry.netCoverWidthMm.toFixed(1)}×
+                {spineResult.coverGeometry.netCoverHeightMm.toFixed(1)} mm
+              </span>
+            ) : (
+              <span
+                data-testid="summary-spine-status"
+                className="text-[10px] font-technical text-corporate-text-secondary block truncate"
+              >
+                {spineSummaryLine || 'Pending caliper selection'}
+              </span>
+            )}
+          </div>
+
           {/* Delivery country */}
           <div className="min-w-0">
             <span className="block text-[9px] font-technical uppercase text-corporate-muted tracking-wider">
@@ -289,6 +335,12 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
                 <span className="text-[9px] text-corporate-muted uppercase">Binding: </span>
                 <span className="text-corporate-text font-bold capitalize">{payload.binding_method.replace(/_/g, ' ')}</span>
               </div>
+              {spineSummaryLine && (
+                <div>
+                  <span className="text-[9px] text-corporate-muted uppercase">Spine Geometry: </span>
+                  <span className="text-corporate-accent font-technical font-bold">{spineSummaryLine}</span>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -308,6 +360,9 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
                 <span className="text-xs text-corporate-muted shrink-0">·</span>
                 <span className="text-xs text-corporate-text-secondary truncate">
                   {payload.book_size} · {payload.interior_pages}pp
+                  {spineResult && spineResult.spineWidthMm !== null
+                    ? ` · Spine ${spineResult.spineWidthMm.toFixed(1)}mm`
+                    : ''}
                 </span>
               </div>
               {isSpecsStale && offers && (

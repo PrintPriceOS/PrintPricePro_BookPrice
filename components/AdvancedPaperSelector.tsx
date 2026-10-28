@@ -31,6 +31,10 @@ export interface CatalogItem {
   sheetFormat: string;
   caliperUm: number | null;
   caliperMm: number | null;
+  bulkFactor?: number | null;
+  caliperSource?: string | null;
+  caliperConfidenceStatus?: string | null;
+  caliperRevision?: number | null;
   finish: string | null;
   grainDirection: string;
   isReel: boolean;
@@ -246,8 +250,13 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
     category: variant.category,
     gsm: variant.gsm,
     finish: variant.finish || variant.finishSummary || undefined,
-    caliperUm: variant.caliperUm || undefined,
-    caliper_um: variant.caliperUm || undefined,
+    caliperUm: variant.caliperUm ?? null,
+    caliper_um: variant.caliperUm ?? null,
+    caliperMm: variant.caliperMm ?? null,
+    bulkFactor: variant.bulkFactor ?? null,
+    caliperSource: variant.caliperSource ?? null,
+    caliperConfidenceStatus: variant.caliperConfidenceStatus ?? null,
+    caliperRevision: variant.caliperRevision ?? null,
     sheetWidthMm: variant.widthMm,
     sheetHeightMm: variant.heightMm,
     raw_sheet_format: variant.sheetFormat,
@@ -531,7 +540,7 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
                         ) : (
                           currentProductVariants.map((v) => (
                             <option key={v.variantId} value={v.variantId}>
-                              {v.gsm} GSM · {v.finish || v.finishSummary || 'Standard'} · {v.sheetFormat || `${v.widthMm}x${v.heightMm} mm`}
+                              {v.gsm} GSM · {v.finish || v.finishSummary || 'Standard'}{v.caliperUm ? ` · ${v.caliperUm} µm` : ''} · {v.sheetFormat || `${v.widthMm}x${v.heightMm} mm`}
                             </option>
                           ))
                         )}
@@ -644,8 +653,8 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
                           <span className="text-[9px] text-corporate-muted uppercase block">Caliper / Compatibility</span>
                           <span className="text-corporate-text font-bold">
                             {selectedMaterial.caliperUm || selectedMaterial.caliper_um
-                              ? `${selectedMaterial.caliperUm || selectedMaterial.caliper_um} µm`
-                              : `${targetCompatibilityLabel}`}
+                              ? `${selectedMaterial.caliperUm || selectedMaterial.caliper_um} µm (${selectedMaterial.caliperConfidenceStatus || 'PROVISIONAL_ESTIMATED'})`
+                              : `Pending caliper · ${targetCompatibilityLabel}`}
                           </span>
                         </div>
                       </div>

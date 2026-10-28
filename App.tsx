@@ -34,6 +34,7 @@ import {
   ProductionFileStatus,
   ProductionFilesWorkflowStatus,
   ProductionFileMetadata,
+  SpineCalculationResult,
 } from './types';
 
 import { normaliseApiResponse } from './lib/normaliseApiResponse';
@@ -45,6 +46,7 @@ import PrintOffersPanel from './components/PrintOffersPanel';
 import CartPanel from './components/CartPanel';
 import Header from './components/Header';
 import ConfigurationSummary from './components/ConfigurationSummary';
+import BookSpineGeometryPanel, { SpinePanelStatus } from './components/BookSpineGeometryPanel';
 import { AuthModal } from './components/UserMenu';
 import type { AuthUser } from './components/UserMenu';
 import Toast from './components/Toast';
@@ -282,6 +284,8 @@ const App: React.FC = () => {
 
   const [offers, setOffers] = useState<BookPriceResponse | null>(null);
   const [isSpecsStale, setIsSpecsStale] = useState<boolean>(false);
+  const [spineResult, setSpineResult] = useState<SpineCalculationResult | null>(null);
+  const [spineStatus, setSpineStatus] = useState<SpinePanelStatus>('CALIPER_VERIFICATION_REQUIRED');
   const [loadingPdf, setLoadingPdf] = useState<boolean>(false);
   const [loadingOffers, setLoadingOffers] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -443,6 +447,15 @@ const App: React.FC = () => {
     } finally {
       setLoadingPdf(false);
     }
+  }, []);
+
+  const handleSwitchInteriorToAdvancedCatalog = useCallback(() => {
+    setBookPricePayload((prev) => ({
+      ...prev,
+      paper_mode_interior: 'advanced',
+    }));
+    setPayloadVersion((v) => v + 1);
+    setIsSpecsStale(true);
   }, []);
 
   const handlePayloadChange = useCallback(
@@ -1309,6 +1322,17 @@ const App: React.FC = () => {
                   isSpecsStale={isSpecsStale}
                   onRecalculate={handleCalculatePrice}
                   loading={loadingOffers}
+                  spineResult={spineResult}
+                  spineStatus={spineStatus}
+                />
+
+                <BookSpineGeometryPanel
+                  formData={bookPricePayload}
+                  onSwitchInteriorToAdvancedCatalog={handleSwitchInteriorToAdvancedCatalog}
+                  onSpineResultChange={(result, status) => {
+                    setSpineResult(result);
+                    setSpineStatus(status);
+                  }}
                 />
 
                 <div ref={offersRef} className="min-w-0">

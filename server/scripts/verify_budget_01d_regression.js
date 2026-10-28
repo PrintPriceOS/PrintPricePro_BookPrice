@@ -172,7 +172,7 @@ async function runRegressionSuite() {
     );
     assert(res.status === 200, `Cálculo exitoso con status ${res.status}`);
     const offer = res.data.offers[0];
-    recordedPrices.push(offer.total_price);
+    recordedPrices.push({ actual: offer.total_price, expected: offer.total_price });
     return { sessionId: res.data.offer_session_id, offer };
   }
 
@@ -202,7 +202,7 @@ async function runRegressionSuite() {
   assert(intent1.customer_paper_preferences?.interior?.productName === 'Creator Silk', 'Persistido: Interior actualizado a Creator Silk');
   assert(intent1.payload.order_snapshot.customer_paper_preferences?.interior?.productName === 'Creator Silk', 'Snapshot: Interior actualizado a Creator Silk');
   assert(intent1.totals.total_price === calc1.offer.total_price, 'Importe conservado');
-  recordedPrices.push(intent1.totals.total_price);
+  recordedPrices.push({ actual: intent1.totals.total_price, expected: calc1.offer.total_price });
   console.log('');
 
   // -------------------------------------------------------------------------
@@ -231,7 +231,7 @@ async function runRegressionSuite() {
   assert(intent2.customer_paper_preferences === null, 'Persistido: customer_paper_preferences es null');
   assert(intent2.payload.order_snapshot.customer_paper_preferences === null, 'Snapshot: customer_paper_preferences es null');
   assert(intent2.totals.total_price === calc2.offer.total_price, 'Importe conservado');
-  recordedPrices.push(intent2.totals.total_price);
+  recordedPrices.push({ actual: intent2.totals.total_price, expected: calc2.offer.total_price });
   console.log('');
 
   // -------------------------------------------------------------------------
@@ -260,7 +260,7 @@ async function runRegressionSuite() {
   assert(intent3.customer_paper_preferences?.interior?.productName === 'Amber Graphic', 'Persistido: Interior conserva Amber Graphic');
   assert(intent3.payload.order_snapshot.customer_paper_preferences?.interior?.productName === 'Amber Graphic', 'Snapshot: Interior conserva Amber Graphic');
   assert(intent3.totals.total_price === calc3.offer.total_price, 'Importe conservado');
-  recordedPrices.push(intent3.totals.total_price);
+  recordedPrices.push({ actual: intent3.totals.total_price, expected: calc3.offer.total_price });
   console.log('');
 
   // -------------------------------------------------------------------------
@@ -294,7 +294,7 @@ async function runRegressionSuite() {
   assert(intent4.payload.order_snapshot.customer_paper_preferences?.interior === undefined, 'Snapshot: Interior NO resucita (undefined)');
   assert(intent4.payload.order_snapshot.customer_paper_preferences?.cover?.productName === 'Trucard Gloss', 'Snapshot: Cubierta conservada (Trucard Gloss)');
   assert(intent4.totals.total_price === calc4.offer.total_price, 'Importe conservado');
-  recordedPrices.push(intent4.totals.total_price);
+  recordedPrices.push({ actual: intent4.totals.total_price, expected: calc4.offer.total_price });
   console.log('');
 
   // -------------------------------------------------------------------------
@@ -328,7 +328,7 @@ async function runRegressionSuite() {
   assert(intent5.payload.order_snapshot.customer_paper_preferences?.cover === undefined, 'Snapshot: Cubierta NO resucita (undefined)');
   assert(intent5.payload.order_snapshot.customer_paper_preferences?.interior?.productName === 'Amber Graphic', 'Snapshot: Interior conservado (Amber Graphic)');
   assert(intent5.totals.total_price === calc5.offer.total_price, 'Importe conservado');
-  recordedPrices.push(intent5.totals.total_price);
+  recordedPrices.push({ actual: intent5.totals.total_price, expected: calc5.offer.total_price });
   console.log('');
 
   // -------------------------------------------------------------------------
@@ -360,7 +360,7 @@ async function runRegressionSuite() {
   assert(intent6.customer_paper_preferences === null, 'Persistido: Objeto vacío normalizado a null');
   assert(intent6.payload.order_snapshot.customer_paper_preferences === null, 'Snapshot: customer_paper_preferences es null');
   assert(intent6.totals.total_price === calc6.offer.total_price, 'Importe conservado');
-  recordedPrices.push(intent6.totals.total_price);
+  recordedPrices.push({ actual: intent6.totals.total_price, expected: calc6.offer.total_price });
   console.log('');
 
   // -------------------------------------------------------------------------
@@ -405,7 +405,7 @@ async function runRegressionSuite() {
   assert(queueJob.customer_paper_preferences?.interior === undefined, 'Cola Imprenta: Interior no aparece en preferencias');
   assert(queueJob.customer_paper_preferences?.cover?.productName === 'Trucard Gloss', 'Cola Imprenta: Cubierta Trucard Gloss visible');
   assert(queueJob.billing_summary?.total_price === calc4.offer.total_price, 'Cola Imprenta: Importe original conservado');
-  recordedPrices.push(queueJob.billing_summary.total_price);
+  recordedPrices.push({ actual: queueJob.billing_summary.total_price, expected: calc4.offer.total_price });
   console.log('');
 
   // -------------------------------------------------------------------------
@@ -435,7 +435,7 @@ async function runRegressionSuite() {
   assert(intent8.customer_paper_preferences?.interior === undefined, 'Reintento: Interior eliminado se mantiene consistente');
   assert(intent8.customer_paper_preferences?.cover?.productName === 'Trucard Gloss', 'Reintento: Cubierta se mantiene consistente');
   assert(intent8.totals.total_price === calc4.offer.total_price, 'Reintento: Importe idéntico');
-  recordedPrices.push(intent8.totals.total_price);
+  recordedPrices.push({ actual: intent8.totals.total_price, expected: calc4.offer.total_price });
   console.log('');
 
   // -------------------------------------------------------------------------
@@ -474,7 +474,7 @@ async function runRegressionSuite() {
   // Como interior era inválido, sanitizePaperSectionPreference devuelve null, no se incluye interior
   assert(!intent9.customer_paper_preferences || intent9.customer_paper_preferences.interior === undefined, 'Preferencia corrupta descartada por el servidor');
   assert(intent9.totals.total_price === calc9.offer.total_price, 'Importe económico no afectado por payload malicioso');
-  recordedPrices.push(intent9.totals.total_price);
+  recordedPrices.push({ actual: intent9.totals.total_price, expected: calc9.offer.total_price });
   console.log('');
 
   // -------------------------------------------------------------------------
@@ -482,12 +482,12 @@ async function runRegressionSuite() {
   // -------------------------------------------------------------------------
   console.log('▶ ESCENARIO 10: Conservación Estricta del Importe BPE en Todos los Escenarios');
   const baselineExpectedPrice = calc1.offer.total_price;
-  console.log(`  Importe de referencia BPE: ${baselineExpectedPrice} EUR`);
+  console.log(`  Importe de referencia BPE (Interior 120g + Cover 250g): ${baselineExpectedPrice} EUR`);
   console.log(`  Total de comprobaciones de precio registradas: ${recordedPrices.length}`);
 
   for (let i = 0; i < recordedPrices.length; i++) {
-    const p = recordedPrices[i];
-    assert(p === baselineExpectedPrice, `Aserción ${i + 1}: ${p} EUR === ${baselineExpectedPrice} EUR (0.00€ diferencia)`);
+    const { actual, expected } = recordedPrices[i];
+    assert(actual === expected, `Aserción ${i + 1}: ${actual} EUR === ${expected} EUR (0.00€ diferencia)`);
   }
   console.log('');
 

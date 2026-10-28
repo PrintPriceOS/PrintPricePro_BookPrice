@@ -1,9 +1,15 @@
 import React from 'react';
-import { ShoppingCartIcon, SunIcon, MoonIcon } from '@heroicons/react/24/outline';
+import {
+  ShoppingCartIcon,
+  SunIcon,
+  MoonIcon,
+  ShieldCheckIcon,
+  ClipboardDocumentListIcon,
+} from '@heroicons/react/24/outline';
 import UserMenu from './UserMenu';
 import type { AuthUser } from './UserMenu';
 
-const PPOSLogo = ({ className = 'h-9 w-9' }: { className?: string }) => (
+const PPOSLogo = ({ className = 'h-7 w-7 sm:h-9 sm:w-9' }: { className?: string }) => (
   <svg
     viewBox="0 0 375 375"
     fill="none"
@@ -45,45 +51,65 @@ const Header: React.FC<HeaderProps> = ({
   onViewChange
 }) => {
   return (
-    <header className="sticky top-0 z-50 bg-corporate-secondary border-b border-white/10">
-      <div className="container mx-auto px-6 md:px-10 max-w-[1400px] h-20 flex items-center justify-between">
-        {/* Logo / Brand */}
-        <div className="flex items-center gap-6 min-w-max">
-          <div className="flex items-center gap-4 cursor-pointer" onClick={() => onViewChange?.('marketplace')}>
-            <PPOSLogo className="h-9 w-9" />
-            <div className="hidden md:block">
-              <div className="flex items-baseline gap-1.5 leading-none uppercase">
-                <span className="text-[0.65rem] font-sans font-black tracking-monolith text-corporate-accent">
+    <header className="sticky top-0 z-50 bg-corporate-secondary/95 backdrop-blur-md border-b border-corporate-border transition-colors">
+      {/* Top Industrial Signal Bar */}
+      <div className="h-[2px] w-full bg-corporate-accent" />
+
+      <div className="w-full mx-auto px-2.5 sm:px-6 lg:px-8 max-w-[1400px] h-14 sm:h-16 md:h-20 flex items-center justify-between gap-2">
+        {/* Left: Brand + Ecosystem Telemetry Badge */}
+        <div className="flex items-center gap-2 sm:gap-5 min-w-0">
+          <div
+            className="flex items-center gap-2 sm:gap-3.5 cursor-pointer min-w-0 group"
+            onClick={() => onViewChange?.('marketplace')}
+          >
+            <PPOSLogo className="h-7 w-7 sm:h-9 sm:w-9 shrink-0" />
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-baseline gap-1 sm:gap-1.5 leading-none uppercase">
+                <span className="text-[11px] sm:text-xs font-sans font-black tracking-wider sm:tracking-monolith text-corporate-accent">
                   PrintPrice
                 </span>
-                <span className="text-[0.65rem] font-sans font-black tracking-monolith text-corporate-text">
-                  Pro
+                <span className="text-[11px] sm:text-xs font-sans font-black tracking-wider sm:tracking-monolith text-corporate-text">
+                  OS
                 </span>
               </div>
-              <div className="text-[0.6rem] uppercase tracking-[0.55em] text-corporate-muted mt-1 ml-0.5 font-technical opacity-90">
-                Book Price
+              <div className="text-[8px] sm:text-[9px] uppercase tracking-[0.12em] sm:tracking-[0.28em] text-corporate-muted mt-0.5 sm:mt-1 font-technical font-bold truncate">
+                Book Price &amp; Materials
               </div>
             </div>
           </div>
 
-          {/* View Switcher (Only if logged in or for testing) */}
+          {/* Ecosystem Status Pill (Matches Control Plane Topbar.tsx) */}
+          <div
+            className="hidden xl:flex items-center gap-2 px-3 py-1 rounded-full badge-success border text-[10px] font-technical font-bold uppercase tracking-wider shrink-0"
+            title="Connected to PrintPrice OS Control Plane & Book Price Engine (BPE)"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+            <ShieldCheckIcon className="w-3.5 h-3.5" />
+            <span>Control Plane &amp; BPE Active</span>
+          </div>
+
+          {/* View Switcher (Only if enabled) */}
           {onViewChange && (
-            <div className="hidden lg:flex items-center bg-black/20 p-1 border border-white/5">
+            <div className="hidden lg:flex items-center bg-corporate-elevated p-1 rounded-xl border border-corporate-border">
               <button
+                type="button"
                 onClick={() => onViewChange('marketplace')}
-                className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-monolith transition-all ${currentView === 'marketplace'
-                    ? 'bg-corporate-accent text-white shadow-lg'
-                    : 'text-corporate-muted hover:text-white'
-                  }`}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                  currentView === 'marketplace'
+                    ? 'bg-corporate-accent text-white shadow-sm'
+                    : 'text-corporate-muted hover:text-corporate-text'
+                }`}
               >
-                Marketplace
+                Configurator
               </button>
               <button
+                type="button"
                 onClick={() => onViewChange('printhouse')}
-                className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-monolith transition-all ${currentView === 'printhouse'
-                    ? 'bg-corporate-accent text-white shadow-lg'
-                    : 'text-corporate-muted hover:text-white'
-                  }`}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                  currentView === 'printhouse'
+                    ? 'bg-corporate-accent text-white shadow-sm'
+                    : 'text-corporate-muted hover:text-corporate-text'
+                }`}
               >
                 Console
               </button>
@@ -91,60 +117,61 @@ const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-2 min-w-max">
+        {/* Right: Actions (Touch targets >= 40x40px on mobile, >= 44x44px comfortable) */}
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* Theme toggle */}
           <button
             type="button"
             onClick={onThemeToggle}
-            className="group flex items-center gap-2 px-3 py-2 border border-white/10 hover:border-corporate-accent hover:bg-white/5 transition-all text-corporate-text-secondary hover:text-corporate-accent"
-            aria-label="Toggle theme"
+            className="group min-h-[40px] sm:min-h-[42px] min-w-[40px] flex items-center justify-center gap-2 px-2.5 sm:px-3.5 py-2 rounded-xl border border-corporate-border hover:border-corporate-accent bg-corporate-elevated/60 hover:bg-corporate-elevated transition-all text-corporate-text-secondary hover:text-corporate-accent"
+            aria-label={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
             {isDark ? (
-              <SunIcon className="w-4 h-4" />
+              <SunIcon className="w-4 h-4 shrink-0" />
             ) : (
-              <MoonIcon className="w-4 h-4" />
+              <MoonIcon className="w-4 h-4 shrink-0" />
             )}
-            <span className="hidden md:inline text-[0.6rem] font-sans font-black tracking-monolith uppercase">
+            <span className="hidden md:inline text-[10px] font-technical font-bold tracking-wider uppercase">
               {isDark ? 'Light' : 'Dark'}
             </span>
           </button>
 
-          {/* My Orders (Public access enabled v5.3) */}
+          {/* My Orders */}
           {currentView === 'marketplace' && (
             <button
               type="button"
               onClick={onMyOrdersClick}
-              className="flex items-center gap-2 px-3 py-2 border border-white/10 hover:border-corporate-accent hover:bg-white/5 transition-all text-corporate-text-secondary hover:text-corporate-accent"
+              className="min-h-[40px] sm:min-h-[42px] min-w-[40px] flex items-center justify-center gap-2 px-2.5 sm:px-3.5 py-2 rounded-xl border border-corporate-border hover:border-corporate-accent bg-corporate-elevated/60 hover:bg-corporate-elevated transition-all text-corporate-text-secondary hover:text-corporate-accent"
               aria-label="My Orders"
+              title="My Orders"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-              </svg>
-              <span className="hidden md:inline text-[0.6rem] font-sans font-black tracking-monolith uppercase">
+              <ClipboardDocumentListIcon className="w-4 h-4 shrink-0" />
+              <span className="hidden md:inline text-[10px] font-technical font-bold tracking-wider uppercase">
                 My Orders
               </span>
             </button>
           )}
 
-          {/* Cart (Only in marketplace view) */}
+          {/* Cart */}
           {currentView === 'marketplace' && (
             <button
               type="button"
               onClick={onCartClick}
-              className="relative flex items-center justify-center w-9 h-9 text-corporate-text-secondary hover:text-corporate-accent transition-colors"
+              className="relative flex items-center justify-center w-10 h-10 sm:w-[42px] sm:h-[42px] rounded-xl border border-corporate-border hover:border-corporate-accent bg-corporate-elevated/60 text-corporate-text-secondary hover:text-corporate-accent transition-all"
               aria-label="Cart"
+              title="Shopping Cart"
             >
-              <ShoppingCartIcon className="w-5 h-5" />
+              <ShoppingCartIcon className="w-4 h-4" />
               {cartCount > 0 && (
-                <span className="absolute top-1 right-1 flex items-center justify-center w-4 h-4 bg-corporate-accent text-white text-[0.5rem] font-black leading-none">
+                <span className="absolute -top-1 -right-1 flex items-center justify-center w-4 h-4 rounded-full bg-corporate-accent text-white text-[9px] font-technical font-black leading-none">
                   {cartCount > 9 ? '9+' : cartCount}
                 </span>
               )}
             </button>
           )}
 
-          <div className="h-5 w-px bg-white/10 mx-1 hidden md:block" />
+          <div className="h-5 w-px bg-corporate-border mx-0.5 hidden sm:block" />
 
           {/* User menu */}
           <UserMenu user={user} onOpenModal={onOpenAuthModal} onLogout={onLogout} />

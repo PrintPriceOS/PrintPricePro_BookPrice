@@ -54,13 +54,13 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const StatusBadge: React.FC<{ status: string; variant?: 'default' | 'success' | 'warning' | 'error' | 'info' }> = ({ status, variant = 'default' }) => {
-  const baseColors = STATUS_COLORS[status] ?? 'bg-white/5 text-corporate-muted border-white/10';
+  const baseColors = STATUS_COLORS[status] ?? 'bg-corporate-elevated text-corporate-muted border-corporate-border';
   let colors = baseColors;
   
   if (variant === 'success') colors = 'bg-green-500/10 text-green-400 border-green-500/30';
   if (variant === 'warning') colors = 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30';
   if (variant === 'error') colors = 'bg-red-500/10 text-red-400 border-red-500/30';
-  if (variant === 'info') colors = 'bg-white/10 text-corporate-text border-white/20';
+  if (variant === 'info') colors = 'bg-white/10 text-corporate-text border-corporate-border-strong';
 
   return (
     <span className={`inline-flex items-center px-1.5 py-0.5 text-[0.55rem] font-black uppercase tracking-widest border ${colors}`}>
@@ -162,12 +162,12 @@ const UserOrders: React.FC<UserOrdersProps> = ({ userId, onClose }) => {
       style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="relative w-full max-w-[900px] max-h-[85vh] flex flex-col border border-white/10 bg-corporate-secondary shadow-[0_0_120px_rgba(220,0,0,0.1)] overflow-hidden">
+      <div className="relative w-full max-w-[900px] max-h-[85vh] flex flex-col border border-corporate-border bg-corporate-secondary shadow-[0_0_120px_rgba(220,0,0,0.1)] overflow-hidden">
         {/* Top accent bar */}
         <div className="h-[2px] w-full shrink-0 bg-corporate-accent shadow-[0_0_15px_#dc0000]" />
 
         {/* Header */}
-        <div className="flex items-center justify-between px-8 py-5 border-b border-white/5 shrink-0">
+        <div className="flex items-center justify-between px-8 py-5 border-b border-corporate-border shrink-0">
           <div className="flex items-center gap-3">
             <ClipboardDocumentListIcon className="w-5 h-5 text-corporate-accent" />
             <h2 className="text-[0.85rem] font-black uppercase tracking-[0.2em] text-corporate-text">
@@ -201,7 +201,7 @@ const UserOrders: React.FC<UserOrdersProps> = ({ userId, onClose }) => {
           )}
 
           {!loading && !error && orders.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-20 gap-4 border border-white/5 bg-corporate-primary/30">
+            <div className="flex flex-col items-center justify-center py-20 gap-4 border border-corporate-border bg-corporate-primary/30">
               <ClipboardDocumentListIcon className="w-12 h-12 text-corporate-muted opacity-20" />
               <div className="text-center space-y-1">
                 <p className="text-[0.7rem] font-technical font-black text-corporate-muted uppercase tracking-monolith">
@@ -221,10 +221,10 @@ const UserOrders: React.FC<UserOrdersProps> = ({ userId, onClose }) => {
           )}
 
           {!loading && !error && orders.length > 0 && (
-            <div className="border border-white/8">
+            <div className="border border-corporate-border">
               {/* Column headers */}
               <div
-                className="grid items-center gap-x-4 px-5 py-1.5 border-b border-white/10 bg-corporate-primary/30"
+                className="grid items-center gap-x-4 px-5 py-1.5 border-b border-corporate-border bg-corporate-primary/30"
                 style={{ gridTemplateColumns: '1.5fr 0.6fr 0.8fr 1.5fr 1fr 1fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr' }}
               >
                 {['Order ref', 'Copies', 'Int. pages', 'Print house', 'Total', 'Date', 'Status', 'Preflight', 'Invoice', 'Payment', 'CP Order', 'Track'].map((label) => (
@@ -239,7 +239,7 @@ const UserOrders: React.FC<UserOrdersProps> = ({ userId, onClose }) => {
                 <div
                   key={order.id}
                   onClick={() => handleRowClick(order)}
-                  className="grid items-center gap-x-4 px-5 py-2 border-b border-white/5 last:border-b-0 hover:bg-corporate-elevated/40 transition-colors cursor-pointer group"
+                  className="grid items-center gap-x-4 px-5 py-2 border-b border-corporate-border last:border-b-0 hover:bg-corporate-elevated/40 transition-colors cursor-pointer group"
                   style={{ gridTemplateColumns: '1.5fr 0.6fr 0.8fr 1.5fr 1fr 1fr 1fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr' }}
                 >
                   <div className="flex flex-col truncate">
@@ -303,7 +303,7 @@ const UserOrders: React.FC<UserOrdersProps> = ({ userId, onClose }) => {
                             e.stopPropagation();
                             setTrackingOrderId(String(order.id));
                         }}
-                        className="text-[0.55rem] font-black uppercase tracking-widest text-corporate-accent hover:text-white border border-corporate-accent/30 hover:border-corporate-accent px-2 py-0.5 transition-all"
+                        className="text-[0.55rem] font-black uppercase tracking-widest text-corporate-accent hover:text-corporate-text border border-corporate-accent/30 hover:border-corporate-accent px-2 py-0.5 transition-all"
                     >
                         Track
                     </button>
@@ -329,7 +329,7 @@ const UserOrders: React.FC<UserOrdersProps> = ({ userId, onClose }) => {
         )}
 
         {/* Footer */}
-        <div className="shrink-0 px-8 py-4 border-t border-white/5 bg-corporate-primary flex items-center justify-between gap-4">
+        <div className="shrink-0 px-8 py-4 border-t border-corporate-border bg-corporate-primary flex items-center justify-between gap-4">
           {/* Left: record count */}
           <span className="text-[0.6rem] font-technical text-corporate-muted uppercase tracking-widest w-20 shrink-0">
             {!loading && !error && orders.length > 0
@@ -344,7 +344,7 @@ const UserOrders: React.FC<UserOrdersProps> = ({ userId, onClose }) => {
                 type="button"
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="flex items-center justify-center w-6 h-6 border border-white/10 text-corporate-muted hover:text-corporate-text hover:border-white/20 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center justify-center w-6 h-6 border border-corporate-border text-corporate-muted hover:text-corporate-text hover:border-corporate-border-strong disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
                 aria-label="Previous page"
               >
                 <ChevronLeftIcon className="w-3 h-3" />
@@ -375,7 +375,7 @@ const UserOrders: React.FC<UserOrdersProps> = ({ userId, onClose }) => {
                 type="button"
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="flex items-center justify-center w-6 h-6 border border-white/10 text-corporate-muted hover:text-corporate-text hover:border-white/20 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center justify-center w-6 h-6 border border-corporate-border text-corporate-muted hover:text-corporate-text hover:border-corporate-border-strong disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
                 aria-label="Next page"
               >
                 <ChevronRightIcon className="w-3 h-3" />

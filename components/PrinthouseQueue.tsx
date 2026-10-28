@@ -227,7 +227,7 @@ export const PrinthouseQueue: React.FC = () => {
                   <td className="px-6 py-4 text-right">
                     <button 
                       onClick={() => setSelectedJobId(job.package_id)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-corporate-accent/10 text-corporate-accent hover:bg-corporate-accent hover:text-white rounded-lg text-xs font-bold transition-all shadow-sm"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-corporate-accent/10 text-corporate-accent hover:bg-corporate-accent hover:text-corporate-text rounded-lg text-xs font-bold transition-all shadow-sm"
                     >
                       <Eye className="w-3.5 h-3.5" />
                       View Job

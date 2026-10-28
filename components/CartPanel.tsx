@@ -68,22 +68,22 @@ const CartPanel: React.FC<CartPanelProps> = ({
 
       {/* Slide-over panel */}
       <div
-        className={`fixed top-0 right-0 z-50 h-full w-full max-w-lg bg-corporate-secondary border-l border-white/5 flex flex-col transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'
+        className={`fixed top-0 right-0 z-50 h-full w-full max-w-lg bg-corporate-secondary border-l border-corporate-border flex flex-col transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'
           }`}
         role="dialog"
         aria-modal="true"
         aria-label="Shopping cart"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-8 py-5 border-b border-white/5 shrink-0">
+        <div className="flex items-center justify-between px-8 py-5 border-b border-corporate-border shrink-0">
           <h2 className="text-[0.7rem] font-technical font-black tracking-monolith text-corporate-accent uppercase flex items-center gap-3">
-            <span className={`w-2 h-2 bg-corporate-accent inline-block ${cart.length ? 'animate-pulse' : 'opacity-30'}`} />
+            <span className={`w-2 h-2 rounded-full bg-corporate-accent inline-block ${cart.length ? 'animate-pulse' : 'opacity-30'}`} />
             Cart — {cart.length} item{cart.length !== 1 ? 's' : ''}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="flex items-center justify-center w-8 h-8 text-corporate-text-secondary hover:text-corporate-accent transition-colors"
+            className="flex items-center justify-center w-9 h-9 rounded-xl text-corporate-text-secondary hover:text-corporate-accent hover:bg-corporate-elevated transition-colors"
             aria-label="Close cart"
           >
             <XMarkIcon className="w-5 h-5" />
@@ -110,7 +110,7 @@ const CartPanel: React.FC<CartPanelProps> = ({
               {cart.map((item) => (
                 <div
                   key={item.id}
-                  className="border border-corporate-text/10 bg-corporate-primary/50 p-6 flex items-start justify-between gap-4"
+                  className="rounded-xl border border-corporate-border bg-corporate-primary/50 p-6 flex items-start justify-between gap-4"
                 >
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-technical font-black text-corporate-text uppercase tracking-monolith mb-1">
@@ -152,7 +152,7 @@ const CartPanel: React.FC<CartPanelProps> = ({
 
         {/* Footer — only when cart has items */}
         {cart.length > 0 && (
-          <div className="shrink-0 px-8 py-6 border-t border-white/5">
+          <div className="shrink-0 px-8 py-6 border-t border-corporate-border">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <p className="text-[0.6rem] font-technical font-black tracking-monolith text-corporate-muted uppercase mb-1">
@@ -167,7 +167,7 @@ const CartPanel: React.FC<CartPanelProps> = ({
 
             {!isLoggedIn ? (
               <div className="space-y-4">
-                <div className="flex items-start gap-4 p-4 border border-corporate-accent/20 bg-corporate-accent/5">
+                <div className="flex items-start gap-4 p-4 rounded-xl border border-corporate-accent/20 bg-corporate-accent/5">
                   <LockClosedIcon className="w-4 h-4 text-corporate-accent shrink-0 mt-0.5" />
                   <div>
                     <p className="text-[0.65rem] font-technical font-black tracking-monolith text-corporate-accent uppercase mb-1">
@@ -181,7 +181,7 @@ const CartPanel: React.FC<CartPanelProps> = ({
                 <button
                   type="button"
                   onClick={onSignInClick}
-                  className="w-full py-3 flex items-center justify-center gap-3 text-xs font-technical font-black tracking-monolith uppercase bg-corporate-accent text-white hover:bg-corporate-hover hover:shadow-[0_0_20px_rgba(220,0,0,0.2)] transition-all duration-300"
+                  className="w-full min-h-[44px] py-3 rounded-xl flex items-center justify-center gap-3 text-xs font-technical font-black tracking-monolith uppercase bg-corporate-accent text-white hover:bg-corporate-hover hover:shadow-[0_0_20px_rgba(220,0,0,0.2)] transition-all duration-300"
                 >
                   <LockClosedIcon className="w-3.5 h-3.5" />
                   Sign in to place your order
@@ -193,7 +193,7 @@ const CartPanel: React.FC<CartPanelProps> = ({
                 type="button"
                 onClick={() => setConfirmOpen(true)}
                 disabled={checkingOut}
-                className="w-full py-3 text-xs font-technical font-black tracking-monolith uppercase bg-corporate-accent text-white hover:bg-corporate-hover hover:shadow-[0_0_20px_rgba(220,0,0,0.2)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full min-h-[44px] py-3 rounded-xl text-xs font-technical font-black tracking-monolith uppercase bg-corporate-accent text-white hover:bg-corporate-hover hover:shadow-[0_0_20px_rgba(220,0,0,0.2)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {checkingOut ? 'Processing…' : 'Continue to file upload →'}
               </button>
@@ -213,14 +213,14 @@ const CartPanel: React.FC<CartPanelProps> = ({
                       onClose();
                       onGoToUpload?.();
                     }}
-                    className="flex-1 py-2 text-xs font-technical font-black tracking-monolith uppercase bg-corporate-accent text-white hover:bg-corporate-hover transition-all"
+                    className="flex-1 py-2.5 rounded-xl text-xs font-technical font-black tracking-monolith uppercase bg-corporate-accent text-white hover:bg-corporate-hover transition-all"
                   >
                     Go to upload
                   </button>
                   <button
                     type="button"
                     onClick={() => setConfirmOpen(false)}
-                    className="flex-1 py-2 text-xs font-technical font-black tracking-monolith uppercase border border-corporate-text/20 text-corporate-text hover:bg-corporate-text/5 transition-all"
+                    className="flex-1 py-2.5 rounded-xl text-xs font-technical font-black tracking-monolith uppercase border border-corporate-border text-corporate-text hover:bg-corporate-elevated transition-all"
                   >
                     Cancel
                   </button>

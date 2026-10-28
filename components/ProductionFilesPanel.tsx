@@ -88,7 +88,7 @@ const ProductionFilesPanel: React.FC<ProductionFilesPanelProps> = ({
               </span>
             )}
             {draft.status === 'LINK_PROVIDED' && (
-              <span className="bg-white/10 text-corporate-text text-[8px] font-technical font-black px-1.5 py-0.5 border border-white/20 tracking-tighter uppercase">
+              <span className="bg-white/10 text-corporate-text text-[8px] font-technical font-black px-1.5 py-0.5 border border-corporate-border-strong tracking-tighter uppercase">
                 LINK PROVIDED
               </span>
             )}
@@ -126,7 +126,7 @@ const ProductionFilesPanel: React.FC<ProductionFilesPanelProps> = ({
         </div>
 
         {isDeclared ? (
-          <div className="flex items-center justify-between bg-corporate-secondary/50 p-3 border border-white/5">
+          <div className="flex items-center justify-between bg-corporate-secondary/50 p-3 border border-corporate-border">
             <div className="flex items-center gap-3 overflow-hidden">
               <div className="w-8 h-8 bg-corporate-accent/10 flex items-center justify-center shrink-0">
                 <span className="text-[10px] font-technical font-black text-corporate-accent uppercase">
@@ -154,7 +154,7 @@ const ProductionFilesPanel: React.FC<ProductionFilesPanelProps> = ({
         ) : null}
 
         {isDeclared && draft.checksum && (
-          <div className="px-3 py-1 bg-white/5 border-l border-corporate-accent/30">
+          <div className="px-3 py-1 bg-corporate-elevated border-l border-corporate-accent/30">
              <p className="text-[8px] font-technical text-corporate-muted uppercase tracking-tighter">
                SHA256: <span className="text-corporate-text opacity-70">{draft.checksum.value.substring(0, 12)}...</span>
              </p>
@@ -268,7 +268,7 @@ const ProductionFilesPanel: React.FC<ProductionFilesPanelProps> = ({
   const safeSelectedOfferPrice = Number.isFinite(selectedOfferPrice) ? selectedOfferPrice : 0;
 
   return (
-    <div className="bg-corporate-secondary p-8 md:p-12 border border-white/5 relative overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="bg-corporate-secondary p-8 md:p-12 border border-corporate-border relative overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="absolute top-0 right-0 opacity-[0.02] font-technical text-[8rem] font-black pointer-events-none uppercase">
         UPLD
       </div>
@@ -319,7 +319,7 @@ const ProductionFilesPanel: React.FC<ProductionFilesPanelProps> = ({
         {renderFileSlot('COVER_SPINE_BACK_PDF', 'Cover / Spine / Back PDF')}
       </div>
 
-      <div className="mt-12 flex flex-col md:flex-row items-center justify-between gap-8 pt-8 border-t border-white/5 relative z-10">
+      <div className="mt-12 flex flex-col md:flex-row items-center justify-between gap-8 pt-8 border-t border-corporate-border relative z-10">
         <div className="max-w-md">
           <p className="text-[10px] font-technical text-corporate-muted leading-relaxed uppercase tracking-wider">
             Production assets are required before the order request can continue. PDFs or secure download links are accepted. Ingestion, production validation, invoice generation and payment happen after this step.

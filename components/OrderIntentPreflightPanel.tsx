@@ -21,10 +21,10 @@ const PreflightJobItem: React.FC<{ job: PreflightJob }> = ({ job }) => {
   const isError = job.status === 'ERROR';
 
   return (
-    <div className="bg-corporate-primary/40 border border-white/5 p-4 flex flex-col gap-3">
+    <div className="bg-corporate-primary/40 border border-corporate-border p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 bg-corporate-secondary border border-white/10">
+          <div className="p-1.5 bg-corporate-secondary border border-corporate-border">
             <DocumentMagnifyingGlassIcon className="w-4 h-4 text-corporate-muted" />
           </div>
           <div>
@@ -52,7 +52,7 @@ const PreflightJobItem: React.FC<{ job: PreflightJob }> = ({ job }) => {
       </div>
 
       {(isFailed || job.findings?.length) && (
-        <div className="border-t border-white/5 pt-3">
+        <div className="border-t border-corporate-border pt-3">
           <div className="flex items-center gap-4 text-[0.6rem] font-technical uppercase tracking-wider text-corporate-muted mb-2">
             <span>Risk: <span className={job.risk_level === 'CRITICAL' ? 'text-corporate-accent' : 'text-corporate-text'}>{job.risk_level || 'UNKNOWN'}</span></span>
             <span>Issues: <span className="text-corporate-text">{job.issue_count || 0}</span></span>
@@ -154,7 +154,7 @@ const OrderIntentPreflightPanel: React.FC<Props> = ({ orderIntent, onUpdate }) =
   };
 
   return (
-    <div className="bg-corporate-secondary border border-white/10 overflow-hidden">
+    <div className="bg-corporate-secondary border border-corporate-border overflow-hidden">
       <div className="h-[2px] w-full bg-corporate-accent/50" />
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
@@ -184,7 +184,7 @@ const OrderIntentPreflightPanel: React.FC<Props> = ({ orderIntent, onUpdate }) =
         </div>
 
         {isNotStarted && (
-          <div className="flex flex-col items-center justify-center py-8 bg-corporate-primary/20 border border-dashed border-white/10 gap-4">
+          <div className="flex flex-col items-center justify-center py-8 bg-corporate-primary/20 border border-dashed border-corporate-border gap-4">
             <p className="text-[0.7rem] text-corporate-text-secondary text-center max-w-[280px]">
               Files are uploaded but have not been validated for production readiness.
             </p>
@@ -226,7 +226,7 @@ const OrderIntentPreflightPanel: React.FC<Props> = ({ orderIntent, onUpdate }) =
           </div>
         )}
 
-        <div className="mt-6 pt-6 border-t border-white/5 flex items-center justify-between">
+        <div className="mt-6 pt-6 border-t border-corporate-border flex items-center justify-between">
           <div className="flex flex-col gap-1">
             <span className="text-[0.6rem] font-technical uppercase tracking-widest text-corporate-muted">
               Preflight Status

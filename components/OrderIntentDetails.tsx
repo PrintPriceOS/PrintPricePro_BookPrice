@@ -113,7 +113,7 @@ const OrderIntentDetails: React.FC<Props> = ({ orderIntentId, onClose, onReset }
         <div className="max-w-md w-full bg-corporate-primary border border-corporate-accent/30 p-8 text-center">
           <ExclamationCircleIcon className="w-12 h-12 text-corporate-accent mx-auto mb-4" />
           <p className="text-[0.8rem] font-bold text-corporate-accent uppercase tracking-wider mb-6">{error || 'Order Intent not found'}</p>
-          <button onClick={onClose} className="bg-corporate-secondary border border-white/10 px-6 py-2 text-[0.7rem] font-black uppercase tracking-widest text-corporate-text hover:bg-white/5 transition-colors">
+          <button onClick={onClose} className="bg-corporate-secondary border border-corporate-border px-6 py-2 text-[0.7rem] font-black uppercase tracking-widest text-corporate-text hover:bg-corporate-elevated transition-colors">
             Close
           </button>
         </div>
@@ -175,10 +175,10 @@ const OrderIntentDetails: React.FC<Props> = ({ orderIntentId, onClose, onReset }
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-corporate-secondary/95 backdrop-blur-md p-0 md:p-6 animate-in fade-in duration-300">
-      <div className="relative w-full h-full md:h-auto md:max-h-[calc(100vh-48px)] max-w-[1180px] bg-corporate-primary border-0 md:border md:border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden">
+      <div className="relative w-full h-full md:h-auto md:max-h-[calc(100vh-48px)] max-w-[1180px] bg-corporate-primary border-0 md:border md:border-corporate-border shadow-[0_0_100px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden">
         
         {/* Sticky Header (Always Visible) */}
-        <div className="sticky top-0 z-[80] shrink-0 flex flex-col bg-corporate-secondary border-b border-white/10 shadow-lg">
+        <div className="sticky top-0 z-[80] shrink-0 flex flex-col bg-corporate-secondary border-b border-corporate-border shadow-lg">
             {/* Header Bar Line */}
             <div className="h-[2px] w-full bg-corporate-accent" />
             
@@ -189,7 +189,7 @@ const OrderIntentDetails: React.FC<Props> = ({ orderIntentId, onClose, onReset }
                         if (onReset) onReset();
                         else onClose();
                     }}
-                    className="flex items-center gap-2 px-3 py-2 bg-corporate-primary border border-white/5 text-[0.65rem] font-black uppercase tracking-widest text-corporate-text hover:bg-white/5 hover:border-corporate-accent/30 transition-all min-h-[40px]"
+                    className="flex items-center gap-2 px-3 py-2 bg-corporate-primary border border-corporate-border text-[0.65rem] font-black uppercase tracking-widest text-corporate-text hover:bg-corporate-elevated hover:border-corporate-accent/30 transition-all min-h-[40px]"
                 >
                     <ArrowLeftIcon className="w-3.5 h-3.5" />
                     <span className="hidden sm:inline">Back to Marketplace</span>
@@ -205,7 +205,7 @@ const OrderIntentDetails: React.FC<Props> = ({ orderIntentId, onClose, onReset }
 
                 <button 
                     onClick={onClose}
-                    className="flex items-center gap-2 px-3 py-2 text-[0.65rem] font-black uppercase tracking-widest text-corporate-muted hover:text-corporate-accent transition-colors min-h-[40px] border border-transparent hover:border-white/5"
+                    className="flex items-center gap-2 px-3 py-2 text-[0.65rem] font-black uppercase tracking-widest text-corporate-muted hover:text-corporate-accent transition-colors min-h-[40px] border border-transparent hover:border-corporate-border"
                     aria-label="Close modal"
                 >
                     <span className="hidden sm:inline">Close</span>
@@ -218,9 +218,9 @@ const OrderIntentDetails: React.FC<Props> = ({ orderIntentId, onClose, onReset }
         <div className="flex-1 overflow-y-auto overflow-x-hidden">
           
           {/* Internal Top Header (Visual Context) */}
-          <div className="px-8 py-6 border-b border-white/5 bg-corporate-elevated/20 flex items-center justify-between">
+          <div className="px-8 py-6 border-b border-corporate-border bg-corporate-elevated/20 flex items-center justify-between">
             <div className="flex items-center gap-4">
-                <div className="p-3 bg-corporate-secondary border border-white/10">
+                <div className="p-3 bg-corporate-secondary border border-corporate-border">
                     <ShoppingBagIcon className="w-6 h-6 text-corporate-accent" />
                 </div>
                 <div>
@@ -234,7 +234,7 @@ const OrderIntentDetails: React.FC<Props> = ({ orderIntentId, onClose, onReset }
             </div>
             
             {/* Contextual Note */}
-            <div className="hidden lg:block bg-corporate-secondary border border-white/5 px-4 py-2">
+            <div className="hidden lg:block bg-corporate-secondary border border-corporate-border px-4 py-2">
                 <p className="text-[0.6rem] font-technical text-corporate-muted uppercase tracking-widest">
                     Status: <span className="text-corporate-text font-black">{intent.status}</span>
                 </p>
@@ -253,7 +253,7 @@ const OrderIntentDetails: React.FC<Props> = ({ orderIntentId, onClose, onReset }
                     { label: 'Preflight', value: intent.lifecycle?.preflight_status || '—', icon: DocumentCheckIcon },
                     { label: 'Payment', value: intent.lifecycle?.payment_status || '—', icon: CurrencyDollarIcon },
                 ].map((s, i) => (
-                    <div key={i} className="bg-corporate-secondary/50 border border-white/5 p-4">
+                    <div key={i} className="bg-corporate-secondary/50 border border-corporate-border p-4">
                         <span className="text-[0.55rem] font-technical uppercase tracking-widest text-corporate-muted block mb-2">{s.label}</span>
                         <div className="flex items-center gap-2">
                             <span className={`text-[0.7rem] font-black uppercase tracking-widest ${s.value === 'PASSED' || s.value === 'SIGNED' || s.value === 'PAID' || s.value === 'VALIDATED' ? 'text-green-500' : 'text-corporate-muted'}`}>
@@ -265,7 +265,7 @@ const OrderIntentDetails: React.FC<Props> = ({ orderIntentId, onClose, onReset }
             </div>
 
             {/* Defensive Copy Note */}
-            <div className="bg-green-500/5 border border-white/5 p-4 flex items-start gap-4">
+            <div className="bg-green-500/5 border border-corporate-border p-4 flex items-start gap-4">
                 <CheckBadgeIcon className="w-5 h-5 text-green-500 shrink-0" />
                 <p className="text-[0.7rem] text-corporate-text-secondary leading-relaxed font-technical">
                     Your order request has been saved. You can safely return to the marketplace or close this view. Your configuration and uploaded files are preserved in our industrial ledger.
@@ -279,8 +279,8 @@ const OrderIntentDetails: React.FC<Props> = ({ orderIntentId, onClose, onReset }
             />
 
             {/* Specs Summary */}
-            <div className="bg-corporate-secondary/30 border border-white/5 p-6">
-                <h3 className="text-[0.7rem] font-black uppercase tracking-widest text-corporate-text mb-4 border-b border-white/5 pb-2">
+            <div className="bg-corporate-secondary/30 border border-corporate-border p-6">
+                <h3 className="text-[0.7rem] font-black uppercase tracking-widest text-corporate-text mb-4 border-b border-corporate-border pb-2">
                     Order Configuration
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-8">
@@ -334,7 +334,7 @@ const OrderIntentDetails: React.FC<Props> = ({ orderIntentId, onClose, onReset }
                     if (!paperPrefs || (!paperPrefs.interior && !paperPrefs.cover && !paperPrefs.endpaper)) return null;
 
                     return (
-                        <div className="mt-4 pt-4 border-t border-white/10 bg-corporate-primary/40 p-3.5">
+                        <div className="mt-4 pt-4 border-t border-corporate-border bg-corporate-primary/40 p-3.5">
                             <div className="flex items-center gap-2 mb-1.5">
                                 <span className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
                                 <span className="text-[0.65rem] font-technical font-bold text-amber-400 uppercase tracking-widest">
@@ -348,21 +348,21 @@ const OrderIntentDetails: React.FC<Props> = ({ orderIntentId, onClose, onReset }
                                 {paperPrefs.interior && (
                                     <div className="text-corporate-text-secondary">
                                         <span className="text-corporate-muted uppercase">Preferred Interior: </span>
-                                        <strong className="text-white">{paperPrefs.interior.productName || paperPrefs.interior.product_name}</strong>
+                                        <strong className="text-corporate-text">{paperPrefs.interior.productName || paperPrefs.interior.product_name}</strong>
                                         {paperPrefs.interior.brand ? ` (${paperPrefs.interior.brand})` : ''} · {paperPrefs.interior.gsm}g
                                     </div>
                                 )}
                                 {paperPrefs.cover && (
                                     <div className="text-corporate-text-secondary">
                                         <span className="text-corporate-muted uppercase">Preferred Cover: </span>
-                                        <strong className="text-white">{paperPrefs.cover.productName || paperPrefs.cover.product_name}</strong>
+                                        <strong className="text-corporate-text">{paperPrefs.cover.productName || paperPrefs.cover.product_name}</strong>
                                         {paperPrefs.cover.brand ? ` (${paperPrefs.cover.brand})` : ''} · {paperPrefs.cover.gsm}g
                                     </div>
                                 )}
                                 {paperPrefs.endpaper && (
                                     <div className="text-corporate-text-secondary">
                                         <span className="text-corporate-muted uppercase">Preferred Endpaper: </span>
-                                        <strong className="text-white">{paperPrefs.endpaper.productName || paperPrefs.endpaper.product_name}</strong> · {paperPrefs.endpaper.gsm}g
+                                        <strong className="text-corporate-text">{paperPrefs.endpaper.productName || paperPrefs.endpaper.product_name}</strong> · {paperPrefs.endpaper.gsm}g
                                     </div>
                                 )}
                             </div>
@@ -374,7 +374,7 @@ const OrderIntentDetails: React.FC<Props> = ({ orderIntentId, onClose, onReset }
 
           {/* Sidebar / Totals */}
           <div className="space-y-6">
-            <div className="bg-corporate-secondary border border-white/10 p-6">
+            <div className="bg-corporate-secondary border border-corporate-border p-6">
                  <h3 className="text-[0.7rem] font-black uppercase tracking-widest text-corporate-text mb-6 flex items-center gap-2">
                     <CurrencyDollarIcon className="w-4 h-4 text-corporate-accent" />
                     Quotation Summary
@@ -403,7 +403,7 @@ const OrderIntentDetails: React.FC<Props> = ({ orderIntentId, onClose, onReset }
                 </div>
 
                 <div className="space-y-4">
-                     <div className="p-3 bg-corporate-primary/50 border border-white/5">
+                     <div className="p-3 bg-corporate-primary/50 border border-corporate-border">
                         <div className="flex items-center gap-2 mb-1">
                             <CalendarIcon className="w-3.5 h-3.5 text-corporate-muted" />
                             <span className="text-[0.6rem] font-technical uppercase tracking-widest text-corporate-muted">Created At</span>
@@ -413,7 +413,7 @@ const OrderIntentDetails: React.FC<Props> = ({ orderIntentId, onClose, onReset }
                         </span>
                     </div>
 
-                    <div className="p-3 bg-corporate-primary/50 border border-white/5">
+                    <div className="p-3 bg-corporate-primary/50 border border-corporate-border">
                         <div className="flex items-center gap-2 mb-1">
                             <PrinterIcon className="w-3.5 h-3.5 text-corporate-muted" />
                             <span className="text-[0.6rem] font-technical uppercase tracking-widest text-corporate-muted">Production Site</span>
@@ -428,7 +428,7 @@ const OrderIntentDetails: React.FC<Props> = ({ orderIntentId, onClose, onReset }
                      {cpOrderId ? (
                          <CustomerPaymentPanel cpOrderId={cpOrderId} fetchDetails={() => fetchDetails({ silent: true })} />
                      ) : intent.preflight?.status !== 'PASSED' ? (
-                        <div className="bg-corporate-primary/50 border border-white/5 p-4 text-center">
+                        <div className="bg-corporate-primary/50 border border-corporate-border p-4 text-center">
                             <p className="text-[0.65rem] text-corporate-muted italic">
                                 Invoice and payment will be available after files pass Preflight validation.
                             </p>
@@ -473,19 +473,19 @@ const OrderIntentDetails: React.FC<Props> = ({ orderIntentId, onClose, onReset }
                                     </div>
                                     
                                     <div className="space-y-2 text-[0.65rem] font-technical">
-                                        <div className="flex justify-between border-b border-white/5 pb-1">
+                                        <div className="flex justify-between border-b border-corporate-border pb-1">
                                             <span className="text-corporate-muted">Account</span>
                                             <span className="text-corporate-text text-right">{intent.payment?.instructions?.account_name || '—'}</span>
                                         </div>
-                                        <div className="flex justify-between border-b border-white/5 pb-1">
+                                        <div className="flex justify-between border-b border-corporate-border pb-1">
                                             <span className="text-corporate-muted">IBAN</span>
                                             <span className="text-corporate-text text-right">{intent.payment?.instructions?.iban || '—'}</span>
                                         </div>
-                                        <div className="flex justify-between border-b border-white/5 pb-1">
+                                        <div className="flex justify-between border-b border-corporate-border pb-1">
                                             <span className="text-corporate-muted">SWIFT</span>
                                             <span className="text-corporate-text text-right">{intent.payment?.instructions?.swift || '—'}</span>
                                         </div>
-                                        <div className="flex justify-between border-b border-white/5 pb-1 pt-2">
+                                        <div className="flex justify-between border-b border-corporate-border pb-1 pt-2">
                                             <span className="text-corporate-accent font-bold">Reference</span>
                                             <span className="text-corporate-text font-black text-right">{intent.payment?.instructions?.reference || '—'}</span>
                                         </div>
@@ -517,14 +517,14 @@ const OrderIntentDetails: React.FC<Props> = ({ orderIntentId, onClose, onReset }
                      )}
                 </div>
 
-                <div className="mt-8 pt-8 border-t border-white/5 space-y-6">
+                <div className="mt-8 pt-8 border-t border-corporate-border space-y-6">
                     <div className="flex items-center gap-2 mb-4">
                         <TruckIcon className="w-4 h-4 text-corporate-accent" />
                         <span className="text-[0.7rem] font-black uppercase tracking-widest text-corporate-text">Final Order & Handoff</span>
                     </div>
 
                     {intent.payment?.status !== 'PAID' ? (
-                        <div className="bg-corporate-primary/50 border border-white/5 p-4 text-center">
+                        <div className="bg-corporate-primary/50 border border-corporate-border p-4 text-center">
                             <p className="text-[0.65rem] text-corporate-muted italic">
                                 Final order creation will be available after payment is confirmed.
                             </p>
@@ -584,7 +584,7 @@ const OrderIntentDetails: React.FC<Props> = ({ orderIntentId, onClose, onReset }
                                 disabled={intent.control_plane?.status === 'CREATING'}
                                 className={`w-full py-4 border text-[0.75rem] font-black uppercase tracking-[0.2em] transition-all shadow-[0_0_20px_rgba(220,0,0,0.15)] ${
                                     intent.control_plane?.status === 'CREATING' 
-                                    ? 'bg-corporate-primary border-white/10 text-corporate-muted cursor-wait' 
+                                    ? 'bg-corporate-primary border-corporate-border text-corporate-muted cursor-wait' 
                                     : 'bg-corporate-accent hover:bg-corporate-accent-hover border-corporate-accent/20 text-white'
                                 }`}
                             >
@@ -599,14 +599,14 @@ const OrderIntentDetails: React.FC<Props> = ({ orderIntentId, onClose, onReset }
                 </div>
 
                 {/* Dispatch Package Section (Phase 11) */}
-                <div className="mt-8 pt-8 border-t border-white/5 space-y-6">
+                <div className="mt-8 pt-8 border-t border-corporate-border space-y-6">
                     <div className="flex items-center gap-2 mb-4">
                         <CheckBadgeIcon className="w-4 h-4 text-corporate-accent" />
                         <span className="text-[0.7rem] font-black uppercase tracking-widest text-corporate-text">Dispatch Package</span>
                     </div>
 
                     {intent.control_plane?.status !== 'CREATED' ? (
-                        <div className="bg-corporate-primary/50 border border-white/5 p-4 text-center">
+                        <div className="bg-corporate-primary/50 border border-corporate-border p-4 text-center">
                             <p className="text-[0.65rem] text-corporate-muted italic">
                                 Dispatch package creation will be available after the Control Plane order is confirmed.
                             </p>
@@ -645,7 +645,7 @@ const OrderIntentDetails: React.FC<Props> = ({ orderIntentId, onClose, onReset }
                                     <span className="text-[0.6rem] font-technical uppercase tracking-widest text-corporate-muted block mb-1">Package ID</span>
                                     <span className="text-[0.8rem] font-technical font-black text-corporate-text select-all">{intent.dispatch_package_id}</span>
                                 </div>
-                                <div className="flex justify-between items-end pt-2 border-t border-white/5">
+                                <div className="flex justify-between items-end pt-2 border-t border-corporate-border">
                                     <div>
                                         <span className="text-[0.6rem] font-technical uppercase tracking-widest text-corporate-muted block mb-1">Status</span>
                                         <div className="flex items-center gap-2">
@@ -667,7 +667,7 @@ const OrderIntentDetails: React.FC<Props> = ({ orderIntentId, onClose, onReset }
             </div> {/* End of Sidebar (289) */}
           </div> {/* End of Grid (215) */}
 
-            <div className="p-6 border border-white/5 bg-corporate-elevated/10">
+            <div className="p-6 border border-corporate-border bg-corporate-elevated/10">
                  <h4 className="text-[0.65rem] font-black uppercase tracking-widest text-corporate-muted mb-4">
                     Audit Metadata
                 </h4>

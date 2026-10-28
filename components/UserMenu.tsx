@@ -44,10 +44,10 @@ const MenuButton: React.FC<{
   <button
     role="menuitem"
     onClick={onClick}
-    className={`w-full flex items-center gap-3 px-3 py-2.5 transition-colors group focus:outline-none ${
+    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors group focus:outline-none ${
       danger
         ? 'text-corporate-accent hover:bg-corporate-accent/5 focus:bg-corporate-accent/10'
-        : 'hover:bg-white/5 focus:bg-white/5'
+        : 'hover:bg-corporate-elevated focus:bg-corporate-elevated'
     }`}
   >
     <span className={`shrink-0 transition-colors ${danger ? 'text-corporate-accent' : 'text-corporate-muted group-hover:text-corporate-text'}`}>
@@ -146,7 +146,7 @@ const AuthModal: React.FC<{ onClose: () => void; onLoginSuccess: (user: AuthUser
         <div className="h-full w-full bg-[linear-gradient(rgba(220,0,0,0.2)_1px,transparent_1px),linear-gradient(90deg,rgba(220,0,0,0.2)_1px,transparent_1px)] bg-[size:32px_32px]" />
       </div>
 
-      <div className="relative w-full max-w-[480px] border border-white/10 bg-corporate-secondary shadow-[0_0_120px_rgba(220,0,0,0.12)] overflow-hidden">
+      <div className="relative w-full max-w-[480px] mx-4 rounded-2xl border border-corporate-border bg-corporate-secondary shadow-2xl overflow-hidden">
         {/* Top accent bar */}
         <div className="h-[2px] w-full bg-corporate-accent shadow-[0_0_15px_#dc0000]" />
 
@@ -163,7 +163,7 @@ const AuthModal: React.FC<{ onClose: () => void; onLoginSuccess: (user: AuthUser
         <div className="px-8 pt-7 pb-0 space-y-5">
           {/* Header */}
           <div className="flex items-center gap-4">
-            <PPOSLogo className="w-9 h-9 shrink-0 border border-white/10 p-2 bg-white/5" />
+            <PPOSLogo className="w-9 h-9 shrink-0 rounded-xl border border-corporate-border p-2 bg-corporate-elevated" />
             <div>
               <h2 className="text-lg font-black tracking-tight text-corporate-text leading-tight">
                 {mode === 'LOGIN' ? 'Welcome back' : mode === 'MAGIC' ? 'Join PrintPrice OS' : 'Create account'}
@@ -221,10 +221,10 @@ const AuthModal: React.FC<{ onClose: () => void; onLoginSuccess: (user: AuthUser
                         key={r.id}
                         type="button"
                         onClick={() => setRole(r.id)}
-                        className={`h-[38px] text-[0.6rem] font-black uppercase tracking-widest border transition-all duration-300 ${
+                        className={`h-[38px] rounded-xl text-[0.6rem] font-black uppercase tracking-widest border transition-all duration-300 ${
                           role === r.id
                             ? 'border-corporate-accent bg-corporate-accent/10 text-corporate-text shadow-[0_0_10px_rgba(220,0,0,0.1)]'
-                            : 'border-white/10 bg-corporate-elevated text-corporate-text-secondary hover:border-corporate-accent/50 hover:text-corporate-text'
+                            : 'border-corporate-border bg-corporate-elevated text-corporate-text-secondary hover:border-corporate-accent/50 hover:text-corporate-text'
                         }`}
                       >
                         {r.label}
@@ -251,7 +251,7 @@ const AuthModal: React.FC<{ onClose: () => void; onLoginSuccess: (user: AuthUser
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="user@email.com"
                     autoComplete="email"
-                    className="h-[46px] w-full bg-corporate-elevated border border-white/10 pl-11 pr-5 text-[0.85rem] text-corporate-text outline-none focus:border-corporate-accent focus:shadow-[0_0_20px_rgba(220,0,0,0.05)] transition-all duration-300 placeholder:text-corporate-muted font-medium"
+                    className="h-[46px] w-full rounded-xl bg-corporate-elevated border border-corporate-border pl-11 pr-5 text-[0.85rem] text-corporate-text outline-none focus:border-corporate-accent focus:shadow-[0_0_20px_rgba(220,0,0,0.05)] transition-all duration-300 placeholder:text-corporate-muted font-medium"
                   />
                 </div>
               </div>
@@ -273,7 +273,7 @@ const AuthModal: React.FC<{ onClose: () => void; onLoginSuccess: (user: AuthUser
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
                       autoComplete={mode === 'LOGIN' ? 'current-password' : 'new-password'}
-                      className="h-[46px] w-full bg-corporate-elevated border border-white/10 pl-11 pr-5 text-[0.85rem] text-corporate-text outline-none focus:border-corporate-accent focus:shadow-[0_0_20px_rgba(220,0,0,0.05)] transition-all duration-300 placeholder:text-corporate-muted font-medium"
+                      className="h-[46px] w-full rounded-xl bg-corporate-elevated border border-corporate-border pl-11 pr-5 text-[0.85rem] text-corporate-text outline-none focus:border-corporate-accent focus:shadow-[0_0_20px_rgba(220,0,0,0.05)] transition-all duration-300 placeholder:text-corporate-muted font-medium"
                     />
                   </div>
                 </div>
@@ -285,7 +285,7 @@ const AuthModal: React.FC<{ onClose: () => void; onLoginSuccess: (user: AuthUser
               <button
                 type="submit"
                 disabled={loading || mode === 'MAGIC'}
-                className="h-[52px] w-full bg-corporate-accent hover:bg-corporate-hover active:brightness-90 text-white text-[0.75rem] font-black uppercase tracking-[0.3em] transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-[0_4px_20px_rgba(220,0,0,0.2)] group"
+                className="h-[48px] w-full rounded-xl bg-corporate-accent hover:bg-corporate-hover active:brightness-90 text-white text-[0.75rem] font-black uppercase tracking-[0.3em] transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-sm group"
               >
                 {loading ? (
                   <span className="animate-pulse flex items-center gap-2">
@@ -429,9 +429,9 @@ const UserMenu: React.FC<UserMenuProps> = ({ user, onOpenModal, onLogout }) => {
           aria-haspopup="true"
           aria-controls="user-dropdown-menu"
           id="user-menu-button"
-          className="flex items-center gap-2 px-3 py-2 border border-white/10 hover:border-corporate-accent/40 hover:bg-white/5 transition-all group focus:outline-none focus:ring-1 focus:ring-corporate-accent/50"
+          className="flex items-center gap-2 px-3 py-2 rounded-xl border border-corporate-border hover:border-corporate-accent/40 hover:bg-corporate-elevated transition-all group focus:outline-none focus:ring-1 focus:ring-corporate-accent/50"
         >
-          <div className="flex h-7 w-7 items-center justify-center border border-white/10 bg-corporate-elevated group-hover:border-white/20 transition-colors">
+          <div className="flex h-7 w-7 rounded-lg items-center justify-center border border-corporate-border bg-corporate-elevated group-hover:border-corporate-border-strong transition-colors">
             <UserIcon className="w-4 h-4 text-corporate-muted group-hover:text-corporate-text transition-colors" />
           </div>
           <ChevronDownIcon
@@ -445,10 +445,10 @@ const UserMenu: React.FC<UserMenuProps> = ({ user, onOpenModal, onLogout }) => {
             id="user-dropdown-menu"
             role="menu"
             aria-labelledby="user-menu-button"
-            className="absolute right-0 mt-2 w-56 bg-corporate-primary border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.4)] z-[100]"
+            className="absolute right-0 mt-2 w-56 rounded-2xl overflow-hidden bg-corporate-primary border border-corporate-border shadow-2xl z-[100]"
           >
             {/* Header info */}
-            <div className="px-4 py-3 border-b border-white/5 bg-corporate-elevated/50">
+            <div className="px-4 py-3 border-b border-corporate-border bg-corporate-elevated/50">
               <div className="text-[0.6rem] font-technical font-black text-corporate-muted uppercase tracking-monolith">
                 Account
               </div>
@@ -480,7 +480,7 @@ const UserMenu: React.FC<UserMenuProps> = ({ user, onOpenModal, onLogout }) => {
 
             {/* Sign out */}
             {user && (
-              <div className="p-2 border-t border-white/5 bg-corporate-elevated/30">
+              <div className="p-2 border-t border-corporate-border bg-corporate-elevated/30">
                 <MenuButton
                   icon={<ArrowLeftOnRectangleIcon className="w-4 h-4" />}
                   label="Sign out"

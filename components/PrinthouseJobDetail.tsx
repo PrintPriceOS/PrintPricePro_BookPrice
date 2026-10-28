@@ -153,7 +153,7 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
       <div className="flex-1 overflow-y-auto p-6 space-y-8">
         
         {/* Status Ribbon */}
-        <div className="flex items-center justify-between p-4 bg-slate-900 text-white rounded-xl shadow-inner">
+        <div className="flex items-center justify-between p-4 bg-slate-900 text-corporate-text rounded-xl shadow-inner">
            <div className="flex items-center gap-4">
               <div className="flex flex-col">
                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Current Status</span>
@@ -376,7 +376,7 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
               targetStatus="REVIEWING" 
               label="Start Review" 
               icon={Search} 
-              colorClass="bg-amber-100 text-amber-700 hover:bg-amber-600 hover:text-white" 
+              colorClass="bg-amber-100 text-amber-700 hover:bg-amber-600 hover:text-corporate-text" 
             />
           )}
 
@@ -390,7 +390,7 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
               />
               <button
                 onClick={() => setShowRejectionForm(true)}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold bg-red-50 text-red-600 hover:bg-red-600 hover:text-corporate-text transition-all shadow-sm"
               >
                 <Ban className="w-4 h-4" />
                 Reject Job
@@ -412,7 +412,7 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
               targetStatus="IN_PRODUCTION" 
               label="Start Production" 
               icon={Play} 
-              colorClass="bg-purple-600 text-white hover:bg-purple-700" 
+              colorClass="bg-purple-600 text-corporate-text hover:bg-purple-700" 
             />
           )}
 
@@ -445,7 +445,7 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
                 targetStatus="SHIPPED" 
                 label="Confirm Shipment" 
                 icon={Truck} 
-                colorClass="bg-sky-600 text-white hover:bg-sky-700" 
+                colorClass="bg-sky-600 text-corporate-text hover:bg-sky-700" 
               />
             </div>
           )}

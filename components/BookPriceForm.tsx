@@ -41,7 +41,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { InitialBookPricePayload, SelectedPaperMaterial } from '../types';
 import { t } from '../i18n/en';
-import AdvancedPaperSelector from './AdvancedPaperSelector';
+import AdvancedPaperSelector, { resolveBpePaperTypeFromMaterial } from './AdvancedPaperSelector';
 
 interface BookPriceFormProps {
   initialPayload: InitialBookPricePayload;
@@ -153,32 +153,74 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
     onSpecsInvalidated?.();
   };
 
-  // Advanced Paper Handlers (Informative preferences only - keeps standard calculation parameters intact)
+  // Advanced Paper Handlers (Syncs gsm & BPE substrate family, preserves full material traceability, triggers spec invalidation)
   const handleInteriorPaperSelect = (material: SelectedPaperMaterial | null) => {
+    const mappedType = material
+      ? resolveBpePaperTypeFromMaterial(
+          {
+            category: material.category,
+            brand: material.brand,
+            finish: material.finish,
+            productName: material.productName || material.product_name,
+          },
+          'interior'
+        )
+      : payload.paper_type_interior;
     const nextPayload = {
       ...payload,
       interior_paper_material: material,
+      ...(material?.gsm ? { paper_weight_interior: material.gsm } : {}),
+      ...(mappedType ? { paper_type_interior: mappedType as any } : {}),
     };
     setPayload(nextPayload);
     onPayloadChange(nextPayload);
+    onSpecsInvalidated?.();
   };
 
   const handleCoverPaperSelect = (material: SelectedPaperMaterial | null) => {
+    const mappedType = material
+      ? resolveBpePaperTypeFromMaterial(
+          {
+            category: material.category,
+            brand: material.brand,
+            finish: material.finish,
+            productName: material.productName || material.product_name,
+          },
+          'cover'
+        )
+      : payload.paper_type_cover;
     const nextPayload = {
       ...payload,
       cover_paper_material: material,
+      ...(material?.gsm ? { paper_weight_cover: material.gsm } : {}),
+      ...(mappedType ? { paper_type_cover: mappedType as any } : {}),
     };
     setPayload(nextPayload);
     onPayloadChange(nextPayload);
+    onSpecsInvalidated?.();
   };
 
   const handleEndpaperSelect = (material: SelectedPaperMaterial | null) => {
+    const mappedType = material
+      ? resolveBpePaperTypeFromMaterial(
+          {
+            category: material.category,
+            brand: material.brand,
+            finish: material.finish,
+            productName: material.productName || material.product_name,
+          },
+          'endpaper'
+        )
+      : payload.paper_type_endpaper;
     const nextPayload = {
       ...payload,
       endpaper_material: material,
+      ...(material?.gsm ? { paper_weight_endpapers: material.gsm } : {}),
+      ...(mappedType ? { paper_type_endpaper: mappedType as any } : {}),
     };
     setPayload(nextPayload);
     onPayloadChange(nextPayload);
+    onSpecsInvalidated?.();
   };
 
   const handleCalculatePrice = () => {
@@ -189,12 +231,12 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
   };
 
   return (
-    <div className="bg-corporate-secondary p-4 sm:p-6 md:p-12 border border-white/5 relative overflow-hidden">
-      <div className="absolute top-0 right-0 opacity-[0.02] font-technical text-[8rem] font-black pointer-events-none uppercase">
+    <div className="bg-corporate-secondary rounded-2xl shadow-sm p-4 sm:p-6 md:p-10 border border-corporate-border relative overflow-hidden min-w-0">
+      <div className="absolute top-0 right-0 opacity-[0.02] font-technical text-[5rem] sm:text-[8rem] font-black pointer-events-none uppercase select-none leading-none">
         SPEC
       </div>
       
-      <div className="flex items-center justify-between mb-8 sm:mb-12 relative z-10 border-b border-white/10 pb-4">
+      <div className="flex items-center justify-between mb-8 sm:mb-12 relative z-10 border-b border-corporate-border pb-4">
         <h2 className="text-[0.7rem] font-sans font-black tracking-wider sm:tracking-monolith text-corporate-accent flex items-center gap-3 uppercase">
           <WrenchIcon className="w-5 h-5" />
           {t('book_specifications_label') || 'Book specifications'}
@@ -210,11 +252,11 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
         {/* ======================================================== */}
         <div className="space-y-6">
           <div className="flex items-center gap-4 sm:gap-6">
-            <span className="w-2 h-2 bg-corporate-accent shrink-0" />
+            <span className="w-2 h-2 rounded-full bg-corporate-accent shrink-0" />
             <h3 className="text-[11px] font-sans font-black text-corporate-text uppercase tracking-wider sm:tracking-monolith">
               1. Book Specifications & Format
             </h3>
-            <div className="h-px w-full bg-white/10" />
+            <div className="h-px w-full bg-corporate-border" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-x-10 gap-y-8">
@@ -230,7 +272,7 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                 min={1}
                 value={payload.copies}
                 onChange={handleChange}
-                className="block w-full py-3.5 px-5 bg-corporate-primary border border-white/10 text-corporate-text text-sm focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300 placeholder:text-corporate-muted"
+                className="block w-full rounded-xl py-3 px-4 bg-corporate-elevated border border-corporate-border text-corporate-text text-sm focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300 placeholder:text-corporate-muted"
               />
               <p className="mt-2 text-[11px] text-corporate-muted italic leading-tight">
                 {t('copies_help')}
@@ -247,7 +289,7 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                 name="book_size"
                 value={payload.book_size}
                 onChange={handleChange}
-                className="block w-full py-3.5 px-5 bg-corporate-primary border border-white/10 text-corporate-text text-sm focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
+                className="block w-full rounded-xl py-3 px-4 bg-corporate-elevated border border-corporate-border text-corporate-text text-sm focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
               >
                 {currentBookSizes.map((size) => (
                   <option key={size} value={size}>
@@ -270,7 +312,7 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                 name="orientation"
                 value={payload.orientation}
                 onChange={handleChange}
-                className="block w-full py-3.5 px-5 bg-corporate-primary border border-white/10 text-corporate-text text-sm focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
+                className="block w-full rounded-xl py-3 px-4 bg-corporate-elevated border border-corporate-border text-corporate-text text-sm focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
               >
                 {ORIENTATIONS.map((o) => (
                   <option key={o} value={o}>
@@ -286,7 +328,7 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
 
           {/* Custom Dimensions Subsection */}
           {payload.book_size === 'Custom' && (
-            <div className="bg-corporate-primary/40 border border-corporate-accent/30 p-8 mt-6">
+            <div className="bg-corporate-elevated/60 rounded-xl border border-corporate-accent/30 p-4 sm:p-6 mt-4 min-w-0">
               <span className="text-[10px] font-sans font-black text-corporate-accent uppercase tracking-monolith flex items-center gap-3 mb-6">
                 <ArrowsPointingOutIcon className="w-4 h-4" />
                 Custom Book Dimensions
@@ -306,7 +348,7 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                       placeholder="210"
                       value={payload.custom_width || ''}
                       onChange={handleChange}
-                      className={`block w-full py-3 px-5 bg-corporate-primary border text-corporate-text text-sm focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300 ${customDimensionError ? 'border-corporate-accent' : 'border-white/10'}`}
+                      className={`block w-full rounded-xl py-3 px-4 bg-corporate-primary border text-corporate-text text-sm focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300 ${customDimensionError ? 'border-corporate-accent' : 'border-corporate-border'}`}
                     />
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-technical font-black text-corporate-muted uppercase pointer-events-none">
                       MM
@@ -328,7 +370,7 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                       placeholder="297"
                       value={payload.custom_height || ''}
                       onChange={handleChange}
-                      className={`block w-full py-3 px-5 bg-corporate-primary border text-corporate-text text-sm focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300 ${customDimensionError ? 'border-corporate-accent' : 'border-white/10'}`}
+                      className={`block w-full rounded-xl py-3 px-4 bg-corporate-primary border text-corporate-text text-sm focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300 ${customDimensionError ? 'border-corporate-accent' : 'border-corporate-border'}`}
                     />
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-technical font-black text-corporate-muted uppercase pointer-events-none">
                       MM
@@ -337,7 +379,7 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                 </div>
               </div>
 
-              <div className="mt-6 bg-corporate-accent/5 p-4 border border-corporate-accent/15">
+              <div className="mt-6 rounded-xl bg-corporate-accent/5 p-4 border border-corporate-accent/15">
                 <p className="text-[9px] font-technical font-bold text-corporate-accent uppercase tracking-monolith mb-1 flex items-center gap-2">
                   <SparklesIcon className="w-3 h-3" />
                   <span>{payload.orientation === 'portrait' ? 'Portrait' : 'Landscape'} Print Authority</span>
@@ -369,11 +411,11 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                   min={0}
                   value={payload.interior_pages}
                   onChange={handleChange}
-                  className={`block w-full py-3.5 px-5 bg-corporate-primary border text-corporate-text text-sm focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300 ${hasPdf ? 'border-corporate-accent/50' : 'border-white/10'}`}
+                  className={`block w-full rounded-xl py-3 px-4 bg-corporate-primary border text-corporate-text text-sm focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300 ${hasPdf ? 'border-corporate-accent/50' : 'border-corporate-border'}`}
                 />
                 {hasPdf && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <span className="text-[9px] bg-emerald-700 text-white px-2 py-0.5 font-bold uppercase tracking-wider">
+                    <span className="text-[9px] rounded-full bg-emerald-700 text-white px-2.5 py-0.5 font-bold uppercase tracking-wider">
                       PDF OK
                     </span>
                   </div>
@@ -393,7 +435,7 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                 name="cover_pages"
                 value={payload.cover_pages}
                 onChange={handleChange}
-                className="block w-full py-3.5 px-5 bg-corporate-primary border border-white/10 text-corporate-text text-sm focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
+                className="block w-full rounded-xl py-3 px-4 bg-corporate-elevated border border-corporate-border text-corporate-text text-sm focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
               >
                 {COVER_PAGES_OPTIONS.map((v) => (
                   <option key={v} value={v}>
@@ -413,11 +455,11 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
         {/* ======================================================== */}
         <div className="space-y-10">
           <div className="flex items-center gap-4 sm:gap-6">
-            <span className="w-2 h-2 bg-corporate-accent shrink-0" />
+            <span className="w-2 h-2 rounded-full bg-corporate-accent shrink-0" />
             <h3 className="text-[11px] font-sans font-black text-corporate-text uppercase tracking-wider sm:tracking-monolith">
               2. Paper Substrates & Printing Inks
             </h3>
-            <div className="h-px w-full bg-white/10" />
+            <div className="h-px w-full bg-corporate-border" />
           </div>
 
           {/* Interior Paper Selector */}
@@ -433,7 +475,7 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                   name="interior_print"
                   value={payload.interior_print}
                   onChange={handleChange}
-                  className="block w-full py-3 px-4 bg-corporate-primary border border-white/10 text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
+                  className="block w-full rounded-xl py-3 px-4 bg-corporate-elevated border border-corporate-border text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
                 >
                   {INTERIOR_PRINT_OPTIONS.map((m) => (
                     <option key={m} value={m}>
@@ -453,7 +495,7 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                   name="pms_interior"
                   value={payload.pms_interior}
                   onChange={handleChange}
-                  className="block w-full py-3 px-4 bg-corporate-primary border border-white/10 text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
+                  className="block w-full rounded-xl py-3 px-4 bg-corporate-elevated border border-corporate-border text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
                 >
                   {PMS_OPTIONS.map((v) => (
                     <option key={v} value={v}>
@@ -488,7 +530,7 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                     name="paper_type_interior"
                     value={payload.paper_type_interior}
                     onChange={handleChange}
-                    className="block w-full py-3 px-4 bg-corporate-primary border border-white/10 text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
+                    className="block w-full rounded-xl py-3 px-4 bg-corporate-elevated border border-corporate-border text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
                   >
                     {PAPER_TYPE_INTERIOR.map((p) => (
                       <option key={p.value} value={p.value}>
@@ -508,7 +550,7 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                     name="paper_weight_interior"
                     value={payload.paper_weight_interior}
                     onChange={handleChange}
-                    className="block w-full py-3 px-4 bg-corporate-primary border border-white/10 text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
+                    className="block w-full rounded-xl py-3 px-4 bg-corporate-elevated border border-corporate-border text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
                   >
                     {INTERIOR_GSM_OPTIONS.map((n) => (
                       <option key={n} value={n}>
@@ -522,7 +564,7 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
           </div>
 
           {/* Cover Paper Selector */}
-          <div className="space-y-4 pt-4 border-t border-white/5">
+          <div className="space-y-4 pt-4 border-t border-corporate-border">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pb-2">
               {/* Cover Color */}
               <div className="flex flex-col">
@@ -534,7 +576,7 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                   name="cover_print"
                   value={payload.cover_print}
                   onChange={handleChange}
-                  className="block w-full py-3 px-4 bg-corporate-primary border border-white/10 text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
+                  className="block w-full rounded-xl py-3 px-4 bg-corporate-elevated border border-corporate-border text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
                 >
                   {COVER_PRINT_OPTIONS.map((m) => (
                     <option key={m} value={m}>
@@ -554,7 +596,7 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                   name="cover_print_rev"
                   value={payload.cover_print_rev}
                   onChange={handleChange}
-                  className="block w-full py-3 px-4 bg-corporate-primary border border-white/10 text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
+                  className="block w-full rounded-xl py-3 px-4 bg-corporate-elevated border border-corporate-border text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
                 >
                   {[0, 1, 2, 3, 4, 5, 6].map((v) => (
                     <option key={v} value={v}>
@@ -574,7 +616,7 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                   name="pms_cover"
                   value={payload.pms_cover}
                   onChange={handleChange}
-                  className="block w-full py-3 px-4 bg-corporate-primary border border-white/10 text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
+                  className="block w-full rounded-xl py-3 px-4 bg-corporate-elevated border border-corporate-border text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
                 >
                   {PMS_OPTIONS.map((v) => (
                     <option key={v} value={v}>
@@ -609,7 +651,7 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                     name="paper_type_cover"
                     value={payload.paper_type_cover}
                     onChange={handleChange}
-                    className="block w-full py-3 px-4 bg-corporate-primary border border-white/10 text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
+                    className="block w-full rounded-xl py-3 px-4 bg-corporate-elevated border border-corporate-border text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
                   >
                     {PAPER_TYPE_COVER.map((p) => (
                       <option key={p.value} value={p.value}>
@@ -629,7 +671,7 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                     name="paper_weight_cover"
                     value={payload.paper_weight_cover}
                     onChange={handleChange}
-                    className="block w-full py-3 px-4 bg-corporate-primary border border-white/10 text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
+                    className="block w-full rounded-xl py-3 px-4 bg-corporate-elevated border border-corporate-border text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
                   >
                     {COVER_GSM_OPTIONS.map((n) => (
                       <option key={n} value={n}>
@@ -644,7 +686,7 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
 
           {/* Hardcover Endpapers Section */}
           {isHardcover && (
-            <div className="space-y-4 pt-4 border-t border-white/5">
+            <div className="space-y-4 pt-4 border-t border-corporate-border">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-sans font-black uppercase tracking-monolith text-corporate-accent flex items-center gap-2">
                   <DocumentTextIcon className="w-4 h-4" />
@@ -664,7 +706,7 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                     name="endpapers"
                     value={payload.endpapers}
                     onChange={handleChange}
-                    className="block w-full py-3 px-4 bg-corporate-primary border border-white/10 text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
+                    className="block w-full rounded-xl py-3 px-4 bg-corporate-elevated border border-corporate-border text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
                   >
                     {ENDPAPERS_OPTIONS.map((e) => (
                       <option key={e.value} value={e.value}>
@@ -683,7 +725,7 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                     value={payload.endpapers_print}
                     onChange={handleChange}
                     disabled={payload.endpapers === 'none'}
-                    className="block w-full py-3 px-4 bg-corporate-primary border border-white/10 text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300 disabled:opacity-30"
+                    className="block w-full rounded-xl py-3 px-4 bg-corporate-elevated border border-corporate-border text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300 disabled:opacity-30"
                   >
                     {ENDPAPERS_PRINT_OPTIONS.map((e) => (
                       <option key={e.value} value={e.value}>
@@ -718,7 +760,7 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                         name="paper_type_endpaper"
                         value={payload.paper_type_endpaper}
                         onChange={handleChange}
-                        className="block w-full py-3 px-4 bg-corporate-primary border border-white/10 text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
+                        className="block w-full rounded-xl py-3 px-4 bg-corporate-elevated border border-corporate-border text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
                       >
                         {PAPER_TYPE_ENDPAPER.map((p) => (
                           <option key={p.value} value={p.value}>
@@ -737,7 +779,7 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                         name="paper_weight_endpapers"
                         value={payload.paper_weight_endpapers}
                         onChange={handleChange}
-                        className="block w-full py-3 px-4 bg-corporate-primary border border-white/10 text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
+                        className="block w-full rounded-xl py-3 px-4 bg-corporate-elevated border border-corporate-border text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
                       >
                         {ENDPAPERS_GSM_OPTIONS.map((n) => (
                           <option key={n} value={n}>
@@ -758,11 +800,11 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
         {/* ======================================================== */}
         <div className="space-y-6">
           <div className="flex items-center gap-4 sm:gap-6">
-            <span className="w-2 h-2 bg-corporate-accent shrink-0" />
+            <span className="w-2 h-2 rounded-full bg-corporate-accent shrink-0" />
             <h3 className="text-[11px] font-sans font-black text-corporate-text uppercase tracking-wider sm:tracking-monolith">
               3. Binding & Finishes
             </h3>
-            <div className="h-px w-full bg-white/10" />
+            <div className="h-px w-full bg-corporate-border" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-x-10 gap-y-8">
@@ -775,7 +817,7 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                 name="binding_method"
                 value={payload.binding_method}
                 onChange={handleChange}
-                className="block w-full py-3.5 px-5 bg-corporate-primary border border-white/10 text-corporate-text text-sm focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
+                className="block w-full rounded-xl py-3 px-4 bg-corporate-elevated border border-corporate-border text-corporate-text text-sm focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
               >
                 {BINDING_METHODS.map((b) => (
                   <option key={b.value} value={b.value}>
@@ -797,7 +839,7 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                 name="finishing_options"
                 value={payload.finishing_options}
                 onChange={handleChange}
-                className="block w-full py-3.5 px-5 bg-corporate-primary border border-white/10 text-corporate-text text-sm focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
+                className="block w-full rounded-xl py-3 px-4 bg-corporate-elevated border border-corporate-border text-corporate-text text-sm focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
               >
                 {FINISHING_OPTIONS.map((f) => (
                   <option key={f.value} value={f.value}>
@@ -815,16 +857,16 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                 <SunIcon className="w-4 h-4 text-corporate-accent" />
                 {t('uv_varnish_label')}
               </label>
-              <div className="flex items-center gap-4 py-3.5 px-5 bg-corporate-primary border border-white/10 h-[52px]">
+              <div className="flex items-center gap-4 rounded-xl py-3 px-4 bg-corporate-elevated border border-corporate-border h-[48px]">
                 <input
                   id="uv_varnish"
                   type="checkbox"
                   name="uv_varnish"
                   checked={payload.uv_varnish}
                   onChange={handleChange}
-                  className="h-5 w-5 bg-corporate-primary border border-white/20 text-corporate-accent focus:ring-0 rounded-none cursor-pointer"
+                  className="h-5 w-5 rounded-md bg-corporate-elevated border border-corporate-border-strong text-corporate-accent focus:ring-0 cursor-pointer"
                 />
-                <label htmlFor="uv_varnish" className="text-[10px] font-technical font-black text-white uppercase tracking-monolith cursor-pointer">
+                <label htmlFor="uv_varnish" className="text-[10px] font-technical font-black text-corporate-text uppercase tracking-wider sm:tracking-monolith cursor-pointer">
                   {payload.uv_varnish ? 'ACTIVE (+Spot UV)' : 'INACTIVE'}
                 </label>
               </div>
@@ -838,13 +880,13 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
         {/* ======================================================== */}
         {/* GROUP 4: DELIVERY & LOGISTICS                            */}
         {/* ======================================================== */}
-        <div className="space-y-6 pt-4 border-t border-white/10">
+        <div className="space-y-6 pt-4 border-t border-corporate-border">
           <div className="flex items-center gap-4 sm:gap-6">
-            <span className="w-2 h-2 bg-corporate-accent shrink-0" />
+            <span className="w-2 h-2 rounded-full bg-corporate-accent shrink-0" />
             <h3 className="text-[11px] font-sans font-black text-corporate-text uppercase tracking-wider sm:tracking-monolith">
               4. Delivery & Logistics
             </h3>
-            <div className="h-px w-full bg-white/10" />
+            <div className="h-px w-full bg-corporate-border" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8 items-center">
@@ -857,7 +899,7 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                 name="delivery_country"
                 value={payload.delivery_country}
                 onChange={handleChange}
-                className="block w-full py-3.5 px-5 bg-corporate-primary border border-white/10 text-corporate-text text-sm focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
+                className="block w-full rounded-xl py-3 px-4 bg-corporate-elevated border border-corporate-border text-corporate-text text-sm focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all duration-300"
               >
                 {DELIVERY_COUNTRIES.map((c) => (
                   <option key={c.code} value={c.code}>
@@ -875,12 +917,12 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                 type="button"
                 onClick={handleCalculatePrice}
                 disabled={loading}
-                className="w-full inline-flex items-center justify-center bg-corporate-accent px-10 py-4 text-xs font-sans font-black text-white uppercase tracking-monolith transition-all duration-300 hover:bg-corporate-hover hover:shadow-[0_10px_30px_rgba(220,0,0,0.3)] disabled:opacity-50 relative group overflow-hidden"
+                className="w-full min-h-[48px] rounded-xl inline-flex items-center justify-center bg-corporate-accent px-8 py-3.5 text-xs font-sans font-black text-white uppercase tracking-monolith transition-all duration-300 hover:bg-corporate-hover hover:shadow-[0_10px_30px_rgba(220,0,0,0.3)] disabled:opacity-50 relative group overflow-hidden shadow-sm"
               >
                 <div className="absolute inset-x-0 bottom-0 h-1 bg-white/20 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                 {loading ? (
                   <>
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-corporate-text" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>

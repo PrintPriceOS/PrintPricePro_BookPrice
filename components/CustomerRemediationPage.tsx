@@ -200,7 +200,7 @@ export const CustomerRemediationPage: React.FC<CustomerRemediationPageProps> = (
   // Render Loading State
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] bg-corporate-secondary border border-white/5 p-12">
+      <div className="flex flex-col items-center justify-center min-h-[400px] bg-corporate-secondary border border-corporate-border p-12">
         <ArrowPathIcon className="w-8 h-8 text-corporate-accent animate-spin" />
         <p className="mt-4 text-[0.65rem] font-technical font-black tracking-monolith text-corporate-accent uppercase">
           Verifying Customer Action Token...
@@ -251,7 +251,7 @@ export const CustomerRemediationPage: React.FC<CustomerRemediationPageProps> = (
             <p className="text-sm text-corporate-text mb-6">
               {runOutcome.message}
             </p>
-            <div className="border-t border-white/5 pt-4">
+            <div className="border-t border-corporate-border pt-4">
               <p className="text-xs text-corporate-text-secondary">
                 You can close this window now. The administrative pipeline has been advanced to the next production step.
               </p>
@@ -290,7 +290,7 @@ export const CustomerRemediationPage: React.FC<CustomerRemediationPageProps> = (
       </div>
 
       {/* Message and Printer Blockers */}
-      <div className="bg-corporate-secondary border border-white/5 p-6 space-y-4">
+      <div className="bg-corporate-secondary border border-corporate-border p-6 space-y-4">
         <h2 className="text-[0.65rem] font-technical font-black tracking-monolith text-corporate-accent uppercase">
           Issues Identified by Print Facility
         </h2>
@@ -326,7 +326,7 @@ export const CustomerRemediationPage: React.FC<CustomerRemediationPageProps> = (
           const up = uploads[role] || { status: 'idle', file: null };
           
           return (
-            <div key={role} className="bg-corporate-secondary border border-white/5 p-6 space-y-4">
+            <div key={role} className="bg-corporate-secondary border border-corporate-border p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-technical font-bold text-corporate-text uppercase tracking-wider">
                   {getRoleLabel(role)}
@@ -353,7 +353,7 @@ export const CustomerRemediationPage: React.FC<CustomerRemediationPageProps> = (
               </div>
 
               {/* Drag and Drop Zone custom-built */}
-              <div className="relative border-2 border-dashed border-white/10 p-8 text-center transition-colors hover:border-corporate-accent/40 bg-corporate-primary/30">
+              <div className="relative border-2 border-dashed border-corporate-border p-8 text-center transition-colors hover:border-corporate-accent/40 bg-corporate-primary/30">
                 <input
                   type="file"
                   accept="application/pdf"
@@ -425,7 +425,7 @@ export const CustomerRemediationPage: React.FC<CustomerRemediationPageProps> = (
       )}
 
       {/* Run Action Panel */}
-      <div className="bg-corporate-secondary border border-white/5 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-corporate-secondary border border-corporate-border p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h3 className="text-xs font-technical font-bold text-corporate-text uppercase tracking-wider">
             Re-evaluate Order Status
@@ -439,16 +439,16 @@ export const CustomerRemediationPage: React.FC<CustomerRemediationPageProps> = (
           type="button"
           onClick={handleRunRemediation}
           disabled={!allUploaded || running || isExpired}
-          className={`flex items-center justify-center gap-2 px-6 py-3 font-technical text-[10px] font-black uppercase tracking-monolith text-white transition-all
+          className={`flex items-center justify-center gap-2 px-6 py-3 font-technical text-[10px] font-black uppercase tracking-monolith text-corporate-text transition-all
             ${allUploaded && !running && !isExpired
               ? 'bg-corporate-accent hover:bg-corporate-hover cursor-pointer shadow-lg shadow-corporate-accent/10'
-              : 'bg-corporate-elevated text-corporate-muted border border-white/5 cursor-not-allowed'
+              : 'bg-corporate-elevated text-corporate-muted border border-corporate-border cursor-not-allowed'
             }
           `}
         >
           {running ? (
             <>
-              <ArrowPathIcon className="w-4 h-4 animate-spin text-white" />
+              <ArrowPathIcon className="w-4 h-4 animate-spin text-corporate-text" />
               Running Verification...
             </>
           ) : (

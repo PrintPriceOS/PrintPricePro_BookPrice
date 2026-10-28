@@ -30,11 +30,11 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: () => void }> = ({ t
 
   return (
     <div
-      className={`flex items-start gap-4 px-5 py-4 border shadow-2xl w-full max-w-sm pointer-events-auto
+      className={`flex items-start gap-4 px-5 py-4 rounded-xl border shadow-2xl w-full max-w-sm pointer-events-auto
         ${isSuccess
           ? 'bg-corporate-secondary border-corporate-accent/40'
           : isInfo 
-            ? 'bg-corporate-secondary border-white/30'
+            ? 'bg-corporate-secondary border-corporate-border-strong'
             : 'bg-corporate-secondary border-red-500/50'
         }`}
       role="alert"

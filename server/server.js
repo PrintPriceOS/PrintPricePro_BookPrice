@@ -2412,6 +2412,39 @@ app.get('/api/budget/paper/search', async (req, res) => {
     }
 });
 
+// 📑 PROXY: Quote Revision Review & Consent (PR #8 & PR #9 / BUDGET-02D-04)
+app.get('/api/budget/quote-revisions/review/:token', async (req, res) => {
+    try {
+        const rawToken = req.params.token;
+        const cpUrl = `${CONTROL_PLANE_BASE_URL}/api/marketplace/quote-revisions/review/${encodeURIComponent(rawToken)}`;
+        const headers = buildControlPlaneHeaders();
+        const response = await axios.get(cpUrl, { headers, timeout: 8000 });
+        return res.json(response.data);
+    } catch (err) {
+        const status = err.response?.status || 500;
+        return res.status(status).json(err.response?.data || {
+            ok: false,
+            error: { code: 'REVISION_FETCH_FAILED', message: err.message }
+        });
+    }
+});
+
+app.post('/api/budget/quote-revisions/review/:token/respond', async (req, res) => {
+    try {
+        const rawToken = req.params.token;
+        const cpUrl = `${CONTROL_PLANE_BASE_URL}/api/marketplace/quote-revisions/review/${encodeURIComponent(rawToken)}/respond`;
+        const headers = buildControlPlaneHeaders();
+        const response = await axios.post(cpUrl, req.body, { headers, timeout: 10000 });
+        return res.json(response.data);
+    } catch (err) {
+        const status = err.response?.status || 500;
+        return res.status(status).json(err.response?.data || {
+            ok: false,
+            error: { code: 'REVISION_RESPONSE_FAILED', message: err.message }
+        });
+    }
+});
+
 // 📊 BPE PROXY: Budget Calculation
 app.post('/api/budget/calculate', [
     body('copies').isInt({ min: 1 }),
@@ -2437,21 +2470,43 @@ app.post('/api/budget/calculate', [
         let resolvedEndpaperType = req.body.paper_type_endpaper || 'offset';
         let resolvedEndpaperWeight = Number(req.body.paper_weight_endpapers ?? 115);
 
-        // Helper to map technical catalog category to canonical BPE generic paper category
-        const mapCategoryToBpeType = (category, brand, finish) => {
+        // Helper to map authoritative catalog technical attributes (category + finish) to canonical BPE paper family without brand/name heuristics
+        const mapCategoryToBpeType = (category, finish, fallbackType = 'offset') => {
             const cat = String(category || '').toUpperCase();
-            const b = String(brand || '').toUpperCase();
-            if (b.includes('MUNKEN')) return 'munken';
+            const fin = String(finish || '').toUpperCase();
             if (cat === 'OFFSET' || cat === 'UNCOATED') return 'offset';
             if (cat === 'COATED') return 'mc';
             if (cat === 'CARTON') return 'artboard';
             if (cat === 'DESIGN') return 'lux';
-            return 'other';
+            if (fin.includes('UNCOATED') || fin.includes('OFFSET')) {
+                return 'offset';
+            }
+            if (fin.includes('SILK') || fin.includes('GLOSS') || fin.includes('MATT') || fin.includes('SATIN') || fin.includes('COATED')) {
+                return 'mc';
+            }
+            if (fin.includes('BOARD') || fin.includes('CARTON')) {
+                return 'artboard';
+            }
+            return fallbackType || 'offset';
         };
 
-        // BUDGET-01 Scope Clarification:
-        // The advanced paper selector is strictly an informative customer paper preference.
-        // It does NOT overwrite BPE pricing parameters. Standard parameters remain intact.
+        // BUDGET-02D-04: If an authoritative catalog material is chosen, map its technical attributes to BPE
+        if (req.body.interior_paper_material?.gsm || req.body.customer_paper_preferences?.interior?.gsm) {
+            const mat = req.body.interior_paper_material || req.body.customer_paper_preferences.interior;
+            resolvedInteriorWeight = Number(mat.gsm);
+            resolvedInteriorType = mapCategoryToBpeType(mat.category, mat.finish, resolvedInteriorType);
+        }
+        if (req.body.cover_paper_material?.gsm || req.body.customer_paper_preferences?.cover?.gsm) {
+            const mat = req.body.cover_paper_material || req.body.customer_paper_preferences.cover;
+            resolvedCoverWeight = Number(mat.gsm);
+            resolvedCoverType = mapCategoryToBpeType(mat.category, mat.finish, resolvedCoverType);
+        }
+        if (req.body.endpaper_material?.gsm || req.body.customer_paper_preferences?.endpaper?.gsm) {
+            const mat = req.body.endpaper_material || req.body.customer_paper_preferences.endpaper;
+            resolvedEndpaperWeight = Number(mat.gsm);
+            resolvedEndpaperType = mapCategoryToBpeType(mat.category, mat.finish, resolvedEndpaperType);
+        }
+
         const rawCalcPreferences = req.body.customer_paper_preferences !== undefined
             ? req.body.customer_paper_preferences
             : ((req.body.paper_mode_interior === 'advanced' && req.body.interior_paper_material) ||

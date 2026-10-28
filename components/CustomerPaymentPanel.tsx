@@ -173,7 +173,7 @@ const CustomerPaymentPanel: React.FC<Props> = ({ cpOrderId, fetchDetails, onRefr
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 bg-corporate-secondary border border-white/10 text-corporate-muted">
+      <div className="flex flex-col items-center justify-center p-8 bg-corporate-secondary border border-corporate-border text-corporate-muted">
         <ArrowPathIcon className="w-6 h-6 animate-spin mb-2" />
         <span className="text-[0.65rem] font-technical uppercase tracking-widest">
           Loading sovereign billing status...
@@ -203,7 +203,7 @@ const CustomerPaymentPanel: React.FC<Props> = ({ cpOrderId, fetchDetails, onRefr
   if (!data) return null;
 
   return (
-    <div className="bg-corporate-secondary border border-white/10 overflow-hidden">
+    <div className="bg-corporate-secondary border border-corporate-border overflow-hidden">
       <div className="h-[2px] w-full bg-corporate-accent/50" />
       <div className="p-6">
         
@@ -268,7 +268,7 @@ const CustomerPaymentPanel: React.FC<Props> = ({ cpOrderId, fetchDetails, onRefr
               </div>
             </div>
 
-            <div className="p-3 bg-corporate-primary/50 border border-white/5 flex gap-3">
+            <div className="p-3 bg-corporate-primary/50 border border-corporate-border flex gap-3">
               <InformationCircleIcon className="w-4 h-4 text-corporate-muted shrink-0" />
               <div>
                 <p className="text-[0.6rem] font-technical uppercase tracking-widest text-corporate-muted mb-1">Remediation Guidance</p>
@@ -282,7 +282,7 @@ const CustomerPaymentPanel: React.FC<Props> = ({ cpOrderId, fetchDetails, onRefr
 
         {/* State 2: READY_FOR_INVOICE / invoiceReady is true with no invoice */}
         {!isBlocked && !data.invoice?.invoiceNumber && !data.invoice?.invoice_number && data.invoiceReady && (
-          <div className="flex flex-col items-center justify-center py-6 bg-corporate-primary/20 border border-white/5 gap-4">
+          <div className="flex flex-col items-center justify-center py-6 bg-corporate-primary/20 border border-corporate-border gap-4">
             <p className="text-[0.7rem] text-corporate-text-secondary text-center max-w-[320px]">
               Your assets and specifications are verified. Click below to generate the invoice and unlock secure checkout.
             </p>
@@ -305,33 +305,33 @@ const CustomerPaymentPanel: React.FC<Props> = ({ cpOrderId, fetchDetails, onRefr
             </div>
             
             <div className="space-y-2 text-[0.65rem] font-technical">
-              <div className="flex justify-between border-b border-white/5 pb-1">
+              <div className="flex justify-between border-b border-corporate-border pb-1">
                 <span className="text-corporate-muted">Beneficiary</span>
-                <span className="text-corporate-text text-right text-white font-bold">
+                <span className="text-corporate-text text-right text-corporate-text font-bold">
                   {data.payment.instructions?.beneficiary || data.payment.instructions?.account_name || 'PrintPricePro Marketplace'}
                 </span>
               </div>
-              <div className="flex justify-between border-b border-white/5 pb-1">
+              <div className="flex justify-between border-b border-corporate-border pb-1">
                 <span className="text-corporate-muted">IBAN</span>
-                <span className="text-corporate-text text-right font-bold text-white">
+                <span className="text-corporate-text text-right font-bold text-corporate-text">
                   {data.payment.instructions?.iban || 'N/A'}
                 </span>
               </div>
-              <div className="flex justify-between border-b border-white/5 pb-1">
+              <div className="flex justify-between border-b border-corporate-border pb-1">
                 <span className="text-corporate-muted">BIC/SWIFT</span>
                 <span className="text-corporate-text text-right">
                   {data.payment.instructions?.swift || data.payment.instructions?.bic || 'N/A'}
                 </span>
               </div>
-              <div className="flex justify-between border-b border-white/5 pb-1 pt-2">
+              <div className="flex justify-between border-b border-corporate-border pb-1 pt-2">
                 <span className="text-corporate-accent font-bold">Reference</span>
-                <span className="text-corporate-text font-black text-right text-white tracking-wider">
+                <span className="text-corporate-text font-black text-right text-corporate-text tracking-wider">
                   {data.payment.instructions?.reference || 'N/A'}
                 </span>
               </div>
               <div className="flex justify-between pt-1">
                 <span className="text-corporate-muted">Amount</span>
-                <span className="text-corporate-text font-black text-right text-white">
+                <span className="text-corporate-text font-black text-right text-corporate-text">
                   {data.payment.instructions?.currency || 'EUR'} {(data.payment.instructions?.amount ?? 0).toFixed(2)}
                 </span>
               </div>
@@ -382,7 +382,7 @@ const CustomerPaymentPanel: React.FC<Props> = ({ cpOrderId, fetchDetails, onRefr
               Your payment has been successfully recorded on the ControlPlane and synchronized locally. The order intent is now unlocked and has been submitted to the production queue.
             </p>
             {data.invoice && (
-              <div className="mt-3 pt-3 border-t border-white/5 flex justify-between text-[0.6rem] font-technical text-corporate-muted">
+              <div className="mt-3 pt-3 border-t border-corporate-border flex justify-between text-[0.6rem] font-technical text-corporate-muted">
                 <span>Invoice: {data.invoice.invoiceNumber || data.invoice.invoice_number || 'N/A'}</span>
                 <span>Amount: {data.invoice.currency || 'EUR'} {(data.invoice.amount ?? 0).toFixed(2)}</span>
               </div>

@@ -464,75 +464,81 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
   };
 
   return (
-    <section className="mb-12">
-      <div className="bg-corporate-secondary border border-white/5 flex flex-col h-[520px] overflow-hidden transition-all duration-300 relative">
-        <div className="absolute top-0 right-0 opacity-[0.02] font-technical text-[6rem] font-black pointer-events-none uppercase">
-          AI_LOG
+    <section className="mb-4 sm:mb-8 min-w-0">
+      <div className="bg-corporate-secondary rounded-2xl shadow-sm border border-corporate-border flex flex-col h-[310px] sm:h-[430px] overflow-hidden transition-all duration-300 relative min-w-0">
+        <div className="absolute top-0 right-0 opacity-[0.03] font-technical text-[4rem] sm:text-[6rem] font-black pointer-events-none uppercase select-none leading-none">
+          AI_BPE
         </div>
-        <div className="bg-corporate-primary/50 pl-10 pr-6 py-6 flex items-center justify-between border-b border-white/5 relative z-10">
-          <div>
-            <h2 className="text-xs font-sans font-black tracking-monolith text-corporate-text uppercase">
-              AI Assistant
-            </h2>
-            <p className="text-[10px] text-corporate-muted font-technical uppercase tracking-widest mt-2">
-              status: optimal_routing / nodes: active
+        <div className="bg-corporate-elevated/70 px-4 sm:px-8 py-3 sm:py-4 flex items-center justify-between gap-3 border-b border-corporate-border relative z-10">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2.5">
+              <span className="w-2 h-2 rounded-full bg-corporate-accent shrink-0" />
+              <h2 className="text-xs font-sans font-black tracking-wider sm:tracking-monolith text-corporate-text uppercase truncate">
+                PrintPrice OS · AI Specification Assistant
+              </h2>
+            </div>
+            <p className="text-[10px] text-corporate-muted font-technical uppercase tracking-wider mt-1 truncate">
+              Natural Language Spec Extraction · Authoritative BPE Pricing Bridge
             </p>
           </div>
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3 bg-corporate-accent/5 px-4 py-2 border border-corporate-accent/20">
-              <div className="relative flex h-2 w-2">
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-2 bg-corporate-accent/10 px-3 py-1 rounded-full border border-corporate-accent/30">
+              <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-corporate-accent opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-corporate-accent"></span>
-              </div>
-              <span className="text-[9px] font-technical font-black uppercase tracking-monolith text-corporate-accent">Online</span>
+              </span>
+              <span className="text-[9px] font-technical font-black uppercase tracking-wider text-corporate-accent">
+                Online
+              </span>
             </div>
           </div>
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto space-y-6 pl-10 pr-6 py-8 scroll-smooth bg-corporate-primary/30">
+        <div className="flex-1 overflow-y-auto space-y-3 sm:space-y-5 px-3.5 sm:px-8 py-3 sm:py-6 scroll-smooth bg-corporate-primary/40 min-w-0">
           {messages.map((m) => (
             <div
               key={m.id}
-              className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} min-w-0`}
             >
               <div
-                className={`max-w-[75%] transition-all duration-300 ${m.role === 'user'
-                  ? 'p-6 bg-corporate-accent text-white border-l-4 border-white/20'
-                  : m.kind === 'offers'
-                    ? 'text-corporate-text w-full'
-                    : 'p-6 bg-corporate-elevated/20 text-corporate-text border border-corporate-text/10'
-                  }`}
+                className={`max-w-[92%] sm:max-w-[80%] min-w-0 transition-all duration-300 ${
+                  m.role === 'user'
+                    ? 'p-3.5 sm:p-5 rounded-xl bg-corporate-accent text-white border-l-4 border-corporate-border-strong shadow-sm'
+                    : m.kind === 'offers'
+                      ? 'text-corporate-text w-full min-w-0'
+                      : 'p-3.5 sm:p-5 rounded-xl bg-corporate-secondary text-corporate-text border border-corporate-border shadow-sm'
+                }`}
               >
                 {m.content.includes('Project Summary') ? (
-                  <div className="space-y-6">
-                    <p className="text-xs font-sans font-black text-corporate-accent uppercase tracking-monolith border-b border-corporate-accent/20 pb-4 mb-4">
+                  <div className="space-y-4">
+                    <p className="text-xs font-sans font-black text-corporate-accent uppercase tracking-wider sm:tracking-monolith border-b border-corporate-border pb-3 mb-3">
                       {t('project_summary_title') || 'Project Summary'}
                     </p>
-                    <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-xs">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-xs">
                       {m.content.split('\n').filter(line => line.includes(':')).map((line, idx) => {
                         const [label, value] = line.replace(/^[•\-\*]\s*/, '').split(':');
                         return (
-                          <div key={idx} className="flex flex-col gap-1">
-                            <span className="text-corporate-text-secondary opacity-70 uppercase text-[9px] font-technical font-black tracking-technical">{label.trim()}</span>
-                            <span className="font-technical text-corporate-text uppercase text-[11px] tracking-wider">{value?.trim()}</span>
+                          <div key={idx} className="flex flex-col gap-0.5 min-w-0">
+                            <span className="text-corporate-muted uppercase text-[9px] font-technical font-bold tracking-wider">{label.trim()}</span>
+                            <span className="font-technical text-corporate-text font-bold uppercase text-[11px] tracking-wider break-words">{value?.trim()}</span>
                           </div>
                         );
                       })}
                     </div>
                   </div>
                 ) : m.kind === 'offers' ? (
-                  <div className="space-y-6 min-w-[300px]">
-                    <p className="text-[0.6rem] font-sans font-black text-corporate-accent uppercase tracking-monolith border-b border-corporate-accent/20 pb-4">
+                  <div className="space-y-4 min-w-0">
+                    <p className="text-[10px] font-sans font-black text-corporate-accent uppercase tracking-wider sm:tracking-monolith border-b border-corporate-border pb-3">
                       {t('recommended_offers') || 'Recommended Offers'}
                     </p>
                     <div className="space-y-3">
-                      {(() => { 
-                        const displayOffers = m.offersSnapshot ?? offers; 
+                      {(() => {
+                        const displayOffers = m.offersSnapshot ?? offers;
                         if (!displayOffers?.offers?.length) {
                           return (
                             <div className="text-[10px] font-technical text-corporate-muted uppercase tracking-widest italic py-4">
-                              node_calculation in progress...
+                              Calculating BPE offers...
                             </div>
                           );
                         }
@@ -555,91 +561,71 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
                           const isRecommended = offer.recommended;
                           const displayPrice = Number(offer.total_price ?? offer.total_cost ?? 0);
                           const hasFiniteDisplayPrice = Number.isFinite(displayPrice) && displayPrice > 0;
-                          
+
                           return (
                             <div
                               key={offer.id}
-                              className={`border p-6 flex flex-col gap-4 transition-all duration-300 relative group overflow-hidden ${
-                                isSelected ? 'border-corporate-accent/30 bg-corporate-primary' : 'border-corporate-text/10 bg-transparent'
+                              className={`border rounded-xl p-4 sm:p-5 flex flex-col gap-3 transition-all duration-200 relative group overflow-hidden ${
+                                isSelected ? 'border-corporate-accent bg-corporate-secondary' : 'border-corporate-border bg-corporate-secondary/80'
                               }`}
                             >
-                              <div className="absolute top-0 right-0 h-1 bg-corporate-accent w-0 group-hover:w-full transition-all duration-500" />
-                              <div className="flex justify-between items-center gap-4 relative z-10">
-                                <div>
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <p className="text-xs font-sans font-black text-corporate-text uppercase tracking-monolith">
+                              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 relative z-10">
+                                <div className="min-w-0">
+                                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                                    <p className="text-xs font-sans font-black text-corporate-text uppercase tracking-wider">
                                       {offer.print_house}
                                     </p>
                                     {isRecommended && (
-                                      <span className="bg-corporate-accent/10 text-corporate-accent text-[8px] font-technical font-black px-1.5 py-0.5 border border-corporate-accent/20 tracking-tighter">
+                                      <span className="bg-corporate-accent/10 text-corporate-accent text-[8px] font-technical font-black px-2 py-0.5 rounded-full border border-corporate-accent/30">
                                         RECOMMENDED BY BPE
                                       </span>
                                     )}
                                   </div>
-                                  {offer.checkout_allowed === false && (
-                                    <p className="text-[10px] font-technical text-corporate-accent uppercase tracking-wider mb-2">
-                                      {offer.message || offer.status || 'Precision quote required'}
-                                    </p>
-                                  )}
                                   {offer.estimated_delivery_time && (
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-1 h-1 bg-corporate-accent animate-pulse" />
-                                      <p className="text-[10px] font-technical text-corporate-muted uppercase tracking-wider">
-                                        ETA: {offer.estimated_delivery_time}
+                                    <p className="text-[10px] font-technical text-corporate-muted uppercase tracking-wider">
+                                      ETA: {offer.estimated_delivery_time}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="flex items-center justify-between sm:justify-end gap-4">
+                                  <div className="text-left sm:text-right">
+                                    {offer.range ? (
+                                      <p className="text-lg font-display font-black text-corporate-text tabular-nums">
+                                        {offer.range}
                                       </p>
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="text-right">
-                                  {offer.range ? (
-                                    <p className="text-xl font-display font-black text-corporate-text tracking-tighter">
-                                      {offer.range}
-                                    </p>
-                                  ) : hasFiniteDisplayPrice ? (
-                                    <p className="text-2xl font-display font-black text-corporate-text tracking-tighter">
-                                      {displayPrice.toFixed(2)} <span className="text-corporate-accent text-sm">{offer.currency}</span>
-                                    </p>
-                                  ) : (
-                                    <p className="text-sm font-technical font-black text-corporate-muted tracking-tighter uppercase">
-                                      Unavailable
-                                    </p>
-                                  )}
-                                  {isSelected ? (
-                                    <p className="text-[9px] text-corporate-accent font-technical font-black uppercase tracking-monolith mt-1">
-                                      SELECTED BY YOU
-                                    </p>
-                                  ) : isBestPrice ? (
-                                    <p className="text-[9px] text-corporate-muted font-technical font-black uppercase tracking-monolith mt-1">
-                                      BEST PRICE
-                                    </p>
-                                  ) : null}
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => { 
-                                    if (offer.checkout_allowed === false) return;
-                                    if (m.offersSnapshot) onOffersUpdate(m.offersSnapshot); 
-                                    onChooseOffer(offer); 
-                                  }}
-                                  disabled={isSelected || offer.checkout_allowed === false}
-                                  className={`inline-flex items-center px-6 py-2 text-xs font-sans font-black tracking-monolith uppercase transition-all duration-300 shrink-0
-                                    ${isSelected
-                                      ? 'bg-corporate-accent/20 border border-corporate-accent/40 text-corporate-accent cursor-default'
+                                    ) : hasFiniteDisplayPrice ? (
+                                      <p className="text-xl font-display font-black text-corporate-text tabular-nums">
+                                        {displayPrice.toFixed(2)} <span className="text-corporate-accent text-xs">{offer.currency}</span>
+                                      </p>
+                                    ) : (
+                                      <p className="text-sm font-technical font-black text-corporate-muted uppercase">
+                                        Unavailable
+                                      </p>
+                                    )}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (offer.checkout_allowed === false) return;
+                                      if (m.offersSnapshot) onOffersUpdate(m.offersSnapshot);
+                                      onChooseOffer(offer);
+                                    }}
+                                    disabled={isSelected || offer.checkout_allowed === false}
+                                    className={`inline-flex items-center px-4 py-2 rounded-xl min-h-[38px] text-[10px] font-technical font-black tracking-wider uppercase transition-all shrink-0
+                                      ${isSelected
+                                        ? 'bg-corporate-accent/15 border border-corporate-accent text-corporate-accent cursor-default'
+                                        : offer.checkout_allowed === false
+                                          ? 'bg-corporate-elevated border border-corporate-border text-corporate-muted cursor-not-allowed'
+                                          : 'bg-corporate-accent text-white hover:bg-corporate-hover'
+                                      }`}
+                                  >
+                                    {isSelected
+                                      ? '✓ Selected'
                                       : offer.checkout_allowed === false
-                                        ? 'bg-corporate-muted/20 border border-corporate-muted/20 text-corporate-muted cursor-not-allowed'
-                                        : isBestPrice || isRecommended
-                                          ? 'bg-corporate-accent text-white hover:bg-corporate-hover hover:shadow-[0_0_20px_rgba(220,0,0,0.2)]'
-                                          : 'bg-transparent border border-corporate-text/20 text-corporate-text hover:bg-corporate-text/5'
-                                    }`}
-                                >
-                                  {isSelected 
-                                    ? '[✓] SELECTED_FOR_CART' 
-                                    : offer.checkout_allowed === false
-                                      ? '[!] Precision Quote Required'
-                                      : selectedOfferId 
-                                        ? 'Replace selection →' 
-                                        : 'Choose this offer →'}
-                                </button>
+                                        ? 'Quote Required'
+                                        : 'Select →'}
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           );
@@ -648,15 +634,15 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <div className="font-sans text-[13px] leading-relaxed tracking-wide whitespace-pre-line">{m.content}</div>
+                  <div className="font-sans text-xs sm:text-[13px] leading-relaxed whitespace-pre-line break-words">{m.content}</div>
                 )}
               </div>
             </div>
           ))}
 
           {error && (
-            <div className="bg-corporate-accent/10 border border-corporate-accent/20 p-4">
-              <p className="text-[10px] font-technical font-black text-corporate-accent uppercase tracking-monolith">System Exception</p>
+            <div className="bg-corporate-accent/10 rounded-xl border border-corporate-accent/30 p-4">
+              <p className="text-[10px] font-technical font-black text-corporate-accent uppercase tracking-wider">Assistant Notice</p>
               <p className="text-xs text-corporate-text-secondary mt-1">{error}</p>
             </div>
           )}
@@ -664,7 +650,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
         </div>
 
         {/* Input */}
-        <div className="pl-10 pr-6 py-6 bg-corporate-secondary border-t border-white/5 flex items-center gap-6 relative z-10">
+        <div className="px-3.5 sm:px-8 py-2.5 sm:py-3.5 bg-corporate-secondary border-t border-corporate-border flex items-center gap-2.5 sm:gap-4 relative z-10">
           <textarea
             rows={1}
             value={input}
@@ -675,19 +661,20 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
                 sendMessage();
               }
             }}
-            placeholder="Describe system_project requirements..."
-            className="flex-1 bg-transparent border-none focus:ring-0 text-sm py-2 text-corporate-text placeholder-corporate-muted font-sans tracking-wide"
+            placeholder="Describe your book project (e.g., 1000 copies, A5, 160 pages, hardcover)..."
+            className="flex-1 min-w-0 rounded-xl bg-corporate-elevated border border-corporate-border px-3.5 py-2.5 text-xs sm:text-sm text-corporate-text placeholder:text-corporate-muted font-sans focus:border-corporate-accent focus:outline-none"
           />
           <button
             type="button"
             onClick={sendMessage}
             disabled={loading || !input.trim()}
-            className="w-12 h-12 flex items-center justify-center bg-corporate-accent text-white hover:bg-corporate-hover transition-all duration-300 disabled:opacity-30 group"
+            aria-label="Send message to AI Assistant"
+            className="w-11 h-11 shrink-0 rounded-xl flex items-center justify-center bg-corporate-accent text-white hover:bg-corporate-hover transition-all duration-200 disabled:opacity-40 group shadow-sm"
           >
             {loading ? (
               <span className="w-4 h-4 border-2 border-white border-b-transparent animate-spin" />
             ) : (
-              <PaperAirplaneIcon className="h-5 w-5 transform -rotate-45 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+              <PaperAirplaneIcon className="h-4 w-4 transform -rotate-45 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
             )}
           </button>
         </div>

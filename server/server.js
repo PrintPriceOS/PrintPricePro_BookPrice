@@ -2445,6 +2445,91 @@ app.post('/api/budget/quote-revisions/review/:token/respond', async (req, res) =
     }
 });
 
+// 📐 SPINE-04 PROXY: Spine & Extended Cover Geometry Engine (/api/v1/spine/*)
+const isControlPlaneSpineUnavailableError = (err) => {
+    const status = err.response?.status;
+    if (status === 404 || status === 502 || status === 503 || status === 504) {
+        return true;
+    }
+    const netCodes = ['ECONNREFUSED', 'ENOTFOUND', 'ETIMEDOUT', 'ECONNRESET', 'EAI_AGAIN', 'ERR_NETWORK'];
+    return Boolean(!err.response && (netCodes.includes(err.code) || /connect|timeout|network/i.test(String(err.message || ''))));
+};
+
+const respondSpineNotAvailable = (res, reason) => {
+    return res.status(503).json({
+        ok: false,
+        error: {
+            code: 'SPINE_NOT_AVAILABLE',
+            message: 'Control Plane Spine Engine (/api/v1/spine) is not active in this environment yet. No synthetic dimensions generated.',
+            upstreamReason: reason || 'UPSTREAM_SPINE_MODULE_INACTIVE'
+        }
+    });
+};
+
+app.get('/api/budget/spine/profiles', async (req, res) => {
+    try {
+        const params = new URLSearchParams();
+        if (req.query.includeExperimental) {
+            params.set('includeExperimental', String(req.query.includeExperimental));
+        }
+        const qs = params.toString();
+        const cpUrl = `${CONTROL_PLANE_BASE_URL}/api/v1/spine/profiles${qs ? `?${qs}` : ''}`;
+        const headers = buildControlPlaneHeaders();
+        const response = await axios.get(cpUrl, { headers, timeout: 8000 });
+        return res.status(response.status || 200).json(response.data);
+    } catch (err) {
+        if (isControlPlaneSpineUnavailableError(err)) {
+            return respondSpineNotAvailable(res, err.response?.status ? `HTTP_${err.response.status}` : err.code || err.message);
+        }
+        const status = err.response?.status || 500;
+        return res.status(status).json(err.response?.data || {
+            ok: false,
+            error: { code: 'SPINE_PROFILES_FETCH_FAILED', message: err.message }
+        });
+    }
+});
+
+app.post('/api/budget/spine/calculate', async (req, res) => {
+    try {
+        const cpUrl = `${CONTROL_PLANE_BASE_URL}/api/v1/spine/calculate`;
+        const headers = { ...buildControlPlaneHeaders() };
+        const incomingIdempotencyKey = req.get('Idempotency-Key') || req.get('X-Idempotency-Key');
+        if (incomingIdempotencyKey) {
+            headers['Idempotency-Key'] = incomingIdempotencyKey;
+        }
+        const response = await axios.post(cpUrl, req.body || {}, { headers, timeout: 10000 });
+        return res.status(response.status || 200).json(response.data);
+    } catch (err) {
+        if (isControlPlaneSpineUnavailableError(err)) {
+            return respondSpineNotAvailable(res, err.response?.status ? `HTTP_${err.response.status}` : err.code || err.message);
+        }
+        const status = err.response?.status || 500;
+        return res.status(status).json(err.response?.data || {
+            ok: false,
+            error: { code: 'SPINE_CALCULATION_FAILED', message: err.message }
+        });
+    }
+});
+
+app.get('/api/budget/spine/calculations/:id', async (req, res) => {
+    try {
+        const rawId = req.params.id;
+        const cpUrl = `${CONTROL_PLANE_BASE_URL}/api/v1/spine/calculations/${encodeURIComponent(rawId)}`;
+        const headers = buildControlPlaneHeaders();
+        const response = await axios.get(cpUrl, { headers, timeout: 8000 });
+        return res.status(response.status || 200).json(response.data);
+    } catch (err) {
+        if (isControlPlaneSpineUnavailableError(err)) {
+            return respondSpineNotAvailable(res, err.response?.status ? `HTTP_${err.response.status}` : err.code || err.message);
+        }
+        const status = err.response?.status || 500;
+        return res.status(status).json(err.response?.data || {
+            ok: false,
+            error: { code: 'SPINE_CALCULATION_LOOKUP_FAILED', message: err.message }
+        });
+    }
+});
+
 // 📊 BPE PROXY: Budget Calculation
 app.post('/api/budget/calculate', [
     body('copies').isInt({ min: 1 }),

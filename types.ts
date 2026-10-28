@@ -59,6 +59,10 @@ export interface CatalogPaperVariant {
   heightMm: number;
   caliperUm?: number | null;
   caliperMm?: number | null;
+  bulkFactor?: number | null;
+  caliperSource?: string | null;
+  caliperConfidenceStatus?: string | null;
+  caliperRevision?: number | null;
   finish?: string | null;
   grainDirection?: 'LONG_GRAIN' | 'SHORT_GRAIN' | 'UNKNOWN';
   certifications?: string[];
@@ -89,6 +93,11 @@ export interface SelectedPaperMaterial {
   sheetWidthMm?: number;
   sheetHeightMm?: number;
   caliperUm?: number | null;
+  caliperMm?: number | null;
+  bulkFactor?: number | null;
+  caliperSource?: string | null;
+  caliperConfidenceStatus?: string | null;
+  caliperRevision?: number | null;
   certifications?: string[];
   supplierName?: string | null;
   isAvailable?: boolean;
@@ -675,4 +684,198 @@ export interface CreateControlPlaneOrderRequest {
   selectedOffer: any;
   metadata?: any;
   idempotencyKey?: string;
+}
+
+// ---- Spine Calculator Contract (Control Plane Phase 197 / SPINE-02/03/04) ----
+
+export type SpineCertificationTier =
+  | 'EXCEL_EXAMPLE_PARITY'
+  | 'MATH_BRANCH_VALIDATED'
+  | 'PRINTHOUSE_TECHNICALLY_VALIDATED'
+  | 'PRODUCTION_CERTIFIED';
+
+export type SpineOperationalStatus =
+  | 'MATH_VALIDATED_ACTIVE'
+  | 'REQUIRES_TECH_APPROVAL'
+  | 'EXPERIMENTAL_DISABLED'
+  | 'ARCHIVED';
+
+export type SpineBindingCategory =
+  | 'SOFTCOVER_STANDARD'
+  | 'SOFTCOVER_WITH_FLAPS'
+  | 'HARDCOVER'
+  | 'FLEXI_STANDARD'
+  | 'FLEXI_WITH_FLAPS';
+
+export type SpineProcessingType = 'GLUED' | 'SEWN';
+
+export type SpineShape = 'SQUARE' | 'ROUND';
+
+export type CaliperConfidenceStatus =
+  | 'VERIFIED'
+  | 'REFERENCE_IMPORTED'
+  | 'PROVISIONAL_ESTIMATED'
+  | 'MISSING';
+
+export type CaliperSource =
+  | 'MEASURED_MICROMETER'
+  | 'MANUFACTURER_DATASHEET'
+  | 'LIVONIA_REFERENCE_IMPORT'
+  | 'SUPPLIER_IMPORT'
+  | 'BULK_DERIVED'
+  | 'NONE';
+
+export type SpineManufacturingStatus =
+  | 'MATH_VALIDATED'
+  | 'PROVISIONAL_ESTIMATE'
+  | 'REQUIRES_TECH_REVIEW'
+  | 'INVALID_BLOCKED';
+
+export interface SpineSegmentInput {
+  segmentIndex?: number;
+  pages: number;
+  variantId?: string | null;
+  paperFamilyName?: string | null;
+  gsm?: number | null;
+  caliperUm?: number | null;
+  coatingType?: 'COATED' | 'UNCOATED';
+  caliperSource?: CaliperSource | string;
+  caliperConfidenceStatus?: CaliperConfidenceStatus | string;
+}
+
+export interface SpineCalculationRequestPayload {
+  bindingCategory: SpineBindingCategory;
+  processingType: SpineProcessingType;
+  trimWidthMm: number;
+  trimHeightMm: number;
+  segments: SpineSegmentInput[];
+  cover?: {
+    variantId?: string | null;
+    gsm?: number | null;
+    caliperUm?: number | null;
+    flapWidthMm?: number | null;
+    caliperSource?: string;
+    caliperConfidenceStatus?: string;
+  } | null;
+  hardcover?: {
+    endpapersMode?: 'SEPARATE' | 'SELF_ENDED';
+    boardThicknessMm?: number;
+    blockPaperCoating?: 'COATED' | 'UNCOATED';
+    spineShape?: SpineShape;
+    overhangMm?: number;
+    foldingSignaturePages?: 16 | 32;
+    dustJacket?: {
+      enabled?: boolean;
+      flapWidthMm?: number;
+    };
+  } | null;
+  persistSnapshot?: boolean;
+  externalOrderIntentId?: string | null;
+  canonicalOrderId?: string | null;
+}
+
+export interface SpineSegmentBreakdownItem {
+  segmentIndex: number;
+  pages: number;
+  sheets: number;
+  caliperUm: number | null;
+  thicknessMm: number;
+  variantId: string | null;
+  gsm: number | null;
+  caliperSource: string;
+  caliperConfidenceStatus: CaliperConfidenceStatus | string;
+}
+
+export interface SpineValidationIssue {
+  code: string;
+  severity: 'ERROR' | 'WARNING' | 'INFO';
+  excelCellRef?: string;
+  excelMessageOriginal?: string;
+  message: string;
+}
+
+export interface SpineCalculationResult {
+  engineVersion: string;
+  profileId: string;
+  profileVersion: string;
+  fullProfileKey: string;
+  machineryLine: string;
+  operationalStatus: SpineOperationalStatus;
+  certificationTier: SpineCertificationTier;
+  inputCanonicalHash: string;
+  outputCanonicalHash: string;
+  snapshotId?: string | null;
+  snapshotLifecycleStatus?: string | null;
+  idempotentReplay?: boolean;
+  blockThickness: {
+    totalPages: number;
+    netPaperBlockMm: number;
+    endpapersAllowanceMm: number;
+    totalBlockWithEndpapersMm: number;
+    segmentBreakdown: SpineSegmentBreakdownItem[];
+  };
+  bindingAdjustment: {
+    processingType: SpineProcessingType;
+    spineShape: SpineShape;
+    coverCaliperUmUsed?: number | null;
+    boardThicknessMm?: number | null;
+    twoTimesBoardMm?: number | null;
+    sewnSwellingBlockMm: number | null;
+    sewnRoundArcMm?: number | null;
+    sewnRoundRadiusMm?: number | null;
+    gluedRoundArcMm?: number | null;
+    gluedRoundRadiusMm?: number | null;
+    arcRadiusMm?: number | null;
+    arcLengthRoundedMm?: number | null;
+    theoreticalWithBoardMm: number | null;
+    gluedCandidateSpineMm: number | null;
+    sewnCandidateSpineMm: number | null;
+    branches?: Record<string, number | null>;
+  };
+  spineWidthMm: number | null;
+  rawFormulaSpineWidthMm: number | null;
+  coverGeometry: {
+    bleedPerSideMm: number;
+    netCoverWidthMm: number;
+    netCoverHeightMm: number;
+    flatCoverWidthMm: number;
+    flatCoverHeightMm: number;
+    panels: {
+      leftFlapMm: number | null;
+      backPanelMm: number;
+      leftHingeScoreMm: number | null;
+      spineMm: number;
+      rightHingeScoreMm: number | null;
+      frontPanelMm: number;
+      rightFlapMm: number | null;
+      panelAuxRefMm: number | null;
+      turnInMm: number | null;
+      boardWidthMm: number | null;
+      boardHeightMm: number | null;
+    };
+    dustJacket?: {
+      enabled: boolean;
+      flapWidthMm: number;
+      panelWidthMm: number;
+      panelWithHingeRefMm: number;
+      netWidthMm: number;
+      flatWidthWithBleedMm: number;
+      flatHeightWithBleedMm: number;
+    } | null;
+  };
+  manufacturingValidation: {
+    status: SpineManufacturingStatus;
+    certificationTier: SpineCertificationTier;
+    levels: {
+      excelExampleParity: boolean;
+      mathBranchValidated: boolean;
+      printhouseTechnicallyValidated: boolean;
+      productionCertifiedForManufacturing: boolean;
+    };
+    canUseForCoverTemplatePreview: boolean;
+    canReleaseToManufacturing: boolean;
+    requiresTechnologistApproval: boolean;
+    caliperConfidenceSummary: CaliperConfidenceStatus | string;
+    issues: SpineValidationIssue[];
+  };
 }

@@ -33,5 +33,8 @@ jobs:
       - name: Production Vite Build
         run: npm run build
 
+      - name: Run SPINE-04 Spine Calculator Integration & Governance Suite
+        run: node server/scripts/test_spine_04_integration.js
+
       - name: Run BUDGET-01D Mandatory Regression Suite
         run: node server/scripts/verify_budget_01d_regression.js

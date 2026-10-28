@@ -216,9 +216,16 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
   // Find currently selected product group if any
   const currentSelectedProductKey = useMemo(() => {
     if (!selectedMaterial) return '';
+    const selVarId = selectedMaterial.variantId || selectedMaterial.variant_id;
+    if (selVarId) {
+      const byVariant = groupedProducts.find((p) => p.variants.some((v) => v.variantId === selVarId));
+      if (byVariant) return byVariant.key;
+    }
     const name = selectedMaterial.productName || selectedMaterial.product_name || '';
+    const byName = groupedProducts.find((p) => p.productName === name);
+    if (byName) return byName.key;
     return `${name}__${selectedMaterial.brand || 'Standard'}`;
-  }, [selectedMaterial]);
+  }, [selectedMaterial, groupedProducts]);
 
   const currentProductVariants = useMemo(() => {
     if (!currentSelectedProductKey) return [];

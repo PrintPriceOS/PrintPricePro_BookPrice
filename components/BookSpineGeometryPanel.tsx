@@ -25,6 +25,7 @@ import {
 
 export interface BookSpineGeometryPanelProps {
   formData: BookPricePayload;
+  authContextKey?: string;
   onSwitchInteriorToAdvancedCatalog?: () => void;
   onSpineResultChange?: (
     result: SpineCalculationResult | null,
@@ -122,6 +123,7 @@ const formatTierBadgeLabel = (tier?: string | null): string => {
 
 export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
   formData,
+  authContextKey = 'anon',
   onSwitchInteriorToAdvancedCatalog,
   onSpineResultChange,
 }) => {
@@ -168,7 +170,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
     return () => {
       abortController.abort();
     };
-  }, [refreshTrigger]);
+  }, [refreshTrigger, authContextKey]);
 
   // Resolve the authoritative Hardcover profile from Control Plane profiles (never inventing parameters)
   const authoritativeHardcoverProfile = useMemo(() => {
@@ -402,7 +404,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
       window.clearTimeout(timer);
       abortController.abort();
     };
-  }, [effectiveFingerprint, profilesLoaded, profilesUnavailableCode, refreshTrigger]);
+  }, [effectiveFingerprint, profilesLoaded, profilesUnavailableCode, refreshTrigger, authContextKey]);
 
   // Blueprint SVG layout proportions
   const blueprintSvg = useMemo(() => {

@@ -120,6 +120,46 @@ const buildControlPlaneHeaders = () => {
     };
 };
 
+/**
+ * SPINE-06R F01: Builds an explicitly bound BFF -> Control Plane service token
+ * carrying the verified tenant context, delegated user identity, session ID, and order reference.
+ * Never hardcodes a universal tenant (`ppos-production`) and never trusts unverified client tenant claims.
+ */
+const buildSpineControlPlaneHeaders = ({ tenantId, printhouseId = null, userId = null, sessionId = null, orderId = null }) => {
+    if (!BPE_JWT_SECRET) {
+        throw new Error('[CONFIG_ERROR] BPE_JWT_SECRET is required');
+    }
+    if (!tenantId) {
+        throw new Error('[SECURITY_ERROR] Verified tenantId is required to build Spine Control Plane headers');
+    }
+
+    const token = jwt.sign(
+        {
+            sub: BPE_SYSTEM_USER_ID,
+            role: 'SYSTEM',
+            bff_delegated: true,
+            tenant_id: String(tenantId),
+            printhouse_id: printhouseId ? String(printhouseId) : null,
+            delegated_user_id: userId ? String(userId) : null,
+            delegated_session_id: sessionId ? String(sessionId) : null,
+            delegated_order_id: orderId ? String(orderId) : null
+        },
+        BPE_JWT_SECRET,
+        {
+            issuer: BPE_JWT_ISSUER,
+            audience: BPE_JWT_AUDIENCE,
+            expiresIn: 60
+        }
+    );
+
+    return {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "x-source-app": "PrintPricePro_BookPrice",
+        "x-tenant-id": String(tenantId)
+    };
+};
+
 // ---- Production File Storage Configuration (v5.3) ----
 const PRODUCTION_FILES_DIR = process.env.PRODUCTION_FILES_DIR || path.join(__dirname, 'storage', 'production-files');
 const PRODUCTION_FILES_INDEX = path.join(PRODUCTION_FILES_DIR, 'index.json');
@@ -506,20 +546,95 @@ function resolveCustomerPaperPreferences(incoming, previous) {
 const resolveRequestIdentity = (req) => {
     const sessionId = req.signedCookies['pp_session_id'];
 
-    // In a real app, we would verify JWT from Authorization header here
     const authHeader = req.headers.authorization;
+    const isAdmin = Boolean(authHeader === `Bearer ${ADMIN_API_TOKEN}` && ADMIN_API_TOKEN.length > 0);
     let authenticatedUser = null;
+    let authError = null;
 
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-        // TODO: Full JWT verification against Control Plane / Identity service
-        // For now, we trust the session cookie for anonymous or use session vault for local auth
+    if (authHeader && authHeader.startsWith('Bearer ') && !isAdmin) {
+        const rawBearer = authHeader.slice(7).trim();
+        if (rawBearer && BPE_JWT_SECRET) {
+            try {
+                const decoded = jwt.verify(rawBearer, BPE_JWT_SECRET, {
+                    issuer: BPE_JWT_ISSUER,
+                    audience: BPE_JWT_AUDIENCE
+                });
+                const resolvedTenant = decoded.tenant_id || decoded.tenantId || null;
+                authenticatedUser = {
+                    id: String(decoded.sub || decoded.user_id || decoded.id || ''),
+                    email: decoded.email || null,
+                    role: decoded.role || 'USER',
+                    tenantId: resolvedTenant ? String(resolvedTenant) : null,
+                    printhouseId: decoded.printhouse_id || decoded.printhouseId || null,
+                    jti: decoded.jti || null
+                };
+            } catch (err) {
+                authError = 'INVALID_TOKEN';
+            }
+        } else {
+            authError = 'INVALID_TOKEN';
+        }
+    }
+
+    if (!authenticatedUser && !authError && sessionId && sessionVault.has(sessionId)) {
+        const vaultRecord = sessionVault.get(sessionId);
+        if (vaultRecord && vaultRecord.tenantId) {
+            authenticatedUser = {
+                id: String(vaultRecord.id || vaultRecord.user_id || ''),
+                email: vaultRecord.email || null,
+                role: vaultRecord.role || 'USER',
+                name: vaultRecord.name || null,
+                tenantId: String(vaultRecord.tenantId),
+                printhouseId: vaultRecord.printhouseId || null,
+                jti: vaultRecord.jti || null
+            };
+        }
     }
 
     return {
         sessionId,
         user: authenticatedUser,
-        isAdmin: authHeader === `Bearer ${ADMIN_API_TOKEN}` && ADMIN_API_TOKEN.length > 0
+        tenantId: authenticatedUser?.tenantId || null,
+        authError,
+        isAdmin
     };
+};
+
+/**
+ * SPINE-06R F01: Binds a Control Plane login/register response into the server-side sessionVault
+ * after cryptographically verifying the issued JWT.
+ */
+const bindControlPlaneAuthToSession = (req, res, authData, fallbackEmail) => {
+    const rawToken = authData?.token || authData?.access_token || null;
+    if (!rawToken || !BPE_JWT_SECRET) return null;
+
+    try {
+        const decoded = jwt.verify(rawToken, BPE_JWT_SECRET, {
+            issuer: BPE_JWT_ISSUER,
+            audience: BPE_JWT_AUDIENCE
+        });
+        const tenantId = decoded.tenant_id || decoded.tenantId || authData?.user?.tenant_id || authData?.tenant_id || null;
+        const userId = String(decoded.sub || authData?.user?.id || authData?.user_id || '');
+        if (!userId || !tenantId) return null;
+
+        const sessionId = getOrCreateSessionId(req, res);
+        const boundIdentity = {
+            id: userId,
+            user_id: userId,
+            email: decoded.email || authData?.user?.email || fallbackEmail || null,
+            name: authData?.user?.name || authData?.name || null,
+            role: decoded.role || authData?.user?.role || authData?.role || 'USER',
+            tenantId: String(tenantId),
+            printhouseId: decoded.printhouse_id || authData?.user?.printhouse_id || null,
+            jti: decoded.jti || null,
+            boundAt: Date.now()
+        };
+        sessionVault.set(sessionId, boundIdentity);
+        return { sessionId, boundIdentity };
+    } catch (err) {
+        console.warn(`[AUTH_SESSION_BIND_FAILED] ${err.message}`);
+        return null;
+    }
 };
 
 /**
@@ -2277,7 +2392,19 @@ app.post('/api/auth/login',
                 timeout: 10000,
             });
 
-            res.status(response.status).json(response.data);
+            const bound = bindControlPlaneAuthToSession(req, res, response.data, email);
+            const enrichedData = {
+                ...response.data,
+                tenant_id: bound?.boundIdentity?.tenantId || response.data?.user?.tenant_id || response.data?.tenant_id || null,
+                user: response.data?.user
+                    ? {
+                        ...response.data.user,
+                        tenant_id: bound?.boundIdentity?.tenantId || response.data.user.tenant_id || null
+                    }
+                    : undefined
+            };
+
+            res.status(response.status).json(enrichedData);
         } catch (err) {
             console.error('[AUTH_LOGIN_PROXY_ERROR]', {
                 url: authLoginUrl,
@@ -2315,7 +2442,13 @@ app.post('/api/auth/register',
                 timeout: 10000,
             });
 
-            res.status(response.status).json(response.data);
+            const bound = bindControlPlaneAuthToSession(req, res, response.data, email);
+            const enrichedData = {
+                ...response.data,
+                tenant_id: bound?.boundIdentity?.tenantId || response.data?.user?.tenant_id || response.data?.tenant_id || null
+            };
+
+            res.status(response.status).json(enrichedData);
         } catch (err) {
             console.error('[AUTH_REGISTER_PROXY_ERROR]', {
                 url: authRegisterUrl,
@@ -2329,6 +2462,45 @@ app.post('/api/auth/register',
         }
     }
 );
+
+// 🔐 AUTH SESSION INTROSPECTION & LOGOUT (SPINE-06R F01)
+app.get('/api/auth/session', (req, res) => {
+    const identity = resolveRequestIdentity(req);
+    if (identity.authError === 'INVALID_TOKEN') {
+        return res.status(401).json({
+            ok: false,
+            authenticated: false,
+            error: { code: 'UNAUTHORIZED', message: 'Invalid or expired authentication token.' }
+        });
+    }
+    if (!identity.user || !identity.tenantId) {
+        return res.status(200).json({
+            ok: true,
+            authenticated: false,
+            user: null
+        });
+    }
+    return res.status(200).json({
+        ok: true,
+        authenticated: true,
+        user: {
+            user_id: identity.user.id,
+            email: identity.user.email,
+            name: identity.user.name || null,
+            role: identity.user.role,
+            tenant_id: identity.tenantId,
+            printhouse_id: identity.user.printhouseId || null
+        }
+    });
+});
+
+app.post('/api/auth/logout', (req, res) => {
+    const sessionId = req.signedCookies['pp_session_id'];
+    if (sessionId && sessionVault.has(sessionId)) {
+        sessionVault.delete(sessionId);
+    }
+    return res.status(200).json({ ok: true });
+});
 
 // 📜 Paper Catalog Gateway (Control Plane Paper Supplier Hub)
 app.get('/api/budget/paper/catalog', async (req, res) => {
@@ -2466,16 +2638,108 @@ const respondSpineNotAvailable = (res, reason) => {
     });
 };
 
+/**
+ * SPINE-06R F01: Resolves and verifies the requester's authenticated tenant context
+ * for Spine BFF routes. Rejects manipulated tokens (401), cross-tenant spoofing or
+ * order ownership mismatches (403 FORBIDDEN_TENANT_MISMATCH), and unauthenticated/untenanted
+ * sessions (403 TENANT_CONTEXT_REQUIRED).
+ */
+async function resolveSpineBffTenantContext(req, res) {
+    const identity = resolveRequestIdentity(req);
+    if (identity.authError === 'INVALID_TOKEN') {
+        res.status(401).json({
+            ok: false,
+            error: {
+                code: 'UNAUTHORIZED',
+                message: 'Invalid, expired, or manipulated authentication token.'
+            }
+        });
+        return null;
+    }
+
+    const bodyTenant = req.body && (req.body.tenantId || req.body.tenant_id);
+    const queryTenant = req.query && (req.query.tenantId || req.query.tenant_id);
+    const headerTenant = req.headers['x-tenant-id'];
+    const clientClaimedTenant = bodyTenant || queryTenant || headerTenant || null;
+
+    if (!identity.tenantId) {
+        res.status(403).json({
+            ok: false,
+            error: {
+                code: 'TENANT_CONTEXT_REQUIRED',
+                message: 'An authenticated tester session with a verified tenant context is required to calculate spine geometry.'
+            }
+        });
+        return null;
+    }
+
+    if (clientClaimedTenant && String(clientClaimedTenant) !== String(identity.tenantId)) {
+        res.status(403).json({
+            ok: false,
+            error: {
+                code: 'FORBIDDEN_TENANT_MISMATCH',
+                message: 'Client-supplied tenant context does not match the authenticated session tenant.'
+            }
+        });
+        return null;
+    }
+
+    const orderRef = (req.body && (req.body.externalOrderIntentId || req.body.canonicalOrderId)) || null;
+    if (orderRef && repositories?.orderIntents?.getById) {
+        try {
+            const intent = await repositories.orderIntents.getById(orderRef);
+            if (intent) {
+                const hasAccess = assertOrderIntentAccess(req, intent);
+                const intentTenant =
+                    intent.tenant_id ||
+                    intent.tenantId ||
+                    intent.payload?.order_snapshot?.tenant_id ||
+                    intent.control_plane?.payload?.tenant_id ||
+                    null;
+                if (!hasAccess || (intentTenant && String(intentTenant) !== String(identity.tenantId))) {
+                    res.status(403).json({
+                        ok: false,
+                        error: {
+                            code: 'FORBIDDEN_TENANT_MISMATCH',
+                            message: 'Order intent belongs to another session, user, or tenant.'
+                        }
+                    });
+                    return null;
+                }
+            }
+        } catch (err) {
+            console.warn(`[SPINE_BFF_ORDER_CHECK_WARN] ${err.message}`);
+        }
+    }
+
+    const headers = buildSpineControlPlaneHeaders({
+        tenantId: identity.tenantId,
+        printhouseId: identity.user?.printhouseId || null,
+        userId: identity.user?.id || null,
+        sessionId: identity.sessionId || identity.user?.jti || 'jwt-direct',
+        orderId: orderRef
+    });
+
+    return {
+        identity,
+        tenantId: identity.tenantId,
+        orderRef,
+        headers
+    };
+}
+
 app.get('/api/budget/spine/profiles', async (req, res) => {
     try {
+        const ctx = await resolveSpineBffTenantContext(req, res);
+        if (!ctx) return;
+
         const params = new URLSearchParams();
         if (req.query.includeExperimental) {
             params.set('includeExperimental', String(req.query.includeExperimental));
         }
         const qs = params.toString();
         const cpUrl = `${CONTROL_PLANE_BASE_URL}/api/v1/spine/profiles${qs ? `?${qs}` : ''}`;
-        const headers = buildControlPlaneHeaders();
-        const response = await axios.get(cpUrl, { headers, timeout: 8000 });
+        const response = await axios.get(cpUrl, { headers: ctx.headers, timeout: 8000 });
         return res.status(response.status || 200).json(response.data);
     } catch (err) {
         if (isControlPlaneSpineUnavailableError(err)) {
@@ -2606,6 +2870,9 @@ function sanitizeSpineCalculateRequest(rawBody) {
 
 app.post('/api/budget/spine/calculate', async (req, res) => {
     try {
+        const ctx = await resolveSpineBffTenantContext(req, res);
+        if (!ctx) return;
+
         const sanitized = sanitizeSpineCalculateRequest(req.body || {});
         if (!sanitized.ok) {
             return res.status(422).json({
@@ -2617,13 +2884,18 @@ app.post('/api/budget/spine/calculate', async (req, res) => {
             });
         }
 
+        // Strip any client-supplied tenant claims before forwarding to Control Plane
+        const cleanPayload = { ...sanitized.payload };
+        delete cleanPayload.tenantId;
+        delete cleanPayload.tenant_id;
+
         const cpUrl = `${CONTROL_PLANE_BASE_URL}/api/v1/spine/calculate`;
-        const headers = { ...buildControlPlaneHeaders() };
+        const headers = { ...ctx.headers };
         const incomingIdempotencyKey = req.get('Idempotency-Key') || req.get('X-Idempotency-Key');
         if (incomingIdempotencyKey) {
             headers['Idempotency-Key'] = incomingIdempotencyKey;
         }
-        const response = await axios.post(cpUrl, sanitized.payload, { headers, timeout: 10000 });
+        const response = await axios.post(cpUrl, cleanPayload, { headers, timeout: 10000 });
         return res.status(response.status || 200).json(response.data);
     } catch (err) {
         if (isControlPlaneSpineUnavailableError(err)) {
@@ -2639,10 +2911,12 @@ app.post('/api/budget/spine/calculate', async (req, res) => {
 
 app.get('/api/budget/spine/calculations/:id', async (req, res) => {
     try {
+        const ctx = await resolveSpineBffTenantContext(req, res);
+        if (!ctx) return;
+
         const rawId = req.params.id;
         const cpUrl = `${CONTROL_PLANE_BASE_URL}/api/v1/spine/calculations/${encodeURIComponent(rawId)}`;
-        const headers = buildControlPlaneHeaders();
-        const response = await axios.get(cpUrl, { headers, timeout: 8000 });
+        const response = await axios.get(cpUrl, { headers: ctx.headers, timeout: 8000 });
         return res.status(response.status || 200).json(response.data);
     } catch (err) {
         if (isControlPlaneSpineUnavailableError(err)) {
@@ -3337,7 +3611,8 @@ app.post('/api/order-intents', async (req, res) => {
         public_ref,
         session_id: sessionId,
         cart_id: cart_id || null,
-        user_id: req.body.user_id || null,
+        user_id: identity.user?.id || req.body.user_id || null,
+        tenant_id: identity.tenantId || null,
         status: "FILES_UPLOADED",
         lifecycle: {
             quote_status: "SIGNED",

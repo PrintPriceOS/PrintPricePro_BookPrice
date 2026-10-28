@@ -327,6 +327,40 @@ const App: React.FC = () => {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
+  // SPINE-06R F01: Restore authenticated user & tenant session on mount
+  useEffect(() => {
+    let active = true;
+    fetch('/api/auth/session', { method: 'GET', credentials: 'include' })
+      .then(res => res.json().catch(() => null))
+      .then(data => {
+        if (!active) return;
+        if (data?.ok && data?.authenticated && data?.user) {
+          setUser({
+            email: data.user.email,
+            name: data.user.name || undefined,
+            user_id: data.user.user_id,
+            role: data.user.role,
+            tenant_id: data.user.tenant_id || null,
+          });
+        }
+      })
+      .catch(() => {
+        // Ignore network errors during initial session probe
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch {
+      // Ignore logout network error
+    }
+    setUser(null);
+  }, []);
+
   // v5.3 Phase 3: Hydrate files from server registry
   useEffect(() => {
     const hydrate = async () => {
@@ -1223,7 +1257,7 @@ const App: React.FC = () => {
         onThemeToggle={() => setIsDark(prev => !prev)}
         user={user}
         onOpenAuthModal={() => setAuthModalOpen(true)}
-        onLogout={() => setUser(null)}
+        onLogout={handleLogout}
         currentView={currentView}
         onViewChange={ENABLE_PUBLIC_CONSOLE ? setCurrentView : undefined}
       />
@@ -1328,6 +1362,7 @@ const App: React.FC = () => {
 
                 <BookSpineGeometryPanel
                   formData={bookPricePayload}
+                  authContextKey={`${user?.user_id || 'anon'}:${user?.tenant_id || 'no-tenant'}`}
                   onSwitchInteriorToAdvancedCatalog={handleSwitchInteriorToAdvancedCatalog}
                   onSpineResultChange={(result, status) => {
                     setSpineResult(result);

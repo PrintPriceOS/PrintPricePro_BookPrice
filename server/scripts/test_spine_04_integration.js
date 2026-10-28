@@ -31,6 +31,7 @@ const path = require('path');
 const crypto = require('crypto');
 const vm = require('vm');
 const ts = require('typescript');
+const jwt = require('jsonwebtoken');
 
 const UPSTREAM_PORT = 3094;
 const BUDGET_PORT = 3014;
@@ -353,7 +354,89 @@ function startMockControlPlaneServer() {
 
       const parsedUrl = new URL(req.url, `http://127.0.0.1:${UPSTREAM_PORT}`);
 
+      if (req.method === 'POST' && parsedUrl.pathname === '/api/auth/login') {
+        let raw = '';
+        req.on('data', (chunk) => (raw += chunk));
+        req.on('end', () => {
+          const body = JSON.parse(raw || '{}');
+          const accounts = {
+            'tester-alpha@printprice.pro': {
+              id: 'usr_tester_alpha',
+              email: 'tester-alpha@printprice.pro',
+              name: 'Alpha Tester',
+              role: 'PRINTHOUSE',
+              tenant_id: 'tenant_alpha',
+              printhouse_id: 'ph_alpha',
+            },
+            'tester-beta@printprice.pro': {
+              id: 'usr_tester_beta',
+              email: 'tester-beta@printprice.pro',
+              name: 'Beta Tester',
+              role: 'PRINTHOUSE',
+              tenant_id: 'tenant_beta',
+              printhouse_id: 'ph_beta',
+            },
+          };
+          const acct = accounts[body.email];
+          if (!acct || body.password !== 'TestPass!2026') {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Invalid credentials' }));
+            return;
+          }
+          const token = jwt.sign(
+            {
+              sub: acct.id,
+              jti: `jti_${acct.id}`,
+              email: acct.email,
+              role: acct.role,
+              tenant_id: acct.tenant_id,
+              printhouse_id: acct.printhouse_id,
+            },
+            process.env.BPE_JWT_SECRET,
+            {
+              issuer: 'https://auth.printprice.pro',
+              audience: 'ppos:control',
+              expiresIn: '1h',
+            }
+          );
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(
+            JSON.stringify({
+              ok: true,
+              token,
+              access_token: token,
+              user: acct,
+            })
+          );
+        });
+        return;
+      }
+
+      // Helper to verify BFF -> Control Plane delegated JWT on /api/v1/spine/*
+      const verifyUpstreamSpineTenant = () => {
+        const auth = req.headers['authorization'] || '';
+        if (!auth.startsWith('Bearer ')) return null;
+        try {
+          const decoded = jwt.verify(auth.slice(7), process.env.BPE_JWT_SECRET, {
+            issuer: 'https://auth.printprice.pro',
+            audience: 'ppos:control',
+          });
+          if (!decoded.tenant_id || !decoded.bff_delegated || (!decoded.delegated_user_id && !decoded.delegated_order_id)) {
+            return null;
+          }
+          return decoded;
+        } catch {
+          return null;
+        }
+      };
+
       if (req.method === 'GET' && parsedUrl.pathname === '/api/v1/spine/profiles') {
+        const claims = verifyUpstreamSpineTenant();
+        if (!claims) {
+          res.writeHead(403, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: { code: 'TENANT_CONTEXT_REQUIRED', message: 'Missing delegated tenant context' } }));
+          return;
+        }
         const profiles = Object.values(cpEngine.BUILTIN_BINDING_PROFILES).filter(
           (p) =>
             parsedUrl.searchParams.get('includeExperimental') === 'true' ||
@@ -364,7 +447,7 @@ function startMockControlPlaneServer() {
           JSON.stringify({
             ok: true,
             data: {
-              tenantId: 'tenant_livonia_default',
+              tenantId: claims.tenant_id,
               profiles,
             },
           })
@@ -373,18 +456,48 @@ function startMockControlPlaneServer() {
       }
 
       if (req.method === 'POST' && parsedUrl.pathname === '/api/v1/spine/calculate') {
+        const claims = verifyUpstreamSpineTenant();
+        if (!claims) {
+          res.writeHead(403, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: { code: 'TENANT_CONTEXT_REQUIRED', message: 'Missing delegated tenant context' } }));
+          return;
+        }
         let raw = '';
         req.on('data', (chunk) => (raw += chunk));
         req.on('end', () => {
           try {
             const payload = JSON.parse(raw || '{}');
+            if (payload.externalOrderIntentId) {
+              for (const existing of savedSnapshots.values()) {
+                if (
+                  existing.externalOrderIntentId === payload.externalOrderIntentId &&
+                  existing.tenantId &&
+                  existing.tenantId !== claims.tenant_id
+                ) {
+                  res.writeHead(403, { 'Content-Type': 'application/json' });
+                  res.end(
+                    JSON.stringify({
+                      ok: false,
+                      error: {
+                        code: 'FORBIDDEN_TENANT_MISMATCH',
+                        message: 'Order belongs to another tenant.',
+                      },
+                    })
+                  );
+                  return;
+                }
+              }
+            }
             const result = cpEngine.executeSpineCalculation(payload);
             const idempKey = req.headers['idempotency-key'];
             const snapshotId = idempKey
-              ? `scs_idemp_${crypto.createHash('md5').update(idempKey).digest('hex').slice(0, 12)}`
+              ? `scs_idemp_${crypto.createHash('md5').update(`${claims.tenant_id}:${idempKey}`).digest('hex').slice(0, 12)}`
               : `scs_${crypto.randomUUID()}`;
             const enriched = {
               ...result,
+              tenantId: claims.tenant_id,
+              delegatedUserId: claims.delegated_user_id,
+              externalOrderIntentId: payload.externalOrderIntentId || null,
               snapshotId,
               snapshotLifecycleStatus: 'ACTIVE',
             };
@@ -407,11 +520,30 @@ function startMockControlPlaneServer() {
 
       const calcMatch = parsedUrl.pathname.match(/^\/api\/v1\/spine\/calculations\/([^/]+)$/);
       if (req.method === 'GET' && calcMatch) {
+        const claims = verifyUpstreamSpineTenant();
+        if (!claims) {
+          res.writeHead(403, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: { code: 'TENANT_CONTEXT_REQUIRED', message: 'Missing delegated tenant context' } }));
+          return;
+        }
         const id = decodeURIComponent(calcMatch[1]);
         const snap = savedSnapshots.get(id);
         if (!snap) {
           res.writeHead(404, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ ok: false, error: { code: 'NOT_FOUND', message: 'Not found' } }));
+          return;
+        }
+        if (snap.tenantId && snap.tenantId !== claims.tenant_id) {
+          res.writeHead(403, { 'Content-Type': 'application/json' });
+          res.end(
+            JSON.stringify({
+              ok: false,
+              error: {
+                code: 'FORBIDDEN_TENANT_MISMATCH',
+                message: 'Cross-tenant snapshot access is forbidden.',
+              },
+            })
+          );
           return;
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -427,27 +559,34 @@ function startMockControlPlaneServer() {
   });
 }
 
-function requestBudget(method, reqPath, body = null, headers = {}) {
+let defaultAuthCookie = '';
+
+function requestBudget(method, reqPath, body = null, headers = {}, options = {}) {
   return new Promise((resolve, reject) => {
+    const mergedHeaders = {
+      'Content-Type': 'application/json',
+      ...headers,
+    };
+    if (!options.skipDefaultCookie && !mergedHeaders.Cookie && !mergedHeaders.Authorization && defaultAuthCookie) {
+      mergedHeaders.Cookie = defaultAuthCookie;
+    }
     const req = http.request(
       {
         hostname: '127.0.0.1',
         port: BUDGET_PORT,
         path: reqPath,
         method,
-        headers: {
-          'Content-Type': 'application/json',
-          ...headers,
-        },
+        headers: mergedHeaders,
       },
       (res) => {
         let raw = '';
+        const setCookie = res.headers['set-cookie'] || [];
         res.on('data', (chunk) => (raw += chunk));
         res.on('end', () => {
           try {
-            resolve({ status: res.statusCode, data: JSON.parse(raw) });
+            resolve({ status: res.statusCode, data: JSON.parse(raw), setCookie });
           } catch {
-            resolve({ status: res.statusCode, raw });
+            resolve({ status: res.statusCode, raw, setCookie });
           }
         });
       }
@@ -481,8 +620,35 @@ async function runTests() {
     console.log('MISIÓN SPINE-04R — SUITE DE GOBERNANZA Y DATOS AUTORITATIVOS');
     console.log('======================================================================\n');
 
+    // 0. SPINE-06R F01: Establish authenticated session for tenant_alpha via POST /api/auth/login
+    console.log('[0/10] Authenticating tester session (tenant_alpha) via POST /api/auth/login...');
+    const loginAlphaRes = await requestBudget(
+      'POST',
+      '/api/auth/login',
+      { email: 'tester-alpha@printprice.pro', password: 'TestPass!2026' },
+      {},
+      { skipDefaultCookie: true }
+    );
+    assert(
+      loginAlphaRes.status === 200 && loginAlphaRes.data.tenant_id === 'tenant_alpha',
+      'POST /api/auth/login authenticates tester and binds tenant_alpha'
+    );
+    const alphaCookieHeader = (loginAlphaRes.setCookie || [])
+      .map((c) => c.split(';')[0])
+      .join('; ');
+    assert(alphaCookieHeader.includes('pp_session_id='), 'Signed pp_session_id cookie issued on login');
+    defaultAuthCookie = alphaCookieHeader;
+
+    const sessionProbeRes = await requestBudget('GET', '/api/auth/session');
+    assert(
+      sessionProbeRes.status === 200 &&
+        sessionProbeRes.data.authenticated === true &&
+        sessionProbeRes.data.user?.tenant_id === 'tenant_alpha',
+      'GET /api/auth/session returns bound user and tenant_alpha'
+    );
+
     // 1. Profile listing
-    console.log('[1/9] Verifying GET /api/budget/spine/profiles...');
+    console.log('[1/10] Verifying GET /api/budget/spine/profiles...');
     const profRes = await requestBudget('GET', '/api/budget/spine/profiles');
     assert(profRes.status === 200 && profRes.data.ok === true, 'Profiles endpoint returns HTTP 200 ok:true');
     assert(
@@ -989,8 +1155,132 @@ async function runTests() {
       );
     }
 
+    // 10. SPINE-06R F01: Multi-Tenant Isolation, Unauthenticated Rejection, Cross-Tenant Spoofing & Token Manipulation
+    console.log('\n[10/10] Verifying SPINE-06R F01 Multi-Tenant Isolation & Token Security...');
+
+    // 10a. Unauthenticated / untenanted call is rejected with 403 TENANT_CONTEXT_REQUIRED
+    const unauthCalcRes = await requestBudget(
+      'POST',
+      '/api/budget/spine/calculate',
+      amberPayload,
+      {},
+      { skipDefaultCookie: true }
+    );
+    assert(
+      unauthCalcRes.status === 403 && unauthCalcRes.data.error?.code === 'TENANT_CONTEXT_REQUIRED',
+      'F01: Unauthenticated request to /api/budget/spine/calculate is rejected with 403 TENANT_CONTEXT_REQUIRED'
+    );
+
+    const unauthProfRes = await requestBudget(
+      'GET',
+      '/api/budget/spine/profiles',
+      null,
+      {},
+      { skipDefaultCookie: true }
+    );
+    assert(
+      unauthProfRes.status === 403 && unauthProfRes.data.error?.code === 'TENANT_CONTEXT_REQUIRED',
+      'F01: Unauthenticated request to /api/budget/spine/profiles is rejected with 403 TENANT_CONTEXT_REQUIRED'
+    );
+
+    // 10b. Manipulated / forged Bearer JWT is rejected with 401 UNAUTHORIZED
+    const forgedToken = jwt.sign(
+      { sub: 'usr_attacker', tenant_id: 'tenant_alpha', role: 'PRINTHOUSE' },
+      'wrong_attacker_secret_key',
+      { issuer: 'https://auth.printprice.pro', audience: 'ppos:control' }
+    );
+    const manipulatedJwtRes = await requestBudget(
+      'POST',
+      '/api/budget/spine/calculate',
+      amberPayload,
+      { Authorization: `Bearer ${forgedToken}` },
+      { skipDefaultCookie: true }
+    );
+    assert(
+      manipulatedJwtRes.status === 401 && manipulatedJwtRes.data.error?.code === 'UNAUTHORIZED',
+      'F01: Manipulated / forged Bearer JWT is rejected with 401 UNAUTHORIZED'
+    );
+
+    // 10c. Authenticate second tenant (tenant_beta) and verify isolation
+    const loginBetaRes = await requestBudget(
+      'POST',
+      '/api/auth/login',
+      { email: 'tester-beta@printprice.pro', password: 'TestPass!2026' },
+      {},
+      { skipDefaultCookie: true }
+    );
+    const betaCookieHeader = (loginBetaRes.setCookie || [])
+      .map((c) => c.split(';')[0])
+      .join('; ');
+    assert(
+      loginBetaRes.status === 200 && loginBetaRes.data.tenant_id === 'tenant_beta' && betaCookieHeader.includes('pp_session_id='),
+      'F01: Second tester login binds tenant_beta to its own session cookie'
+    );
+
+    // 10d. Client-supplied tenant spoofing in body/header while authenticated as tenant_beta -> 403 FORBIDDEN_TENANT_MISMATCH
+    const spoofBodyRes = await requestBudget(
+      'POST',
+      '/api/budget/spine/calculate',
+      { ...amberPayload, tenantId: 'tenant_alpha' },
+      { Cookie: betaCookieHeader },
+      { skipDefaultCookie: true }
+    );
+    assert(
+      spoofBodyRes.status === 403 && spoofBodyRes.data.error?.code === 'FORBIDDEN_TENANT_MISMATCH',
+      'F01: Spoofing tenantId=tenant_alpha in body while authenticated as tenant_beta returns 403 FORBIDDEN_TENANT_MISMATCH'
+    );
+
+    const spoofHeaderRes = await requestBudget(
+      'POST',
+      '/api/budget/spine/calculate',
+      amberPayload,
+      { Cookie: betaCookieHeader, 'x-tenant-id': 'tenant_alpha' },
+      { skipDefaultCookie: true }
+    );
+    assert(
+      spoofHeaderRes.status === 403 && spoofHeaderRes.data.error?.code === 'FORBIDDEN_TENANT_MISMATCH',
+      'F01: Spoofing x-tenant-id=tenant_alpha header while authenticated as tenant_beta returns 403 FORBIDDEN_TENANT_MISMATCH'
+    );
+
+    // 10e. Cross-tenant snapshot retrieval: tenant_beta cannot read snapshot created by tenant_alpha
+    const crossTenantSnapRes = await requestBudget(
+      'GET',
+      `/api/budget/spine/calculations/${encodeURIComponent(snapId)}`,
+      null,
+      { Cookie: betaCookieHeader },
+      { skipDefaultCookie: true }
+    );
+    assert(
+      crossTenantSnapRes.status === 403 &&
+        crossTenantSnapRes.data.error?.code === 'FORBIDDEN_TENANT_MISMATCH',
+      'F01: Cross-tenant GET /api/budget/spine/calculations/:id by tenant_beta returns 403 FORBIDDEN_TENANT_MISMATCH'
+    );
+
+    // 10f. Cross-tenant order calculation: create snapshot with order intent under tenant_alpha, then attempt with tenant_beta
+    const alphaOrderCalc = await requestBudget(
+      'POST',
+      '/api/budget/spine/calculate',
+      { ...amberPayload, externalOrderIntentId: 'oi_alpha_exclusive_001' },
+      { Cookie: alphaCookieHeader },
+      { skipDefaultCookie: true }
+    );
+    assert(alphaOrderCalc.status === 200, 'F01: tenant_alpha calculates spine for oi_alpha_exclusive_001');
+
+    const betaCrossOrderCalc = await requestBudget(
+      'POST',
+      '/api/budget/spine/calculate',
+      { ...amberPayload, externalOrderIntentId: 'oi_alpha_exclusive_001' },
+      { Cookie: betaCookieHeader },
+      { skipDefaultCookie: true }
+    );
+    assert(
+      betaCrossOrderCalc.status === 403 &&
+        betaCrossOrderCalc.data.error?.code === 'FORBIDDEN_TENANT_MISMATCH',
+      'F01: tenant_beta attempting to calculate spine for tenant_alpha order returns 403 FORBIDDEN_TENANT_MISMATCH'
+    );
+
     console.log('\n======================================================================');
-    console.log('✅ SPINE-04R INTEGRATION & GOVERNANCE SUITE: ALL ASSERTIONS PASSED');
+    console.log('✅ SPINE-04R / SPINE-06R INTEGRATION & GOVERNANCE SUITE: ALL ASSERTIONS PASSED');
     console.log('======================================================================\n');
     upstreamServer.close();
     process.exit(0);

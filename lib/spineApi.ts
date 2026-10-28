@@ -612,6 +612,7 @@ export async function calculateBookSpineGeometry(
 
     const response = await fetch('/api/budget/spine/calculate', {
       method: 'POST',
+      credentials: 'include',
       headers,
       body: JSON.stringify(requestPayload),
       signal: options?.signal,
@@ -693,6 +694,7 @@ export async function fetchSpineBindingProfiles(options?: {
     const qs = options?.includeExperimental ? '?includeExperimental=true' : '';
     const response = await fetch(`/api/budget/spine/profiles${qs}`, {
       method: 'GET',
+      credentials: 'include',
       signal: options?.signal,
     });
     const json = await response.json().catch(() => null);

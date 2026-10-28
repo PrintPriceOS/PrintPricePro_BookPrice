@@ -72,6 +72,7 @@ interface AuthUser {
   token?: string;
   user_id?: string | number;
   role?: string;
+  tenant_id?: string | null;
 }
 
 const AuthModal: React.FC<{ onClose: () => void; onLoginSuccess: (user: AuthUser) => void }> = ({ onClose, onLoginSuccess }) => {
@@ -113,6 +114,7 @@ const AuthModal: React.FC<{ onClose: () => void; onLoginSuccess: (user: AuthUser
         : { email, password };
       const res = await fetch(endpoint, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
@@ -122,10 +124,12 @@ const AuthModal: React.FC<{ onClose: () => void; onLoginSuccess: (user: AuthUser
         return;
       }
       onLoginSuccess({
-        email,
+        email: data?.user?.email ?? email,
         name: data?.name ?? data?.user?.name,
         token: data?.token ?? data?.access_token,
         user_id: data?.user_id ?? data?.user?.id ?? data?.id,
+        role: data?.role ?? data?.user?.role,
+        tenant_id: data?.tenant_id ?? data?.user?.tenant_id ?? null,
       });
       onClose();
     } catch {

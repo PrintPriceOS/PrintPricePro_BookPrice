@@ -653,7 +653,7 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
                           <span className="text-[9px] text-corporate-muted uppercase block">Caliper / Compatibility</span>
                           <span className="text-corporate-text font-bold">
                             {selectedMaterial.caliperUm || selectedMaterial.caliper_um
-                              ? `${selectedMaterial.caliperUm || selectedMaterial.caliper_um} µm (${selectedMaterial.caliperConfidenceStatus || 'VERIFIED'})`
+                              ? `${selectedMaterial.caliperUm || selectedMaterial.caliper_um} µm (${selectedMaterial.caliperConfidenceStatus || 'PROVISIONAL_ESTIMATED'})`
                               : `Pending caliper · ${targetCompatibilityLabel}`}
                           </span>
                         </div>

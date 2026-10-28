@@ -731,6 +731,28 @@ export type SpineManufacturingStatus =
   | 'REQUIRES_TECH_REVIEW'
   | 'INVALID_BLOCKED';
 
+export interface SpineBindingProfileRules {
+  gluedOffsetMm?: number;
+  sewnSlopeFactor?: number;
+  sewnCoverCaliperMultiplier?: number;
+  sewnInnerOffsetMm?: number;
+  sewnOuterInterceptMm?: number;
+  bleedPerSideMm?: number;
+  separateEndpapersThicknessMm?: number;
+  allowedBoardThicknessesMm?: number[];
+  allowedOverhangsMm?: number[];
+  allowedSignaturePages?: Array<16 | 32>;
+  maxSewnSwellingBlockMm?: number;
+  maxGluedBlockMm?: number;
+  dustJacketMaxFlapClearanceMm?: number;
+  dustJacketBleedPerSideMm?: number;
+  flaps?: {
+    panelTurnAllowanceMm?: number;
+    panelAuxReferenceOffsetMm?: number;
+    maxFlapClearanceFromWidthMm?: number;
+  };
+}
+
 export interface SpineSegmentInput {
   segmentIndex?: number;
   pages: number;
@@ -739,8 +761,8 @@ export interface SpineSegmentInput {
   gsm?: number | null;
   caliperUm?: number | null;
   coatingType?: 'COATED' | 'UNCOATED';
-  caliperSource?: CaliperSource | string;
-  caliperConfidenceStatus?: CaliperConfidenceStatus | string;
+  caliperSource?: CaliperSource | string | null;
+  caliperConfidenceStatus?: CaliperConfidenceStatus | string | null;
 }
 
 export interface SpineCalculationRequestPayload {
@@ -754,8 +776,8 @@ export interface SpineCalculationRequestPayload {
     gsm?: number | null;
     caliperUm?: number | null;
     flapWidthMm?: number | null;
-    caliperSource?: string;
-    caliperConfidenceStatus?: string;
+    caliperSource?: string | null;
+    caliperConfidenceStatus?: string | null;
   } | null;
   hardcover?: {
     endpapersMode?: 'SEPARATE' | 'SELF_ENDED';

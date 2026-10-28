@@ -1,13 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BookPricePayload,
-  SpineBindingCategory,
   SpineCalculationResult,
   SpineShape,
 } from '../types';
 import {
   calculateBookSpineGeometry,
+  fetchSpineBindingProfiles,
   resolveSpineRequestReadiness,
+  SpineBindingProfileSummary,
+  SpineHardcoverProfileParameters,
   SpineRequestReadiness,
 } from '../lib/spineApi';
 import {
@@ -31,15 +33,72 @@ export interface BookSpineGeometryPanelProps {
   ) => void;
 }
 
+/**
+ * SPINE-04-R03: Explicit epistemic & operational status states.
+ * Never conflates HTTP 200 or mathematical parity with industrial certification.
+ */
 export type SpinePanelStatus =
   | 'CALCULATING'
-  | 'VALIDATED'
-  | 'WARNING'
+  | 'PRODUCTION_CERTIFIED'
+  | 'PRINTHOUSE_TECHNICALLY_VALIDATED'
+  | 'MATH_VALIDATED_PENDING_INDUSTRIAL'
+  | 'EXCEL_EXAMPLE_PARITY_ONLY'
+  | 'PROVISIONAL_ESTIMATE'
   | 'REQUIRES_TECH_APPROVAL'
   | 'CALIPER_VERIFICATION_REQUIRED'
+  | 'HARDCOVER_PROFILE_PARAMETERS_REQUIRED'
+  | 'INVALID_BOOK_DIMENSIONS'
   | 'UNSUPPORTED_BINDING'
   | 'SPINE_NOT_AVAILABLE'
   | 'ERROR';
+
+export function deriveSpinePanelStatusFromResult(
+  result: SpineCalculationResult
+): SpinePanelStatus {
+  const mfg = result.manufacturingValidation;
+  const warningIssues = (mfg?.issues || []).filter((i) => i.severity === 'WARNING');
+
+  if (mfg?.status === 'INVALID_BLOCKED') {
+    return 'ERROR';
+  }
+
+  if (
+    result.operationalStatus === 'REQUIRES_TECH_APPROVAL' ||
+    mfg?.status === 'REQUIRES_TECH_REVIEW'
+  ) {
+    return 'REQUIRES_TECH_APPROVAL';
+  }
+
+  if (
+    mfg?.status === 'PROVISIONAL_ESTIMATE' ||
+    mfg?.caliperConfidenceSummary === 'PROVISIONAL_ESTIMATED' ||
+    mfg?.caliperConfidenceSummary === 'MISSING' ||
+    warningIssues.length > 0
+  ) {
+    return 'PROVISIONAL_ESTIMATE';
+  }
+
+  if (
+    mfg?.canReleaseToManufacturing === true &&
+    mfg?.levels?.productionCertifiedForManufacturing === true &&
+    result.certificationTier === 'PRODUCTION_CERTIFIED'
+  ) {
+    return 'PRODUCTION_CERTIFIED';
+  }
+
+  if (
+    mfg?.levels?.printhouseTechnicallyValidated === true ||
+    result.certificationTier === 'PRINTHOUSE_TECHNICALLY_VALIDATED'
+  ) {
+    return 'PRINTHOUSE_TECHNICALLY_VALIDATED';
+  }
+
+  if (result.certificationTier === 'EXCEL_EXAMPLE_PARITY') {
+    return 'EXCEL_EXAMPLE_PARITY_ONLY';
+  }
+
+  return 'MATH_VALIDATED_PENDING_INDUSTRIAL';
+}
 
 const formatMm = (value: number | null | undefined, decimals = 1): string => {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '—';
@@ -49,13 +108,13 @@ const formatMm = (value: number | null | undefined, decimals = 1): string => {
 const formatTierBadgeLabel = (tier?: string | null): string => {
   switch (tier) {
     case 'PRODUCTION_CERTIFIED':
-      return 'Production Certified';
+      return 'Production Certified · Autonomous Release';
     case 'PRINTHOUSE_TECHNICALLY_VALIDATED':
-      return 'Printhouse Validated';
+      return 'Printhouse Technically Validated';
     case 'MATH_BRANCH_VALIDATED':
-      return 'Math Branch Validated · Quotes Only';
+      return 'Math Validated · Pending Industrial Sign-Off';
     case 'EXCEL_EXAMPLE_PARITY':
-      return 'Excel Parity · Pending Plant Sign-Off';
+      return 'Excel Example Parity · Uncertified';
     default:
       return tier || 'Unverified Tier';
   }
@@ -66,8 +125,14 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
   onSwitchInteriorToAdvancedCatalog,
   onSpineResultChange,
 }) => {
+  const [availableProfiles, setAvailableProfiles] = useState<SpineBindingProfileSummary[]>([]);
+  const [profilesLoaded, setProfilesLoaded] = useState<boolean>(false);
+  const [profilesUnavailableCode, setProfilesUnavailableCode] = useState<string | null>(null);
+
   const [spineShapeOverride, setSpineShapeOverride] = useState<SpineShape>('SQUARE');
-  const [boardThicknessMm, setBoardThicknessMm] = useState<number>(2.4);
+  const [selectedBoardThicknessMm, setSelectedBoardThicknessMm] = useState<number | null>(null);
+  const [selectedOverhangMm, setSelectedOverhangMm] = useState<number | null>(null);
+  const [selectedSignaturePages, setSelectedSignaturePages] = useState<16 | 32 | null>(null);
   const [flapWidthMm, setFlapWidthMm] = useState<number>(0);
   const [mobileExpanded, setMobileExpanded] = useState<boolean>(false);
 
@@ -78,11 +143,125 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
   const [lastCalculatedFingerprint, setLastCalculatedFingerprint] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
 
-  const readiness = useMemo(() => resolveSpineRequestReadiness(formData), [formData]);
+  // Fetch authoritative binding profiles from Control Plane (/api/budget/spine/profiles)
+  useEffect(() => {
+    const abortController = new AbortController();
+    fetchSpineBindingProfiles({ signal: abortController.signal })
+      .then((res) => {
+        if (abortController.signal.aborted) return;
+        if (res.ok && res.profiles.length > 0) {
+          setAvailableProfiles(res.profiles);
+          setProfilesUnavailableCode(null);
+        } else {
+          setAvailableProfiles([]);
+          setProfilesUnavailableCode(res.errorCode || 'SPINE_NOT_AVAILABLE');
+        }
+        setProfilesLoaded(true);
+      })
+      .catch(() => {
+        if (abortController.signal.aborted) return;
+        setAvailableProfiles([]);
+        setProfilesUnavailableCode('SPINE_NOT_AVAILABLE');
+        setProfilesLoaded(true);
+      });
 
-  const effectiveFingerprint = useMemo(() => {
-    return `${readiness.fingerprint}|shape:${spineShapeOverride}|board:${boardThicknessMm}|flap:${flapWidthMm}`;
-  }, [readiness.fingerprint, spineShapeOverride, boardThicknessMm, flapWidthMm]);
+    return () => {
+      abortController.abort();
+    };
+  }, [refreshTrigger]);
+
+  // Resolve the authoritative Hardcover profile from Control Plane profiles (never inventing parameters)
+  const authoritativeHardcoverProfile = useMemo(() => {
+    return (
+      availableProfiles.find(
+        (p) =>
+          Array.isArray(p.supportedBindingCategories) &&
+          p.supportedBindingCategories.includes('HARDCOVER')
+      ) || null
+    );
+  }, [availableProfiles]);
+
+  const allowedBoardOptions = useMemo(() => {
+    const arr = authoritativeHardcoverProfile?.rules?.allowedBoardThicknessesMm;
+    return Array.isArray(arr) && arr.length > 0 ? arr : [];
+  }, [authoritativeHardcoverProfile]);
+
+  const allowedOverhangOptions = useMemo(() => {
+    const arr = authoritativeHardcoverProfile?.rules?.allowedOverhangsMm;
+    return Array.isArray(arr) && arr.length > 0 ? arr : [];
+  }, [authoritativeHardcoverProfile]);
+
+  const allowedSignatureOptions = useMemo(() => {
+    const arr = authoritativeHardcoverProfile?.rules?.allowedSignaturePages;
+    return Array.isArray(arr) && arr.length > 0 ? arr : [];
+  }, [authoritativeHardcoverProfile]);
+
+  // Hydrate hardcover parameters strictly from the Control Plane profile's allowed rules
+  useEffect(() => {
+    if (!authoritativeHardcoverProfile) {
+      setSelectedBoardThicknessMm(null);
+      setSelectedOverhangMm(null);
+      setSelectedSignaturePages(null);
+      return;
+    }
+
+    if (allowedBoardOptions.length > 0) {
+      setSelectedBoardThicknessMm((prev) =>
+        prev !== null && allowedBoardOptions.includes(prev) ? prev : allowedBoardOptions[0]
+      );
+    } else {
+      setSelectedBoardThicknessMm(null);
+    }
+
+    if (allowedOverhangOptions.length > 0) {
+      setSelectedOverhangMm((prev) =>
+        prev !== null && allowedOverhangOptions.includes(prev) ? prev : allowedOverhangOptions[0]
+      );
+    } else {
+      setSelectedOverhangMm(null);
+    }
+
+    if (allowedSignatureOptions.length > 0) {
+      setSelectedSignaturePages((prev) =>
+        prev !== null && allowedSignatureOptions.includes(prev) ? prev : allowedSignatureOptions[0]
+      );
+    } else {
+      setSelectedSignaturePages(null);
+    }
+  }, [
+    authoritativeHardcoverProfile,
+    allowedBoardOptions,
+    allowedOverhangOptions,
+    allowedSignatureOptions,
+  ]);
+
+  const hardcoverProfileParams = useMemo<SpineHardcoverProfileParameters | null>(() => {
+    if (!authoritativeHardcoverProfile) return null;
+    return {
+      profileId: authoritativeHardcoverProfile.profileId,
+      boardThicknessMm: selectedBoardThicknessMm,
+      overhangMm: selectedOverhangMm,
+      foldingSignaturePages: selectedSignaturePages,
+      spineShape: spineShapeOverride,
+    };
+  }, [
+    authoritativeHardcoverProfile,
+    selectedBoardThicknessMm,
+    selectedOverhangMm,
+    selectedSignaturePages,
+    spineShapeOverride,
+  ]);
+
+  const readiness = useMemo(
+    () =>
+      resolveSpineRequestReadiness(formData, {
+        hardcoverProfileParams,
+        flapWidthMm,
+      }),
+    [formData, hardcoverProfileParams, flapWidthMm]
+  );
+
+  const effectiveFingerprint = readiness.fingerprint;
 
   const isStale = Boolean(
     lastCalculatedFingerprint && lastCalculatedFingerprint !== effectiveFingerprint
@@ -92,7 +271,6 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
   onSpineResultChangeRef.current = onSpineResultChange;
 
   useEffect(() => {
-    // Immediate invalidation when inputs change
     if (readiness.status === 'UNSUPPORTED_BINDING_FOR_SPINE_ENGINE') {
       setSpineResult(null);
       setErrorCode(readiness.reasonCode);
@@ -103,17 +281,63 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
       return;
     }
 
-    if (
-      readiness.status === 'CALIPER_VERIFICATION_REQUIRED' ||
-      readiness.status === 'INVALID_BOOK_DIMENSIONS' ||
-      !readiness.requestPayload
-    ) {
+    if (readiness.status === 'INVALID_BOOK_DIMENSIONS') {
+      setSpineResult(null);
+      setErrorCode(readiness.reasonCode);
+      setErrorMessage(readiness.message);
+      setPanelStatus('INVALID_BOOK_DIMENSIONS');
+      setLastCalculatedFingerprint(effectiveFingerprint);
+      onSpineResultChangeRef.current?.(null, 'INVALID_BOOK_DIMENSIONS', readiness);
+      return;
+    }
+
+    if (readiness.status === 'CALIPER_VERIFICATION_REQUIRED') {
       setSpineResult(null);
       setErrorCode(readiness.reasonCode);
       setErrorMessage(readiness.message);
       setPanelStatus('CALIPER_VERIFICATION_REQUIRED');
       setLastCalculatedFingerprint(effectiveFingerprint);
       onSpineResultChangeRef.current?.(null, 'CALIPER_VERIFICATION_REQUIRED', readiness);
+      return;
+    }
+
+    if (readiness.status === 'HARDCOVER_PROFILE_PARAMETERS_REQUIRED') {
+      if (!profilesLoaded) {
+        setSpineResult(null);
+        setPanelStatus('CALCULATING');
+        return;
+      }
+      if (profilesUnavailableCode === 'SPINE_NOT_AVAILABLE') {
+        setSpineResult(null);
+        setErrorCode('SPINE_NOT_AVAILABLE');
+        setErrorMessage(
+          'Control Plane Spine Engine (/api/v1/spine) is not active in this environment yet. No synthetic dimensions generated.'
+        );
+        setPanelStatus('SPINE_NOT_AVAILABLE');
+        setLastCalculatedFingerprint(effectiveFingerprint);
+        onSpineResultChangeRef.current?.(null, 'SPINE_NOT_AVAILABLE', readiness);
+        return;
+      }
+      setSpineResult(null);
+      setErrorCode(readiness.reasonCode);
+      setErrorMessage(readiness.message);
+      setPanelStatus('HARDCOVER_PROFILE_PARAMETERS_REQUIRED');
+      setLastCalculatedFingerprint(effectiveFingerprint);
+      onSpineResultChangeRef.current?.(
+        null,
+        'HARDCOVER_PROFILE_PARAMETERS_REQUIRED',
+        readiness
+      );
+      return;
+    }
+
+    if (!readiness.requestPayload) {
+      setSpineResult(null);
+      setErrorCode(readiness.reasonCode || 'SPINE_NOT_READY');
+      setErrorMessage(readiness.message);
+      setPanelStatus('ERROR');
+      setLastCalculatedFingerprint(effectiveFingerprint);
+      onSpineResultChangeRef.current?.(null, 'ERROR', readiness);
       return;
     }
 
@@ -127,39 +351,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
     const abortController = new AbortController();
     const timer = window.setTimeout(async () => {
       try {
-        const baseReq = readiness.requestPayload!;
-        const isHardcover = baseReq.bindingCategory === 'HARDCOVER';
-        const isSoftcover =
-          baseReq.bindingCategory === 'SOFTCOVER_STANDARD' ||
-          baseReq.bindingCategory === 'SOFTCOVER_WITH_FLAPS';
-
-        const effectiveBindingCategory: SpineBindingCategory =
-          isSoftcover && flapWidthMm > 0
-            ? 'SOFTCOVER_WITH_FLAPS'
-            : baseReq.bindingCategory;
-
-        const payloadToSend = {
-          ...baseReq,
-          bindingCategory: effectiveBindingCategory,
-          cover: baseReq.cover
-            ? {
-                ...baseReq.cover,
-                flapWidthMm:
-                  effectiveBindingCategory === 'SOFTCOVER_WITH_FLAPS' ? flapWidthMm : undefined,
-              }
-            : effectiveBindingCategory === 'SOFTCOVER_WITH_FLAPS'
-              ? { flapWidthMm }
-              : null,
-          hardcover: isHardcover
-            ? {
-                ...baseReq.hardcover,
-                spineShape: spineShapeOverride,
-                boardThicknessMm,
-              }
-            : null,
-        };
-
-        const response = await calculateBookSpineGeometry(payloadToSend, {
+        const response = await calculateBookSpineGeometry(readiness.requestPayload!, {
           signal: abortController.signal,
         });
 
@@ -190,23 +382,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
         setSpineResult(result);
         setLastCalculatedFingerprint(effectiveFingerprint);
 
-        const warningIssues = (result.manufacturingValidation?.issues || []).filter(
-          (i) => i.severity === 'WARNING'
-        );
-
-        let nextStatus: SpinePanelStatus = 'VALIDATED';
-        if (
-          result.operationalStatus === 'REQUIRES_TECH_APPROVAL' ||
-          result.manufacturingValidation?.status === 'REQUIRES_TECH_REVIEW'
-        ) {
-          nextStatus = 'REQUIRES_TECH_APPROVAL';
-        } else if (
-          result.manufacturingValidation?.status === 'PROVISIONAL_ESTIMATE' ||
-          warningIssues.length > 0
-        ) {
-          nextStatus = 'WARNING';
-        }
-
+        const nextStatus = deriveSpinePanelStatusFromResult(result);
         setPanelStatus(nextStatus);
         onSpineResultChangeRef.current?.(result, nextStatus, readiness);
       } catch (err: any) {
@@ -226,17 +402,25 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
       window.clearTimeout(timer);
       abortController.abort();
     };
-  }, [effectiveFingerprint, spineShapeOverride, boardThicknessMm, flapWidthMm, refreshTrigger]);
+  }, [effectiveFingerprint, profilesLoaded, profilesUnavailableCode, refreshTrigger]);
 
   // Blueprint SVG layout proportions
   const blueprintSvg = useMemo(() => {
-    if (!spineResult?.coverGeometry || spineResult.spineWidthMm === null) return null;
-    const { trimWidthMm, trimHeightMm } = readiness.trimDimensionsMm;
+    if (
+      !spineResult?.coverGeometry ||
+      spineResult.spineWidthMm === null ||
+      !readiness.trimDimensionsMm.valid ||
+      readiness.trimDimensionsMm.trimWidthMm === null ||
+      readiness.trimDimensionsMm.trimHeightMm === null
+    ) {
+      return null;
+    }
+    const trimWidthMm = readiness.trimDimensionsMm.trimWidthMm;
+    const trimHeightMm = readiness.trimDimensionsMm.trimHeightMm;
     const spineWidth = Math.max(spineResult.spineWidthMm || 0, 2);
     const panels = spineResult.coverGeometry.panels;
     const flapW = panels?.leftFlapMm || 0;
-    const bleed =
-      panels?.turnInMm || spineResult.coverGeometry.bleedPerSideMm || 3;
+    const bleed = panels?.turnInMm || spineResult.coverGeometry.bleedPerSideMm || 3;
     const hingeScore = panels?.leftHingeScoreMm || 0;
 
     // Normalize into SVG coordinate box (width 560, height 215)
@@ -266,6 +450,8 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
     const rightFlapX = frontCoverX + coverPx;
 
     return {
+      trimWidthMm,
+      trimHeightMm,
       startX,
       startY,
       drawW,
@@ -296,14 +482,29 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
           className:
             'bg-corporate-secondary border-corporate-border-strong text-corporate-text-secondary',
         };
-      case 'VALIDATED':
+      case 'PRODUCTION_CERTIFIED':
         return {
-          label: 'GEOMETRY VALIDATED · QUOTES ENABLED',
+          label: 'PRODUCTION CERTIFIED · MANUFACTURING READY',
           className: 'badge-success border',
         };
-      case 'WARNING':
+      case 'PRINTHOUSE_TECHNICALLY_VALIDATED':
         return {
-          label: 'VALIDATED WITH TECHNICAL WARNING',
+          label: 'PRINTHOUSE VALIDATED · PENDING RELEASE SIGN-OFF',
+          className: 'bg-sky-500/15 border-sky-500/40 text-sky-400',
+        };
+      case 'MATH_VALIDATED_PENDING_INDUSTRIAL':
+        return {
+          label: 'MATH VALIDATED · PENDING INDUSTRIAL VALIDATION',
+          className: 'bg-amber-500/15 border-amber-500/40 text-amber-500',
+        };
+      case 'EXCEL_EXAMPLE_PARITY_ONLY':
+        return {
+          label: 'EXCEL PARITY ONLY · NOT INDUSTRIALLY CERTIFIED',
+          className: 'bg-amber-500/15 border-amber-500/40 text-amber-500',
+        };
+      case 'PROVISIONAL_ESTIMATE':
+        return {
+          label: 'PROVISIONAL ESTIMATE · UNVERIFIED INPUTS',
           className: 'bg-amber-500/15 border-amber-500/40 text-amber-500',
         };
       case 'REQUIRES_TECH_APPROVAL':
@@ -316,6 +517,18 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
           label: 'CALIPER VERIFICATION REQUIRED',
           className:
             'bg-corporate-accent/10 border-corporate-accent/40 text-corporate-accent',
+        };
+      case 'HARDCOVER_PROFILE_PARAMETERS_REQUIRED':
+        return {
+          label: 'HARDCOVER PROFILE PARAMETERS REQUIRED',
+          className:
+            'bg-corporate-accent/10 border-corporate-accent/40 text-corporate-accent',
+        };
+      case 'INVALID_BOOK_DIMENSIONS':
+        return {
+          label: 'INVALID BOOK DIMENSIONS',
+          className:
+            'bg-corporate-accent/15 border-corporate-accent/50 text-corporate-accent',
         };
       case 'SPINE_NOT_AVAILABLE':
         return {
@@ -356,6 +569,67 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
       (acc, seg) => acc + (seg.sheets || 0),
       0
     );
+  }, [spineResult]);
+
+  const hasValidGeometryResult = Boolean(
+    spineResult &&
+      (panelStatus === 'PRODUCTION_CERTIFIED' ||
+        panelStatus === 'PRINTHOUSE_TECHNICALLY_VALIDATED' ||
+        panelStatus === 'MATH_VALIDATED_PENDING_INDUSTRIAL' ||
+        panelStatus === 'EXCEL_EXAMPLE_PARITY_ONLY' ||
+        panelStatus === 'PROVISIONAL_ESTIMATE' ||
+        panelStatus === 'REQUIRES_TECH_APPROVAL')
+  );
+
+  const certificationChecklist = useMemo(() => {
+    const levels = spineResult?.manufacturingValidation?.levels;
+    if (!levels || !spineResult) return [];
+    const tier = spineResult.certificationTier;
+    const isPendingIndustrial =
+      !levels.printhouseTechnicallyValidated && !levels.productionCertifiedForManufacturing;
+
+    return [
+      {
+        key: 'MATH_BRANCH_VALIDATED',
+        label: '1. Mathematically Validated',
+        active: Boolean(levels.mathBranchValidated),
+        detail: levels.mathBranchValidated ? 'Verified' : 'Failed',
+      },
+      {
+        key: 'EXCEL_EXAMPLE_PARITY',
+        label: '2. Excel Reference Parity',
+        active: Boolean(levels.excelExampleParity),
+        detail: levels.excelExampleParity ? 'Livonia v2.0 Parity' : 'Unverified',
+      },
+      {
+        key: 'PENDING_INDUSTRIAL_VALIDATION',
+        label: '3. Industrial Validation Status',
+        active: !isPendingIndustrial,
+        isWarning: isPendingIndustrial,
+        detail: isPendingIndustrial
+          ? `Pending Plant Sign-Off (${tier})`
+          : 'Industrially Validated',
+      },
+      {
+        key: 'PRINTHOUSE_TECHNICALLY_VALIDATED',
+        label: '4. Validated by Printhouse',
+        active: Boolean(levels.printhouseTechnicallyValidated),
+        detail: levels.printhouseTechnicallyValidated ? 'Approved' : 'Not Validated Yet',
+      },
+      {
+        key: 'PRODUCTION_CERTIFIED',
+        label: '5. Certified for Production',
+        active: Boolean(
+          levels.productionCertifiedForManufacturing &&
+            spineResult.manufacturingValidation.canReleaseToManufacturing
+        ),
+        detail:
+          levels.productionCertifiedForManufacturing &&
+          spineResult.manufacturingValidation.canReleaseToManufacturing
+            ? 'Certified Release'
+            : 'Blocked for Auto-Release',
+      },
+    ];
   }, [spineResult]);
 
   return (
@@ -422,7 +696,30 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
         </div>
       </div>
 
-      {/* STATE 1: CALIPER VERIFICATION REQUIRED (Governance Gate) */}
+      {/* STATE 1: INVALID BOOK DIMENSIONS (SPINE-04-R02) */}
+      {panelStatus === 'INVALID_BOOK_DIMENSIONS' && (
+        <div
+          data-testid="spine-invalid-dimensions-banner"
+          className="rounded-xl border border-corporate-accent/50 bg-corporate-secondary p-4 flex items-start gap-3"
+        >
+          <ExclamationTriangleIcon className="w-5 h-5 text-corporate-accent shrink-0 mt-0.5" />
+          <div className="space-y-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs font-technical font-black uppercase tracking-wider text-corporate-accent">
+                Invalid Book Format or Dimensions
+              </p>
+              <span className="px-2 py-0.5 rounded-md bg-corporate-elevated border border-corporate-border text-[9px] font-technical font-bold text-corporate-text uppercase">
+                Code: {errorCode || 'INVALID_BOOK_DIMENSIONS'}
+              </span>
+            </div>
+            <p className="text-xs text-corporate-text-secondary leading-relaxed">
+              {errorMessage}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* STATE 2: CALIPER VERIFICATION REQUIRED (Governance Gate) */}
       {panelStatus === 'CALIPER_VERIFICATION_REQUIRED' && (
         <div
           data-testid="spine-caliper-required-banner"
@@ -444,7 +741,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
               </p>
               <p className="text-[10px] font-technical text-corporate-muted">
                 Current Interior Spec: <strong className="text-corporate-text">{readiness.caliperTelemetry.interiorPaperName}</strong> ·{' '}
-                {readiness.trimDimensionsMm.trimWidthMm} × {readiness.trimDimensionsMm.trimHeightMm} mm · {formData.interior_pages} pages
+                {readiness.trimDimensionsMm.trimWidthMm ?? '—'} × {readiness.trimDimensionsMm.trimHeightMm ?? '—'} mm · {formData.interior_pages} pages
               </p>
             </div>
           </div>
@@ -463,7 +760,30 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
         </div>
       )}
 
-      {/* STATE 2: SPINE_NOT_AVAILABLE (When Control Plane /api/v1/spine is not deployed in target env) */}
+      {/* STATE 3: HARDCOVER PROFILE PARAMETERS REQUIRED (SPINE-04-R01) */}
+      {panelStatus === 'HARDCOVER_PROFILE_PARAMETERS_REQUIRED' && (
+        <div
+          data-testid="spine-hardcover-profile-required-banner"
+          className="rounded-xl border border-corporate-accent/40 bg-corporate-secondary p-4 flex items-start gap-3"
+        >
+          <ExclamationTriangleIcon className="w-5 h-5 text-corporate-accent shrink-0 mt-0.5" />
+          <div className="space-y-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs font-technical font-black uppercase tracking-wider text-corporate-text">
+                Hardcover Profile Parameters Required
+              </p>
+              <span className="px-2 py-0.5 rounded-md bg-corporate-elevated border border-corporate-border text-[9px] font-technical font-bold text-corporate-muted uppercase">
+                Code: {errorCode || 'HARDCOVER_PROFILE_PARAMETERS_REQUIRED'}
+              </span>
+            </div>
+            <p className="text-xs text-corporate-text-secondary leading-relaxed">
+              {errorMessage}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* STATE 4: SPINE_NOT_AVAILABLE (When Control Plane /api/v1/spine is not deployed in target env) */}
       {panelStatus === 'SPINE_NOT_AVAILABLE' && (
         <div
           data-testid="spine-not-available-banner"
@@ -487,7 +807,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
         </div>
       )}
 
-      {/* STATE 3: UNSUPPORTED BINDING (Saddle Stitch / Wire-O) */}
+      {/* STATE 5: UNSUPPORTED BINDING (Saddle Stitch / Wire-O) */}
       {panelStatus === 'UNSUPPORTED_BINDING' && (
         <div
           data-testid="spine-unsupported-binding-banner"
@@ -500,7 +820,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
         </div>
       )}
 
-      {/* STATE 4: ERROR / EXPERIMENTAL_PROFILE_DISABLED / OUT_OF_RANGE */}
+      {/* STATE 6: ERROR / EXPERIMENTAL_PROFILE_DISABLED / OUT_OF_RANGE */}
       {panelStatus === 'ERROR' && (
         <div
           data-testid="spine-error-banner"
@@ -523,7 +843,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
         </div>
       )}
 
-      {/* STATE 5: CALCULATING SKELETON */}
+      {/* STATE 7: CALCULATING SKELETON */}
       {panelStatus === 'CALCULATING' && (
         <div
           data-testid="spine-calculating-skeleton"
@@ -536,428 +856,496 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
         </div>
       )}
 
-      {/* STATE 6: VALIDATED / WARNING / REQUIRES_TECH_APPROVAL GEOMETRY DISPLAY */}
-      {spineResult &&
-        (panelStatus === 'VALIDATED' ||
-          panelStatus === 'WARNING' ||
-          panelStatus === 'REQUIRES_TECH_APPROVAL') && (
-          <div className="space-y-4 min-w-0">
-            {/* Primary 4 KPI Geometry Cards (Always visible on mobile & desktop) */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              {/* 1. Spine Width */}
-              <div className="rounded-xl bg-corporate-secondary border border-corporate-accent/40 p-3.5 relative overflow-hidden">
-                <div className="absolute top-0 left-0 bottom-0 w-1 bg-corporate-accent" />
-                <span className="text-[9px] font-technical uppercase font-bold text-corporate-muted block">
-                  Calculated Spine Width
-                </span>
-                <div className="mt-1 flex items-baseline gap-1.5">
-                  <span
-                    data-testid="spine-width-mm"
-                    className="text-lg sm:text-xl font-technical font-black text-corporate-text tabular-nums"
-                  >
-                    {formatMm(spineResult.spineWidthMm, 1)}
-                  </span>
-                  <span className="text-[10px] font-technical text-corporate-text-secondary">
-                    (0.5mm step)
-                  </span>
-                </div>
-                <span className="text-[9px] font-technical text-corporate-accent uppercase font-bold mt-1 block truncate">
-                  {spineResult.machineryLine || spineResult.fullProfileKey}
-                </span>
-              </div>
-
-              {/* 2. Paper Block Thickness */}
-              <div className="rounded-xl bg-corporate-secondary border border-corporate-border p-3.5">
-                <span className="text-[9px] font-technical uppercase font-bold text-corporate-muted block">
-                  Net Paper Block
-                </span>
-                <div className="mt-1 flex items-baseline gap-1.5">
-                  <span
-                    data-testid="net-paper-block-mm"
-                    className="text-lg sm:text-xl font-technical font-black text-corporate-text tabular-nums"
-                  >
-                    {formatMm(spineResult.blockThickness.netPaperBlockMm, 2)}
-                  </span>
-                </div>
-                <span className="text-[10px] font-technical text-corporate-text-secondary mt-1 block">
-                  {totalSheetsCount} sheets ({spineResult.blockThickness.totalPages} pp)
-                </span>
-              </div>
-
-              {/* 3. Extended Flat Cover (Net Open Spread vs Full File with Bleed/Turn-in) */}
-              <div className="rounded-xl bg-corporate-secondary border border-corporate-border p-3.5">
-                <span className="text-[9px] font-technical uppercase font-bold text-corporate-muted block">
-                  Extended Flat Cover
-                </span>
-                <div className="mt-1">
-                  <span
-                    data-testid="flat-cover-dimensions-mm"
-                    className="text-base sm:text-lg font-technical font-black text-corporate-text tabular-nums"
-                  >
-                    {spineResult.coverGeometry.netCoverWidthMm.toFixed(1)} ×{' '}
-                    {spineResult.coverGeometry.netCoverHeightMm.toFixed(1)} mm
-                  </span>
-                </div>
-                <span className="text-[10px] font-technical text-corporate-text-secondary mt-1 block">
-                  With bleed/turn-in: {spineResult.coverGeometry.flatCoverWidthMm.toFixed(1)} ×{' '}
-                  {spineResult.coverGeometry.flatCoverHeightMm.toFixed(1)} mm
-                </span>
-              </div>
-
-              {/* 4. Caliper & Provenance */}
-              <div className="rounded-xl bg-corporate-secondary border border-corporate-border p-3.5">
-                <span className="text-[9px] font-technical uppercase font-bold text-corporate-muted block">
-                  Verified Caliper &amp; Tier
-                </span>
-                <div className="mt-1 flex items-baseline gap-1.5">
-                  <span
-                    data-testid="spine-caliper-um"
-                    className="text-base sm:text-lg font-technical font-black text-corporate-text tabular-nums"
-                  >
-                    {readiness.caliperTelemetry.interiorCaliperUm} µm
-                  </span>
-                  <span className="text-[10px] font-technical text-corporate-accent font-bold uppercase">
-                    · {readiness.caliperTelemetry.interiorGsm} gsm
-                  </span>
-                </div>
+      {/* STATE 8: GEOMETRY DISPLAY WITH EXPLICIT 5-LEVEL CERTIFICATION MATRIX (SPINE-04-R03) */}
+      {hasValidGeometryResult && spineResult && (
+        <div className="space-y-4 min-w-0">
+          {/* Primary 4 KPI Geometry Cards (Always visible on mobile & desktop) */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* 1. Spine Width */}
+            <div className="rounded-xl bg-corporate-secondary border border-corporate-accent/40 p-3.5 relative overflow-hidden">
+              <div className="absolute top-0 left-0 bottom-0 w-1 bg-corporate-accent" />
+              <span className="text-[9px] font-technical uppercase font-bold text-corporate-muted block">
+                Calculated Spine Width
+              </span>
+              <div className="mt-1 flex items-baseline gap-1.5">
                 <span
-                  data-testid="spine-certification-tier"
-                  className="text-[9px] font-technical text-corporate-text-secondary uppercase font-bold mt-1 block truncate"
-                  title={formatTierBadgeLabel(spineResult.certificationTier)}
+                  data-testid="spine-width-mm"
+                  className="text-lg sm:text-xl font-technical font-black text-corporate-text tabular-nums"
                 >
-                  {formatTierBadgeLabel(spineResult.certificationTier)}
+                  {formatMm(spineResult.spineWidthMm, 1)}
+                </span>
+                <span className="text-[10px] font-technical text-corporate-text-secondary">
+                  (0.5mm step)
+                </span>
+              </div>
+              <span className="text-[9px] font-technical text-corporate-accent uppercase font-bold mt-1 block truncate">
+                {spineResult.machineryLine || spineResult.fullProfileKey}
+              </span>
+            </div>
+
+            {/* 2. Paper Block Thickness */}
+            <div className="rounded-xl bg-corporate-secondary border border-corporate-border p-3.5">
+              <span className="text-[9px] font-technical uppercase font-bold text-corporate-muted block">
+                Net Paper Block
+              </span>
+              <div className="mt-1 flex items-baseline gap-1.5">
+                <span
+                  data-testid="net-paper-block-mm"
+                  className="text-lg sm:text-xl font-technical font-black text-corporate-text tabular-nums"
+                >
+                  {formatMm(spineResult.blockThickness.netPaperBlockMm, 2)}
+                </span>
+              </div>
+              <span className="text-[10px] font-technical text-corporate-text-secondary mt-1 block">
+                {totalSheetsCount} sheets ({spineResult.blockThickness.totalPages} pp)
+              </span>
+            </div>
+
+            {/* 3. Extended Flat Cover (Net Open Spread vs Full File with Bleed/Turn-in) */}
+            <div className="rounded-xl bg-corporate-secondary border border-corporate-border p-3.5">
+              <span className="text-[9px] font-technical uppercase font-bold text-corporate-muted block">
+                Extended Flat Cover
+              </span>
+              <div className="mt-1">
+                <span
+                  data-testid="flat-cover-dimensions-mm"
+                  className="text-base sm:text-lg font-technical font-black text-corporate-text tabular-nums"
+                >
+                  {spineResult.coverGeometry.netCoverWidthMm.toFixed(1)} ×{' '}
+                  {spineResult.coverGeometry.netCoverHeightMm.toFixed(1)} mm
+                </span>
+              </div>
+              <span className="text-[10px] font-technical text-corporate-text-secondary mt-1 block">
+                With bleed/turn-in: {spineResult.coverGeometry.flatCoverWidthMm.toFixed(1)} ×{' '}
+                {spineResult.coverGeometry.flatCoverHeightMm.toFixed(1)} mm
+              </span>
+            </div>
+
+            {/* 4. Caliper & Provenance */}
+            <div className="rounded-xl bg-corporate-secondary border border-corporate-border p-3.5">
+              <span className="text-[9px] font-technical uppercase font-bold text-corporate-muted block">
+                Caliper &amp; Certification Tier
+              </span>
+              <div className="mt-1 flex items-baseline gap-1.5">
+                <span
+                  data-testid="spine-caliper-um"
+                  className="text-base sm:text-lg font-technical font-black text-corporate-text tabular-nums"
+                >
+                  {readiness.caliperTelemetry.interiorCaliperUm} µm
+                </span>
+                <span className="text-[10px] font-technical text-corporate-accent font-bold uppercase">
+                  · {readiness.caliperTelemetry.interiorGsm} gsm
+                </span>
+              </div>
+              <span
+                data-testid="spine-certification-tier"
+                className="text-[9px] font-technical text-corporate-text-secondary uppercase font-bold mt-1 block truncate"
+                title={formatTierBadgeLabel(spineResult.certificationTier)}
+              >
+                {formatTierBadgeLabel(spineResult.certificationTier)}
+              </span>
+            </div>
+          </div>
+
+          {/* SPINE-04-R03: Explicit 5-State Epistemic & Industrial Certification Strip */}
+          {certificationChecklist.length > 0 && (
+            <div
+              data-testid="spine-certification-matrix"
+              className="rounded-xl bg-corporate-secondary/80 border border-corporate-border p-3 grid grid-cols-2 sm:grid-cols-5 gap-2 text-[10px] font-technical"
+            >
+              {certificationChecklist.map((item) => (
+                <div
+                  key={item.key}
+                  data-testid={`cert-step-${item.key}`}
+                  data-cert-active={String(item.active)}
+                  className={`rounded-lg px-2.5 py-2 border ${
+                    item.active
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-corporate-text'
+                      : item.isWarning
+                        ? 'bg-amber-500/10 border-amber-500/40 text-amber-500'
+                        : 'bg-corporate-elevated/60 border-corporate-border text-corporate-muted'
+                  }`}
+                >
+                  <span className="block text-[8px] uppercase font-bold opacity-80 truncate">
+                    {item.label}
+                  </span>
+                  <span className="block font-black uppercase mt-0.5 truncate">
+                    {item.detail}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Governance Warning / Tech Approval Banner when not autonomously certified for manufacturing */}
+          {(spineResult.operationalStatus === 'REQUIRES_TECH_APPROVAL' ||
+            !spineResult.manufacturingValidation?.canReleaseToManufacturing) && (
+            <div
+              data-testid="spine-governance-notice"
+              className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3.5 flex items-start gap-3"
+            >
+              <ShieldCheckIcon className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+              <div className="text-[11px] leading-relaxed min-w-0">
+                <span className="font-technical font-black uppercase tracking-wider text-corporate-text block">
+                  Manufacturing Release Governance ({spineResult.certificationTier} ·{' '}
+                  {spineResult.operationalStatus} ·{' '}
+                  {spineResult.manufacturingValidation?.status}):
+                </span>
+                <span className="text-corporate-text-secondary">
+                  {spineResult.operationalStatus === 'REQUIRES_TECH_APPROVAL'
+                    ? 'Hardcover Colibri case-making tolerances (board overhang, hinge rastri and turn-in) are active for quote estimation and preflight preview, but require explicit Print House Technical Sign-off before die/cover plate release.'
+                    : panelStatus === 'PROVISIONAL_ESTIMATE'
+                      ? 'One or more substrate caliper or cover inputs are provisional or missing. Geometry is shown for preliminary estimation only and cannot be released to manufacturing without verified micrometer/datasheet provenance.'
+                      : 'Mathematical calculation succeeded, but this profile is pending industrial certification. Autonomous manufacturing release requires PRODUCTION_CERTIFIED status and verified substrate provenance.'}
                 </span>
               </div>
             </div>
+          )}
 
-            {/* Governance Warning / Tech Approval Banner when not autonomously certified for manufacturing */}
-            {(spineResult.operationalStatus === 'REQUIRES_TECH_APPROVAL' ||
-              !spineResult.manufacturingValidation?.canReleaseToManufacturing) && (
-              <div
-                data-testid="spine-governance-notice"
-                className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3.5 flex items-start gap-3"
-              >
-                <ShieldCheckIcon className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                <div className="text-[11px] leading-relaxed min-w-0">
-                  <span className="font-technical font-black uppercase tracking-wider text-corporate-text block">
-                    Manufacturing Release Governance ({spineResult.certificationTier} ·{' '}
-                    {spineResult.operationalStatus}):
-                  </span>
-                  <span className="text-corporate-text-secondary">
-                    {spineResult.operationalStatus === 'REQUIRES_TECH_APPROVAL'
-                      ? 'Hardcover Colibri case-making tolerances (board overhang, hinge rastri and turn-in) are active for quote estimation and preflight preview, but require explicit Print House Technical Sign-off before die/cover plate release.'
-                      : 'This profile is validated for commercial quoting and preflight verification. Autonomous manufacturing release requires PRODUCTION_CERTIFIED status.'}
-                  </span>
+          {/* Warnings from Engine */}
+          {warningIssues.length > 0 && (
+            <div className="space-y-2">
+              {warningIssues.map((w, idx) => (
+                <div
+                  key={`${w.code}-${idx}`}
+                  data-testid={`spine-warning-${w.code}`}
+                  className="rounded-xl border border-amber-500/40 bg-corporate-secondary p-3 flex items-start gap-2.5 text-xs"
+                >
+                  <ExclamationTriangleIcon className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-technical font-bold text-amber-500 uppercase mr-2">
+                      [{w.code}]
+                    </span>
+                    <span className="text-corporate-text-secondary">{w.message}</span>
+                  </div>
                 </div>
-              </div>
-            )}
+              ))}
+            </div>
+          )}
 
-            {/* Warnings from Engine */}
-            {warningIssues.length > 0 && (
-              <div className="space-y-2">
-                {warningIssues.map((w, idx) => (
-                  <div
-                    key={`${w.code}-${idx}`}
-                    data-testid={`spine-warning-${w.code}`}
-                    className="rounded-xl border border-amber-500/40 bg-corporate-secondary p-3 flex items-start gap-2.5 text-xs"
-                  >
-                    <ExclamationTriangleIcon className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-technical font-bold text-amber-500 uppercase mr-2">
-                        [{w.code}]
-                      </span>
-                      <span className="text-corporate-text-secondary">{w.message}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+          {/* Collapsible Technical Blueprint & Secondary Controls (Always visible on md+, toggleable on mobile) */}
+          <div className={`${mobileExpanded ? 'block' : 'hidden md:block'} space-y-4`}>
+            {/* Optional Secondary Controls for Hardcover / Flaps */}
+            {(isHardcoverSelected || isSoftcoverSelected) && (
+              <div className="rounded-xl bg-corporate-secondary/70 border border-corporate-border p-3.5 flex flex-wrap items-center justify-between gap-4">
+                <div className="text-[10px] font-technical uppercase font-bold text-corporate-text-secondary">
+                  Authoritative Profile Parameters ({readiness.bindingMapping.bindingLabel})
+                </div>
 
-            {/* Collapsible Technical Blueprint & Secondary Controls (Always visible on md+, toggleable on mobile) */}
-            <div className={`${mobileExpanded ? 'block' : 'hidden md:block'} space-y-4`}>
-              {/* Optional Secondary Controls for Hardcover / Flaps */}
-              {(isHardcoverSelected || isSoftcoverSelected) && (
-                <div className="rounded-xl bg-corporate-secondary/70 border border-corporate-border p-3.5 flex flex-wrap items-center justify-between gap-4">
-                  <div className="text-[10px] font-technical uppercase font-bold text-corporate-text-secondary">
-                    Binding Geometry Parameters ({readiness.bindingMapping.bindingLabel})
-                  </div>
+                {isHardcoverSelected && authoritativeHardcoverProfile && (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <label className="flex items-center gap-2 text-[10px] font-technical uppercase text-corporate-text-secondary">
+                      <span>Spine Profile:</span>
+                      <select
+                        value={spineShapeOverride}
+                        onChange={(e) => setSpineShapeOverride(e.target.value as SpineShape)}
+                        className="rounded-lg bg-corporate-elevated border border-corporate-border px-2.5 py-1 text-[10px] font-technical font-bold text-corporate-text"
+                      >
+                        <option value="SQUARE">Square Spine (Flat Back)</option>
+                        <option value="ROUND">Rounded Spine R(x)</option>
+                      </select>
+                    </label>
 
-                  {isHardcoverSelected && (
-                    <div className="flex flex-wrap items-center gap-3">
-                      <label className="flex items-center gap-2 text-[10px] font-technical uppercase text-corporate-text-secondary">
-                        <span>Spine Profile:</span>
-                        <select
-                          value={spineShapeOverride}
-                          onChange={(e) => setSpineShapeOverride(e.target.value as SpineShape)}
-                          className="rounded-lg bg-corporate-elevated border border-corporate-border px-2.5 py-1 text-[10px] font-technical font-bold text-corporate-text"
-                        >
-                          <option value="SQUARE">Square Spine (Flat Back)</option>
-                          <option value="ROUND">Rounded Spine R(x)</option>
-                        </select>
-                      </label>
-
+                    {allowedBoardOptions.length > 0 && selectedBoardThicknessMm !== null && (
                       <label className="flex items-center gap-2 text-[10px] font-technical uppercase text-corporate-text-secondary">
                         <span>Greyboard:</span>
                         <select
-                          value={boardThicknessMm}
-                          onChange={(e) => setBoardThicknessMm(Number(e.target.value))}
+                          value={selectedBoardThicknessMm}
+                          onChange={(e) => setSelectedBoardThicknessMm(Number(e.target.value))}
                           className="rounded-lg bg-corporate-elevated border border-corporate-border px-2.5 py-1 text-[10px] font-technical font-bold text-corporate-text"
                         >
-                          <option value={2.0}>2.0 mm</option>
-                          <option value={2.4}>2.4 mm (Standard)</option>
-                          <option value={3.0}>3.0 mm</option>
+                          {allowedBoardOptions.map((b) => (
+                            <option key={b} value={b}>
+                              {b.toFixed(1)} mm (Profile Allowed)
+                            </option>
+                          ))}
                         </select>
                       </label>
-                    </div>
-                  )}
+                    )}
 
-                  {isSoftcoverSelected && (
-                    <div className="flex flex-wrap items-center gap-3">
+                    {allowedOverhangOptions.length > 0 && selectedOverhangMm !== null && (
                       <label className="flex items-center gap-2 text-[10px] font-technical uppercase text-corporate-text-secondary">
-                        <span>Cover Flaps (Atloki):</span>
+                        <span>Overhang:</span>
                         <select
-                          value={flapWidthMm}
-                          onChange={(e) => setFlapWidthMm(Number(e.target.value))}
+                          value={selectedOverhangMm}
+                          onChange={(e) => setSelectedOverhangMm(Number(e.target.value))}
                           className="rounded-lg bg-corporate-elevated border border-corporate-border px-2.5 py-1 text-[10px] font-technical font-bold text-corporate-text"
                         >
-                          <option value={0}>No Flaps (Standard 4pp Cover)</option>
-                          <option value={75}>75 mm Flaps</option>
-                          <option value={90}>90 mm Flaps</option>
-                          <option value={100}>100 mm Flaps</option>
-                          <option value={120}>120 mm Flaps</option>
+                          {allowedOverhangOptions.map((ov) => (
+                            <option key={ov} value={ov}>
+                              {ov.toFixed(1)} mm
+                            </option>
+                          ))}
                         </select>
                       </label>
-                    </div>
-                  )}
+                    )}
+
+                    {allowedSignatureOptions.length > 0 && selectedSignaturePages !== null && (
+                      <label className="flex items-center gap-2 text-[10px] font-technical uppercase text-corporate-text-secondary">
+                        <span>Signature:</span>
+                        <select
+                          value={selectedSignaturePages}
+                          onChange={(e) =>
+                            setSelectedSignaturePages(Number(e.target.value) as 16 | 32)
+                          }
+                          className="rounded-lg bg-corporate-elevated border border-corporate-border px-2.5 py-1 text-[10px] font-technical font-bold text-corporate-text"
+                        >
+                          {allowedSignatureOptions.map((sig) => (
+                            <option key={sig} value={sig}>
+                              {sig} pp
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
+                  </div>
+                )}
+
+                {isSoftcoverSelected && (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <label className="flex items-center gap-2 text-[10px] font-technical uppercase text-corporate-text-secondary">
+                      <span>Cover Flaps (Atloki):</span>
+                      <select
+                        value={flapWidthMm}
+                        onChange={(e) => setFlapWidthMm(Number(e.target.value))}
+                        className="rounded-lg bg-corporate-elevated border border-corporate-border px-2.5 py-1 text-[10px] font-technical font-bold text-corporate-text"
+                      >
+                        <option value={0}>No Flaps (Standard 4pp Cover)</option>
+                        <option value={75}>75 mm Flaps</option>
+                        <option value={90}>90 mm Flaps</option>
+                        <option value={100}>100 mm Flaps</option>
+                        <option value={120}>120 mm Flaps</option>
+                      </select>
+                    </label>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Hardcover Specific Sub-Grid (Board size, Rastri, Turn-in, Round Radius) */}
+            {spineResult.coverGeometry.panels.boardWidthMm !== null && (
+              <div
+                data-testid="hardcover-colibri-details"
+                className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-xl bg-corporate-secondary/80 border border-corporate-border p-3.5 text-xs font-technical"
+              >
+                <div>
+                  <span className="text-[9px] text-corporate-muted uppercase block">
+                    Board Size (Puse)
+                  </span>
+                  <span className="text-corporate-text font-bold tabular-nums">
+                    {formatMm(spineResult.coverGeometry.panels.boardWidthMm, 1)} ×{' '}
+                    {formatMm(spineResult.coverGeometry.panels.boardHeightMm, 1)}
+                  </span>
                 </div>
-              )}
-
-              {/* Hardcover Specific Sub-Grid (Board size, Rastri, Turn-in, Round Radius) */}
-              {spineResult.coverGeometry.panels.boardWidthMm !== null && (
-                <div
-                  data-testid="hardcover-colibri-details"
-                  className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-xl bg-corporate-secondary/80 border border-corporate-border p-3.5 text-xs font-technical"
-                >
-                  <div>
-                    <span className="text-[9px] text-corporate-muted uppercase block">
-                      Board Size (Puse)
-                    </span>
-                    <span className="text-corporate-text font-bold tabular-nums">
-                      {formatMm(spineResult.coverGeometry.panels.boardWidthMm, 1)} ×{' '}
-                      {formatMm(spineResult.coverGeometry.panels.boardHeightMm, 1)}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[9px] text-corporate-muted uppercase block">
-                      Hinge Score (Rastri)
-                    </span>
-                    <span className="text-corporate-text font-bold tabular-nums">
-                      {formatMm(spineResult.coverGeometry.panels.leftHingeScoreMm, 1)}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[9px] text-corporate-muted uppercase block">
-                      Turn-In (Noloki)
-                    </span>
-                    <span className="text-corporate-text font-bold tabular-nums">
-                      {formatMm(spineResult.coverGeometry.panels.turnInMm, 1)}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[9px] text-corporate-muted uppercase block">
-                      {spineResult.bindingAdjustment.sewnRoundRadiusMm
-                        ? 'Round Spine Radius R(x)'
-                        : 'Swelling Block (Uzaugums)'}
-                    </span>
-                    <span className="text-corporate-text font-bold tabular-nums">
-                      {spineResult.bindingAdjustment.sewnRoundRadiusMm
-                        ? `${spineResult.bindingAdjustment.sewnRoundRadiusMm.toFixed(1)} mm`
-                        : formatMm(spineResult.bindingAdjustment.sewnSwellingBlockMm, 2)}
-                    </span>
-                  </div>
+                <div>
+                  <span className="text-[9px] text-corporate-muted uppercase block">
+                    Hinge Score (Rastri)
+                  </span>
+                  <span className="text-corporate-text font-bold tabular-nums">
+                    {formatMm(spineResult.coverGeometry.panels.leftHingeScoreMm, 1)}
+                  </span>
                 </div>
-              )}
+                <div>
+                  <span className="text-[9px] text-corporate-muted uppercase block">
+                    Turn-In (Noloki)
+                  </span>
+                  <span className="text-corporate-text font-bold tabular-nums">
+                    {formatMm(spineResult.coverGeometry.panels.turnInMm, 1)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[9px] text-corporate-muted uppercase block">
+                    {spineResult.bindingAdjustment.sewnRoundRadiusMm
+                      ? 'Round Spine Radius R(x)'
+                      : 'Swelling Block (Uzaugums)'}
+                  </span>
+                  <span className="text-corporate-text font-bold tabular-nums">
+                    {spineResult.bindingAdjustment.sewnRoundRadiusMm
+                      ? `${spineResult.bindingAdjustment.sewnRoundRadiusMm.toFixed(1)} mm`
+                      : formatMm(spineResult.bindingAdjustment.sewnSwellingBlockMm, 2)}
+                  </span>
+                </div>
+              </div>
+            )}
 
-              {/* Technical SVG Spread Blueprint */}
-              {blueprintSvg && spineResult.spineWidthMm !== null && (
-                <div className="rounded-xl bg-corporate-secondary border border-corporate-border p-4 space-y-2.5">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-[10px] font-technical uppercase font-bold text-corporate-text-secondary">
-                      Extended Cover Spread Blueprint (Back Cover + Spine + Front Cover)
-                    </span>
-                    <span className="text-[10px] font-technical text-corporate-muted tabular-nums">
-                      Total File incl. Bleed/Turn-in:{' '}
-                      <strong className="text-corporate-text">
-                        {spineResult.coverGeometry.flatCoverWidthMm.toFixed(1)} ×{' '}
-                        {spineResult.coverGeometry.flatCoverHeightMm.toFixed(1)} mm
-                      </strong>
-                    </span>
-                  </div>
+            {/* Technical SVG Spread Blueprint */}
+            {blueprintSvg && spineResult.spineWidthMm !== null && (
+              <div className="rounded-xl bg-corporate-secondary border border-corporate-border p-4 space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[10px] font-technical uppercase font-bold text-corporate-text-secondary">
+                    Extended Cover Spread Blueprint (Back Cover + Spine + Front Cover)
+                  </span>
+                  <span className="text-[10px] font-technical text-corporate-muted tabular-nums">
+                    Total File incl. Bleed/Turn-in:{' '}
+                    <strong className="text-corporate-text">
+                      {spineResult.coverGeometry.flatCoverWidthMm.toFixed(1)} ×{' '}
+                      {spineResult.coverGeometry.flatCoverHeightMm.toFixed(1)} mm
+                    </strong>
+                  </span>
+                </div>
 
-                  <div className="w-full overflow-hidden rounded-lg bg-corporate-primary border border-corporate-border p-2 flex items-center justify-center">
-                    <svg
-                      viewBox="0 0 560 215"
-                      className="w-full max-w-[560px] h-auto select-none"
-                      role="img"
-                      aria-label="Extended Cover Technical Blueprint"
-                    >
-                      {/* Outer Bleed / Turn-in boundary */}
-                      <rect
-                        x={blueprintSvg.startX}
-                        y={blueprintSvg.startY}
-                        width={blueprintSvg.drawW}
-                        height={blueprintSvg.drawH}
-                        fill="rgba(220, 0, 0, 0.06)"
-                        stroke="#dc0000"
-                        strokeWidth="1"
-                        strokeDasharray="4 3"
-                        rx="3"
-                      />
+                <div className="w-full overflow-hidden rounded-lg bg-corporate-primary border border-corporate-border p-2 flex items-center justify-center">
+                  <svg
+                    viewBox="0 0 560 215"
+                    className="w-full max-w-[560px] h-auto select-none"
+                    role="img"
+                    aria-label="Extended Cover Technical Blueprint"
+                  >
+                    {/* Outer Bleed / Turn-in boundary */}
+                    <rect
+                      x={blueprintSvg.startX}
+                      y={blueprintSvg.startY}
+                      width={blueprintSvg.drawW}
+                      height={blueprintSvg.drawH}
+                      fill="rgba(220, 0, 0, 0.06)"
+                      stroke="#dc0000"
+                      strokeWidth="1"
+                      strokeDasharray="4 3"
+                      rx="3"
+                    />
 
-                      {/* Inner Trim / Spread boundary */}
+                    {/* Inner Trim / Spread boundary */}
+                    <rect
+                      x={blueprintSvg.innerX}
+                      y={blueprintSvg.innerY}
+                      width={blueprintSvg.innerW}
+                      height={blueprintSvg.innerH}
+                      fill="rgba(148, 163, 184, 0.08)"
+                      stroke="currentColor"
+                      className="text-corporate-text-secondary"
+                      strokeWidth="1.5"
+                    />
+
+                    {/* Left Flap if present */}
+                    {blueprintSvg.flapW > 0 && (
                       <rect
                         x={blueprintSvg.innerX}
                         y={blueprintSvg.innerY}
-                        width={blueprintSvg.innerW}
+                        width={blueprintSvg.flapPx}
                         height={blueprintSvg.innerH}
-                        fill="rgba(148, 163, 184, 0.08)"
+                        fill="rgba(148, 163, 184, 0.14)"
                         stroke="currentColor"
-                        className="text-corporate-text-secondary"
-                        strokeWidth="1.5"
+                        className="text-corporate-border-strong"
+                        strokeDasharray="2 2"
                       />
+                    )}
 
-                      {/* Left Flap if present */}
-                      {blueprintSvg.flapW > 0 && (
-                        <rect
-                          x={blueprintSvg.innerX}
-                          y={blueprintSvg.innerY}
-                          width={blueprintSvg.flapPx}
-                          height={blueprintSvg.innerH}
-                          fill="rgba(148, 163, 184, 0.14)"
-                          stroke="currentColor"
-                          className="text-corporate-border-strong"
-                          strokeDasharray="2 2"
-                        />
-                      )}
-
-                      {/* Right Flap if present */}
-                      {blueprintSvg.flapW > 0 && (
-                        <rect
-                          x={blueprintSvg.rightFlapX}
-                          y={blueprintSvg.innerY}
-                          width={blueprintSvg.flapPx}
-                          height={blueprintSvg.innerH}
-                          fill="rgba(148, 163, 184, 0.14)"
-                          stroke="currentColor"
-                          className="text-corporate-border-strong"
-                          strokeDasharray="2 2"
-                        />
-                      )}
-
-                      {/* Center Spine Bar */}
+                    {/* Right Flap if present */}
+                    {blueprintSvg.flapW > 0 && (
                       <rect
-                        x={blueprintSvg.spineX}
+                        x={blueprintSvg.rightFlapX}
                         y={blueprintSvg.innerY}
-                        width={blueprintSvg.spinePx}
+                        width={blueprintSvg.flapPx}
                         height={blueprintSvg.innerH}
-                        fill="rgba(220, 0, 0, 0.22)"
-                        stroke="#dc0000"
-                        strokeWidth="1.5"
+                        fill="rgba(148, 163, 184, 0.14)"
+                        stroke="currentColor"
+                        className="text-corporate-border-strong"
+                        strokeDasharray="2 2"
                       />
+                    )}
 
-                      {/* Hinge / Side Crease Lines */}
-                      {blueprintSvg.hingeScore > 0 && (
-                        <>
-                          <line
-                            x1={blueprintSvg.spineX - blueprintSvg.hingePx}
-                            y1={blueprintSvg.innerY}
-                            x2={blueprintSvg.spineX - blueprintSvg.hingePx}
-                            y2={blueprintSvg.innerY + blueprintSvg.innerH}
-                            stroke="#dc0000"
-                            strokeWidth="1"
-                            strokeDasharray="3 2"
-                          />
-                          <line
-                            x1={blueprintSvg.spineX + blueprintSvg.spinePx + blueprintSvg.hingePx}
-                            y1={blueprintSvg.innerY}
-                            x2={blueprintSvg.spineX + blueprintSvg.spinePx + blueprintSvg.hingePx}
-                            y2={blueprintSvg.innerY + blueprintSvg.innerH}
-                            stroke="#dc0000"
-                            strokeWidth="1"
-                            strokeDasharray="3 2"
-                          />
-                        </>
-                      )}
+                    {/* Center Spine Bar */}
+                    <rect
+                      x={blueprintSvg.spineX}
+                      y={blueprintSvg.innerY}
+                      width={blueprintSvg.spinePx}
+                      height={blueprintSvg.innerH}
+                      fill="rgba(220, 0, 0, 0.22)"
+                      stroke="#dc0000"
+                      strokeWidth="1.5"
+                    />
 
-                      {/* Labels */}
-                      <text
-                        x={blueprintSvg.backCoverX + blueprintSvg.coverPx / 2}
-                        y={blueprintSvg.innerY + blueprintSvg.innerH / 2 - 4}
-                        textAnchor="middle"
-                        className="fill-current text-corporate-text font-technical text-[10px] font-bold"
-                      >
-                        BACK COVER
-                      </text>
-                      <text
-                        x={blueprintSvg.backCoverX + blueprintSvg.coverPx / 2}
-                        y={blueprintSvg.innerY + blueprintSvg.innerH / 2 + 10}
-                        textAnchor="middle"
-                        className="fill-current text-corporate-text-secondary font-technical text-[9px]"
-                      >
-                        {readiness.trimDimensionsMm.trimWidthMm} ×{' '}
-                        {readiness.trimDimensionsMm.trimHeightMm} mm
-                      </text>
+                    {/* Hinge / Side Crease Lines */}
+                    {blueprintSvg.hingeScore > 0 && (
+                      <>
+                        <line
+                          x1={blueprintSvg.spineX - blueprintSvg.hingePx}
+                          y1={blueprintSvg.innerY}
+                          x2={blueprintSvg.spineX - blueprintSvg.hingePx}
+                          y2={blueprintSvg.innerY + blueprintSvg.innerH}
+                          stroke="#dc0000"
+                          strokeWidth="1"
+                          strokeDasharray="3 2"
+                        />
+                        <line
+                          x1={blueprintSvg.spineX + blueprintSvg.spinePx + blueprintSvg.hingePx}
+                          y1={blueprintSvg.innerY}
+                          x2={blueprintSvg.spineX + blueprintSvg.spinePx + blueprintSvg.hingePx}
+                          y2={blueprintSvg.innerY + blueprintSvg.innerH}
+                          stroke="#dc0000"
+                          strokeWidth="1"
+                          strokeDasharray="3 2"
+                        />
+                      </>
+                    )}
 
-                      <text
-                        x={blueprintSvg.frontCoverX + blueprintSvg.coverPx / 2}
-                        y={blueprintSvg.innerY + blueprintSvg.innerH / 2 - 4}
-                        textAnchor="middle"
-                        className="fill-current text-corporate-text font-technical text-[10px] font-bold"
-                      >
-                        FRONT COVER
-                      </text>
-                      <text
-                        x={blueprintSvg.frontCoverX + blueprintSvg.coverPx / 2}
-                        y={blueprintSvg.innerY + blueprintSvg.innerH / 2 + 10}
-                        textAnchor="middle"
-                        className="fill-current text-corporate-text-secondary font-technical text-[9px]"
-                      >
-                        {readiness.trimDimensionsMm.trimWidthMm} ×{' '}
-                        {readiness.trimDimensionsMm.trimHeightMm} mm
-                      </text>
+                    {/* Labels */}
+                    <text
+                      x={blueprintSvg.backCoverX + blueprintSvg.coverPx / 2}
+                      y={blueprintSvg.innerY + blueprintSvg.innerH / 2 - 4}
+                      textAnchor="middle"
+                      className="fill-current text-corporate-text font-technical text-[10px] font-bold"
+                    >
+                      BACK COVER
+                    </text>
+                    <text
+                      x={blueprintSvg.backCoverX + blueprintSvg.coverPx / 2}
+                      y={blueprintSvg.innerY + blueprintSvg.innerH / 2 + 10}
+                      textAnchor="middle"
+                      className="fill-current text-corporate-text-secondary font-technical text-[9px]"
+                    >
+                      {blueprintSvg.trimWidthMm} × {blueprintSvg.trimHeightMm} mm
+                    </text>
 
-                      {/* Spine Top Callout */}
-                      <text
-                        x={blueprintSvg.spineX + blueprintSvg.spinePx / 2}
-                        y={Math.max(blueprintSvg.startY - 6, 12)}
-                        textAnchor="middle"
-                        fill="#dc0000"
-                        className="font-technical text-[10px] font-black"
-                      >
-                        SPINE {spineResult.spineWidthMm.toFixed(1)} mm
-                      </text>
+                    <text
+                      x={blueprintSvg.frontCoverX + blueprintSvg.coverPx / 2}
+                      y={blueprintSvg.innerY + blueprintSvg.innerH / 2 - 4}
+                      textAnchor="middle"
+                      className="fill-current text-corporate-text font-technical text-[10px] font-bold"
+                    >
+                      FRONT COVER
+                    </text>
+                    <text
+                      x={blueprintSvg.frontCoverX + blueprintSvg.coverPx / 2}
+                      y={blueprintSvg.innerY + blueprintSvg.innerH / 2 + 10}
+                      textAnchor="middle"
+                      className="fill-current text-corporate-text-secondary font-technical text-[9px]"
+                    >
+                      {blueprintSvg.trimWidthMm} × {blueprintSvg.trimHeightMm} mm
+                    </text>
 
-                      {/* Bottom Total Spread Width Callout */}
-                      <text
-                        x={280}
-                        y={206}
-                        textAnchor="middle"
-                        className="fill-current text-corporate-text-secondary font-technical text-[9px] font-bold"
-                      >
-                        Net Spread: {spineResult.coverGeometry.netCoverWidthMm.toFixed(1)} mm · Full File:{' '}
-                        {spineResult.coverGeometry.flatCoverWidthMm.toFixed(1)}×
-                        {spineResult.coverGeometry.flatCoverHeightMm.toFixed(1)} mm (+{blueprintSvg.bleed.toFixed(1)} mm side)
-                        {blueprintSvg.hingeScore > 0
-                          ? ` · Hinge Score: ${blueprintSvg.hingeScore.toFixed(1)} mm`
-                          : ''}
-                      </text>
-                    </svg>
-                  </div>
+                    {/* Spine Top Callout */}
+                    <text
+                      x={blueprintSvg.spineX + blueprintSvg.spinePx / 2}
+                      y={Math.max(blueprintSvg.startY - 6, 12)}
+                      textAnchor="middle"
+                      fill="#dc0000"
+                      className="font-technical text-[10px] font-black"
+                    >
+                      SPINE {spineResult.spineWidthMm.toFixed(1)} mm
+                    </text>
+
+                    {/* Bottom Total Spread Width Callout */}
+                    <text
+                      x={280}
+                      y={206}
+                      textAnchor="middle"
+                      className="fill-current text-corporate-text-secondary font-technical text-[9px] font-bold"
+                    >
+                      Net Spread: {spineResult.coverGeometry.netCoverWidthMm.toFixed(1)} mm · Full File:{' '}
+                      {spineResult.coverGeometry.flatCoverWidthMm.toFixed(1)}×
+                      {spineResult.coverGeometry.flatCoverHeightMm.toFixed(1)} mm (+{blueprintSvg.bleed.toFixed(1)} mm side)
+                      {blueprintSvg.hingeScore > 0
+                        ? ` · Hinge Score: ${blueprintSvg.hingeScore.toFixed(1)} mm`
+                        : ''}
+                    </text>
+                  </svg>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
+      )}
     </section>
   );
 };

@@ -66,9 +66,13 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
       ? `${spineResult.spineWidthMm.toFixed(1)} mm spine · ${spineResult.coverGeometry.netCoverWidthMm.toFixed(1)}×${spineResult.coverGeometry.netCoverHeightMm.toFixed(1)} mm cover`
       : spineStatus === 'CALIPER_VERIFICATION_REQUIRED'
         ? 'Caliper (µm) required'
-        : spineStatus === 'SPINE_NOT_AVAILABLE'
-          ? 'SPINE_NOT_AVAILABLE'
-          : null;
+        : spineStatus === 'HARDCOVER_PROFILE_PARAMETERS_REQUIRED'
+          ? 'Hardcover profile params required'
+          : spineStatus === 'INVALID_BOOK_DIMENSIONS'
+            ? 'Invalid book dimensions'
+            : spineStatus === 'SPINE_NOT_AVAILABLE'
+              ? 'SPINE_NOT_AVAILABLE'
+              : null;
 
   return (
     <>

@@ -2489,15 +2489,141 @@ app.get('/api/budget/spine/profiles', async (req, res) => {
     }
 });
 
+const SPINE_ALLOWED_CONFIDENCE_STATUSES = new Set([
+    'VERIFIED',
+    'REFERENCE_IMPORTED',
+    'PROVISIONAL_ESTIMATED',
+    'MISSING'
+]);
+const SPINE_ALLOWED_SOURCES = new Set([
+    'MEASURED_MICROMETER',
+    'MANUFACTURER_DATASHEET',
+    'LIVONIA_REFERENCE_IMPORT',
+    'SUPPLIER_IMPORT',
+    'BULK_DERIVED',
+    'NONE'
+]);
+
+function sanitizeSpineCalculateRequest(rawBody) {
+    const body = rawBody && typeof rawBody === 'object' ? { ...rawBody } : {};
+    const trimW = Number(body.trimWidthMm);
+    const trimH = Number(body.trimHeightMm);
+    if (!Number.isFinite(trimW) || !Number.isFinite(trimH) || trimW < 50 || trimH < 50 || trimW > 1000 || trimH > 1000) {
+        return {
+            ok: false,
+            code: 'INVALID_BOOK_DIMENSIONS',
+            message: 'Valid trimWidthMm and trimHeightMm (50?1000 mm) are required before requesting spine geometry.'
+        };
+    }
+
+    if (!Array.isArray(body.segments) || body.segments.length === 0) {
+        return {
+            ok: false,
+            code: 'INVALID_SEGMENTS',
+            message: 'At least one interior segment is required.'
+        };
+    }
+
+    if (body.bindingCategory === 'HARDCOVER') {
+        const hc = body.hardcover;
+        if (
+            !hc ||
+            !Number.isFinite(Number(hc.boardThicknessMm)) ||
+            Number(hc.boardThicknessMm) <= 0 ||
+            !Number.isFinite(Number(hc.overhangMm)) ||
+            Number(hc.overhangMm) <= 0 ||
+            ![16, 32].includes(Number(hc.foldingSignaturePages))
+        ) {
+            return {
+                ok: false,
+                code: 'HARDCOVER_PROFILE_PARAMETERS_REQUIRED',
+                message: 'Hardcover geometry requires explicit authorized profile parameters (boardThicknessMm, overhangMm, foldingSignaturePages).'
+            };
+        }
+    }
+
+    const sanitizedSegments = body.segments.map((seg, idx) => {
+        const s = seg && typeof seg === 'object' ? { ...seg } : {};
+        const um = s.caliperUm !== undefined && s.caliperUm !== null && Number(s.caliperUm) > 0
+            ? Number(s.caliperUm)
+            : null;
+        const src = s.caliperSource && SPINE_ALLOWED_SOURCES.has(String(s.caliperSource)) && String(s.caliperSource) !== 'NONE'
+            ? String(s.caliperSource)
+            : 'NONE';
+        let conf = s.caliperConfidenceStatus && SPINE_ALLOWED_CONFIDENCE_STATUSES.has(String(s.caliperConfidenceStatus))
+            ? String(s.caliperConfidenceStatus)
+            : null;
+        if (!um) {
+            conf = 'MISSING';
+        } else if (src === 'NONE' || !conf || conf === 'MISSING') {
+            conf = 'PROVISIONAL_ESTIMATED';
+        }
+        return {
+            ...s,
+            segmentIndex: s.segmentIndex || idx + 1,
+            caliperUm: um,
+            caliperSource: src,
+            caliperConfidenceStatus: conf
+        };
+    });
+
+    let sanitizedCover = null;
+    if (body.cover && typeof body.cover === 'object') {
+        const c = { ...body.cover };
+        const covUm = c.caliperUm !== undefined && c.caliperUm !== null && Number(c.caliperUm) > 0
+            ? Number(c.caliperUm)
+            : null;
+        const covSrc = c.caliperSource && SPINE_ALLOWED_SOURCES.has(String(c.caliperSource)) && String(c.caliperSource) !== 'NONE'
+            ? String(c.caliperSource)
+            : 'NONE';
+        let covConf = c.caliperConfidenceStatus && SPINE_ALLOWED_CONFIDENCE_STATUSES.has(String(c.caliperConfidenceStatus))
+            ? String(c.caliperConfidenceStatus)
+            : null;
+        if (!covUm) {
+            covConf = 'MISSING';
+        } else if (covSrc === 'NONE' || !covConf || covConf === 'MISSING') {
+            covConf = 'PROVISIONAL_ESTIMATED';
+        }
+        sanitizedCover = {
+            ...c,
+            caliperUm: covUm,
+            caliperSource: covSrc,
+            caliperConfidenceStatus: covConf
+        };
+    }
+
+    return {
+        ok: true,
+        payload: {
+            ...body,
+            trimWidthMm: trimW,
+            trimHeightMm: trimH,
+            segments: sanitizedSegments,
+            cover: sanitizedCover
+        }
+    };
+}
+
 app.post('/api/budget/spine/calculate', async (req, res) => {
     try {
+        const sanitized = sanitizeSpineCalculateRequest(req.body || {});
+        if (!sanitized.ok) {
+            return res.status(422).json({
+                ok: false,
+                error: {
+                    code: sanitized.code,
+                    message: sanitized.message
+                }
+            });
+        }
+
         const cpUrl = `${CONTROL_PLANE_BASE_URL}/api/v1/spine/calculate`;
         const headers = { ...buildControlPlaneHeaders() };
         const incomingIdempotencyKey = req.get('Idempotency-Key') || req.get('X-Idempotency-Key');
         if (incomingIdempotencyKey) {
             headers['Idempotency-Key'] = incomingIdempotencyKey;
         }
-        const response = await axios.post(cpUrl, req.body || {}, { headers, timeout: 10000 });
+        const response = await axios.post(cpUrl, sanitized.payload, { headers, timeout: 10000 });
         return res.status(response.status || 200).json(response.data);
     } catch (err) {
         if (isControlPlaneSpineUnavailableError(err)) {

@@ -27,6 +27,8 @@ export interface BookSpineGeometryPanelProps {
   formData: BookPricePayload;
   authContextKey?: string;
   onSwitchInteriorToAdvancedCatalog?: () => void;
+  onChangeBindingMethod?: (binding: BookPricePayload['binding_method']) => void;
+  onRequestSignIn?: () => void;
   onSpineResultChange?: (
     result: SpineCalculationResult | null,
     status: SpinePanelStatus,
@@ -125,6 +127,8 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
   formData,
   authContextKey = 'anon',
   onSwitchInteriorToAdvancedCatalog,
+  onChangeBindingMethod,
+  onRequestSignIn,
   onSpineResultChange,
 }) => {
   const [availableProfiles, setAvailableProfiles] = useState<SpineBindingProfileSummary[]>([]);
@@ -320,6 +324,20 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
         onSpineResultChangeRef.current?.(null, 'SPINE_NOT_AVAILABLE', readiness);
         return;
       }
+      if (
+        profilesUnavailableCode === 'TENANT_CONTEXT_REQUIRED' ||
+        profilesUnavailableCode === 'UNAUTHORIZED'
+      ) {
+        setSpineResult(null);
+        setErrorCode(profilesUnavailableCode);
+        setErrorMessage(
+          'An authenticated tester session with a verified tenant context is required to calculate spine geometry.'
+        );
+        setPanelStatus('ERROR');
+        setLastCalculatedFingerprint(effectiveFingerprint);
+        onSpineResultChangeRef.current?.(null, 'ERROR', readiness);
+        return;
+      }
       setSpineResult(null);
       setErrorCode(readiness.reasonCode);
       setErrorMessage(readiness.message);
@@ -406,11 +424,48 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
     };
   }, [effectiveFingerprint, profilesLoaded, profilesUnavailableCode, refreshTrigger, authContextKey]);
 
+  const errorIssues = useMemo(() => {
+    return (spineResult?.manufacturingValidation?.issues || []).filter(
+      (i) => i.severity === 'ERROR'
+    );
+  }, [spineResult]);
+
+  // SPINE-05-PROD: Detect when Control Plane returns a complete non-productive technical reference
+  // calculation for an EXPERIMENTAL_DISABLED profile (such as livonia-colibri-flexi@2.0.0)
+  // where the ONLY blocking error is PROFILE_REQUIRES_PRINTHOUSE_TECH_APPROVAL.
+  const isExperimentalReferenceResult = Boolean(
+    panelStatus === 'ERROR' &&
+      spineResult &&
+      spineResult.operationalStatus === 'EXPERIMENTAL_DISABLED' &&
+      errorCode === 'PROFILE_REQUIRES_PRINTHOUSE_TECH_APPROVAL' &&
+      errorIssues.length === 1 &&
+      typeof spineResult.rawFormulaSpineWidthMm === 'number' &&
+      Number.isFinite(spineResult.rawFormulaSpineWidthMm) &&
+      spineResult.coverGeometry &&
+      spineResult.blockThickness
+  );
+
+  // Effective spine width from server response (authoritative spineWidthMm, or rawFormulaSpineWidthMm for explicit non-productive reference)
+  const effectiveDisplaySpineWidthMm = useMemo<number | null>(() => {
+    if (!spineResult) return null;
+    if (typeof spineResult.spineWidthMm === 'number' && Number.isFinite(spineResult.spineWidthMm)) {
+      return spineResult.spineWidthMm;
+    }
+    if (
+      isExperimentalReferenceResult &&
+      typeof spineResult.rawFormulaSpineWidthMm === 'number' &&
+      Number.isFinite(spineResult.rawFormulaSpineWidthMm)
+    ) {
+      return spineResult.rawFormulaSpineWidthMm;
+    }
+    return null;
+  }, [spineResult, isExperimentalReferenceResult]);
+
   // Blueprint SVG layout proportions
   const blueprintSvg = useMemo(() => {
     if (
       !spineResult?.coverGeometry ||
-      spineResult.spineWidthMm === null ||
+      effectiveDisplaySpineWidthMm === null ||
       !readiness.trimDimensionsMm.valid ||
       readiness.trimDimensionsMm.trimWidthMm === null ||
       readiness.trimDimensionsMm.trimHeightMm === null
@@ -419,7 +474,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
     }
     const trimWidthMm = readiness.trimDimensionsMm.trimWidthMm;
     const trimHeightMm = readiness.trimDimensionsMm.trimHeightMm;
-    const spineWidth = Math.max(spineResult.spineWidthMm || 0, 2);
+    const spineWidth = Math.max(effectiveDisplaySpineWidthMm || 0, 2);
     const panels = spineResult.coverGeometry.panels;
     const flapW = panels?.leftFlapMm || 0;
     const bleed = panels?.turnInMm || spineResult.coverGeometry.bleedPerSideMm || 3;
@@ -474,7 +529,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
       bleed,
       hingeScore,
     };
-  }, [spineResult, readiness.trimDimensionsMm]);
+  }, [spineResult, effectiveDisplaySpineWidthMm, readiness.trimDimensionsMm]);
 
   const statusBadge = useMemo(() => {
     switch (panelStatus) {
@@ -547,12 +602,14 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
       case 'ERROR':
       default:
         return {
-          label: errorCode || 'GEOMETRY BLOCKED',
+          label: isExperimentalReferenceResult
+            ? 'EXPERIMENTAL_DISABLED · PROFILE_REQUIRES_PRINTHOUSE_TECH_APPROVAL'
+            : errorCode || 'GEOMETRY BLOCKED',
           className:
             'bg-corporate-accent/15 border-corporate-accent/50 text-corporate-accent',
         };
     }
-  }, [panelStatus, errorCode]);
+  }, [panelStatus, errorCode, isExperimentalReferenceResult]);
 
   const isHardcoverSelected = readiness.bindingMapping.bindingCategory === 'HARDCOVER';
   const isSoftcoverSelected =
@@ -580,8 +637,21 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
         panelStatus === 'MATH_VALIDATED_PENDING_INDUSTRIAL' ||
         panelStatus === 'EXCEL_EXAMPLE_PARITY_ONLY' ||
         panelStatus === 'PROVISIONAL_ESTIMATE' ||
-        panelStatus === 'REQUIRES_TECH_APPROVAL')
+        panelStatus === 'REQUIRES_TECH_APPROVAL' ||
+        isExperimentalReferenceResult)
   );
+
+  const primarySegmentProvenance = useMemo(() => {
+    const seg = spineResult?.blockThickness?.segmentBreakdown?.[0];
+    return {
+      caliperSource: seg?.caliperSource || readiness.caliperTelemetry.caliperSource || 'NONE',
+      caliperConfidenceStatus:
+        seg?.caliperConfidenceStatus ||
+        spineResult?.manufacturingValidation?.caliperConfidenceSummary ||
+        readiness.caliperTelemetry.caliperConfidenceStatus ||
+        'PROVISIONAL_ESTIMATED',
+    };
+  }, [spineResult, readiness.caliperTelemetry]);
 
   const certificationChecklist = useMemo(() => {
     const levels = spineResult?.manufacturingValidation?.levels;
@@ -595,7 +665,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
         key: 'MATH_BRANCH_VALIDATED',
         label: '1. Mathematically Validated',
         active: Boolean(levels.mathBranchValidated),
-        detail: levels.mathBranchValidated ? 'Verified' : 'Failed',
+        detail: levels.mathBranchValidated ? 'Verified' : 'Experimental Only',
       },
       {
         key: 'EXCEL_EXAMPLE_PARITY',
@@ -748,7 +818,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
             </div>
           </div>
 
-          {formData.paper_mode_interior !== 'advanced' && onSwitchInteriorToAdvancedCatalog && (
+          {onSwitchInteriorToAdvancedCatalog && (
             <button
               type="button"
               data-testid="spine-switch-to-catalog-btn"
@@ -756,7 +826,11 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
               className="px-4 py-2.5 rounded-xl bg-corporate-accent hover:bg-corporate-hover text-white text-[10px] font-technical font-black uppercase tracking-wider shrink-0 flex items-center justify-center gap-1.5 shadow-sm transition-all"
             >
               <SparklesIcon className="w-3.5 h-3.5" />
-              <span>Select Certified Catalog Paper</span>
+              <span>
+                {formData.paper_mode_interior === 'advanced'
+                  ? 'Select Another Paper With Caliper'
+                  : 'Select Certified Catalog Paper'}
+              </span>
             </button>
           )}
         </div>
@@ -813,35 +887,120 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
       {panelStatus === 'UNSUPPORTED_BINDING' && (
         <div
           data-testid="spine-unsupported-binding-banner"
-          className="rounded-xl border border-corporate-border bg-corporate-secondary/70 p-3.5 flex items-start gap-3"
+          className="rounded-xl border border-corporate-border bg-corporate-secondary/70 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
         >
-          <InformationCircleIcon className="w-4 h-4 text-corporate-muted shrink-0 mt-0.5" />
-          <p className="text-xs text-corporate-text-secondary leading-relaxed">
-            {errorMessage}
-          </p>
-        </div>
-      )}
-
-      {/* STATE 6: ERROR / EXPERIMENTAL_PROFILE_DISABLED / OUT_OF_RANGE */}
-      {panelStatus === 'ERROR' && (
-        <div
-          data-testid="spine-error-banner"
-          className="rounded-xl border border-corporate-accent/50 bg-corporate-secondary p-4 flex items-start gap-3"
-        >
-          <ExclamationTriangleIcon className="w-5 h-5 text-corporate-accent shrink-0 mt-0.5" />
-          <div className="space-y-1.5 min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-xs font-technical font-black uppercase tracking-wider text-corporate-accent">
-                Spine Calculation Blocked by Control Plane Governance
-              </p>
-              <span className="px-2 py-0.5 rounded-md bg-corporate-elevated border border-corporate-border text-[9px] font-technical font-bold text-corporate-text uppercase">
-                {errorCode}
-              </span>
-            </div>
+          <div className="flex items-start gap-3 min-w-0">
+            <InformationCircleIcon className="w-4 h-4 text-corporate-muted shrink-0 mt-0.5" />
             <p className="text-xs text-corporate-text-secondary leading-relaxed">
               {errorMessage}
             </p>
           </div>
+          {onChangeBindingMethod && (
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <button
+                type="button"
+                data-testid="spine-switch-binding-perfect-bound"
+                onClick={() => onChangeBindingMethod('perfect_bound')}
+                className="px-3 py-1.5 rounded-lg bg-corporate-accent text-white text-[10px] font-technical font-black uppercase tracking-wider hover:bg-corporate-hover transition-colors"
+              >
+                Switch to Perfect Bound
+              </button>
+              <button
+                type="button"
+                data-testid="spine-switch-binding-thread-sewn-sc"
+                onClick={() => onChangeBindingMethod('thread_sewn_sc')}
+                className="px-3 py-1.5 rounded-lg border border-corporate-border-strong bg-corporate-elevated text-corporate-text hover:border-corporate-accent text-[10px] font-technical font-bold uppercase tracking-wider transition-colors"
+              >
+                Switch to Thread Sewn
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* STATE 6: ERROR / EXPERIMENTAL_PROFILE_DISABLED / OUT_OF_RANGE / TENANT_CONTEXT_REQUIRED */}
+      {panelStatus === 'ERROR' && (
+        <div
+          data-testid="spine-error-banner"
+          className="rounded-xl border border-corporate-accent/50 bg-corporate-secondary p-4 space-y-3"
+        >
+          <div className="flex items-start gap-3">
+            <ExclamationTriangleIcon className="w-5 h-5 text-corporate-accent shrink-0 mt-0.5" />
+            <div className="space-y-1.5 min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-xs font-technical font-black uppercase tracking-wider text-corporate-accent">
+                  {errorCode === 'TENANT_CONTEXT_REQUIRED' || errorCode === 'UNAUTHORIZED'
+                    ? 'Authenticated Tester Session Required for Spine Calculation'
+                    : isExperimentalReferenceResult
+                      ? 'ESTIMACIÓN TÉCNICA — NO APTA PARA FABRICACIÓN (Perfil Experimental Bloqueado)'
+                      : 'Spine Calculation Blocked by Control Plane Governance'}
+                </p>
+                <span className="px-2 py-0.5 rounded-md bg-corporate-elevated border border-corporate-border text-[9px] font-technical font-bold text-corporate-text uppercase">
+                  {errorCode}
+                </span>
+                {spineResult?.operationalStatus && (
+                  <span className="px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/40 text-[9px] font-technical font-bold text-amber-500 uppercase">
+                    {spineResult.operationalStatus}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-corporate-text-secondary leading-relaxed">
+                {errorMessage}
+              </p>
+              {isExperimentalReferenceResult && (
+                <p className="text-[11px] font-technical text-amber-500 font-bold leading-relaxed">
+                  Control Plane profile <code className="text-corporate-text">{spineResult?.fullProfileKey}</code> is marked{' '}
+                  <code className="text-corporate-text">EXPERIMENTAL_DISABLED</code> (<code className="text-corporate-text">PROFILE_REQUIRES_PRINTHOUSE_TECH_APPROVAL</code>). Below is the non-productive mathematical reference geometry (<code className="text-corporate-text">EXCEL_EXAMPLE_PARITY</code>) returned by Control Plane. For an active <code className="text-corporate-text">MATH_VALIDATED_ACTIVE</code> softcover calculation, switch binding below.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Action Buttons for Blocked States */}
+          {(errorCode === 'PROFILE_REQUIRES_PRINTHOUSE_TECH_APPROVAL' ||
+            formData.binding_method === 'flexibound' ||
+            errorCode === 'TENANT_CONTEXT_REQUIRED' ||
+            errorCode === 'UNAUTHORIZED') && (
+            <div className="pt-2 border-t border-corporate-border flex flex-wrap items-center justify-between gap-3">
+              {(errorCode === 'PROFILE_REQUIRES_PRINTHOUSE_TECH_APPROVAL' ||
+                formData.binding_method === 'flexibound') &&
+                onChangeBindingMethod && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] font-technical uppercase font-bold text-corporate-muted mr-1">
+                      Calculate with active profile:
+                    </span>
+                    <button
+                      type="button"
+                      data-testid="spine-switch-binding-perfect-bound"
+                      onClick={() => onChangeBindingMethod('perfect_bound')}
+                      className="px-3.5 py-2 rounded-xl bg-corporate-accent hover:bg-corporate-hover text-white text-[10px] font-technical font-black uppercase tracking-wider transition-all shadow-sm"
+                    >
+                      Switch to Perfect Bound (Glued)
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="spine-switch-binding-thread-sewn-sc"
+                      onClick={() => onChangeBindingMethod('thread_sewn_sc')}
+                      className="px-3.5 py-2 rounded-xl border border-corporate-accent/50 bg-corporate-elevated hover:bg-corporate-accent/10 text-corporate-text text-[10px] font-technical font-black uppercase tracking-wider transition-all"
+                    >
+                      Switch to Thread Sewn Softcover
+                    </button>
+                  </div>
+                )}
+
+              {(errorCode === 'TENANT_CONTEXT_REQUIRED' || errorCode === 'UNAUTHORIZED') &&
+                onRequestSignIn && (
+                  <button
+                    type="button"
+                    data-testid="spine-signin-btn"
+                    onClick={onRequestSignIn}
+                    className="px-4 py-2 rounded-xl bg-corporate-accent hover:bg-corporate-hover text-white text-[10px] font-technical font-black uppercase tracking-wider transition-all shadow-sm"
+                  >
+                    Sign In with Tester Account
+                  </button>
+                )}
+            </div>
+          )}
         </div>
       )}
 
@@ -858,23 +1017,40 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
         </div>
       )}
 
-      {/* STATE 8: GEOMETRY DISPLAY WITH EXPLICIT 5-LEVEL CERTIFICATION MATRIX (SPINE-04-R03) */}
+      {/* STATE 8: GEOMETRY DISPLAY WITH EXPLICIT 5-LEVEL CERTIFICATION MATRIX (SPINE-04-R03 & SPINE-05-PROD) */}
       {hasValidGeometryResult && spineResult && (
         <div className="space-y-4 min-w-0">
+          {isExperimentalReferenceResult && (
+            <div
+              data-testid="spine-experimental-reference-banner"
+              className="rounded-xl border border-amber-500/50 bg-amber-500/10 px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2 text-[11px] font-technical"
+            >
+              <span className="font-black uppercase tracking-wider text-amber-500">
+                ESTIMACIÓN TÉCNICA — NO APTA PARA FABRICACIÓN (canReleaseToManufacturing: false)
+              </span>
+              <span className="text-corporate-text-secondary">
+                Profile: <strong className="text-corporate-text">{spineResult.fullProfileKey}</strong> · Status:{' '}
+                <strong className="text-amber-500">{spineResult.operationalStatus}</strong>
+              </span>
+            </div>
+          )}
+
           {/* Primary 4 KPI Geometry Cards (Always visible on mobile & desktop) */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {/* 1. Spine Width */}
             <div className="rounded-xl bg-corporate-secondary border border-corporate-accent/40 p-3.5 relative overflow-hidden">
               <div className="absolute top-0 left-0 bottom-0 w-1 bg-corporate-accent" />
               <span className="text-[9px] font-technical uppercase font-bold text-corporate-muted block">
-                Calculated Spine Width
+                {isExperimentalReferenceResult
+                  ? 'Reference Spine Width (Non-Prod)'
+                  : 'Calculated Spine Width'}
               </span>
               <div className="mt-1 flex items-baseline gap-1.5">
                 <span
                   data-testid="spine-width-mm"
                   className="text-lg sm:text-xl font-technical font-black text-corporate-text tabular-nums"
                 >
-                  {formatMm(spineResult.spineWidthMm, 1)}
+                  {formatMm(effectiveDisplaySpineWidthMm, 1)}
                 </span>
                 <span className="text-[10px] font-technical text-corporate-text-secondary">
                   (0.5mm step)
@@ -917,7 +1093,10 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
                   {spineResult.coverGeometry.netCoverHeightMm.toFixed(1)} mm
                 </span>
               </div>
-              <span className="text-[10px] font-technical text-corporate-text-secondary mt-1 block">
+              <span
+                data-testid="full-bleed-cover-dimensions-mm"
+                className="text-[10px] font-technical text-corporate-text-secondary mt-1 block"
+              >
                 With bleed/turn-in: {spineResult.coverGeometry.flatCoverWidthMm.toFixed(1)} ×{' '}
                 {spineResult.coverGeometry.flatCoverHeightMm.toFixed(1)} mm
               </span>
@@ -926,7 +1105,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
             {/* 4. Caliper & Provenance */}
             <div className="rounded-xl bg-corporate-secondary border border-corporate-border p-3.5">
               <span className="text-[9px] font-technical uppercase font-bold text-corporate-muted block">
-                Caliper &amp; Certification Tier
+                Caliper &amp; Provenance
               </span>
               <div className="mt-1 flex items-baseline gap-1.5">
                 <span
@@ -940,8 +1119,15 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
                 </span>
               </div>
               <span
+                data-testid="spine-caliper-provenance"
+                className="text-[9px] font-technical text-corporate-text-secondary uppercase font-bold mt-0.5 block truncate"
+                title={`${primarySegmentProvenance.caliperSource} · ${primarySegmentProvenance.caliperConfidenceStatus}`}
+              >
+                {primarySegmentProvenance.caliperSource} · {primarySegmentProvenance.caliperConfidenceStatus}
+              </span>
+              <span
                 data-testid="spine-certification-tier"
-                className="text-[9px] font-technical text-corporate-text-secondary uppercase font-bold mt-1 block truncate"
+                className="text-[9px] font-technical text-corporate-muted uppercase font-bold mt-0.5 block truncate"
                 title={formatTierBadgeLabel(spineResult.certificationTier)}
               >
                 {formatTierBadgeLabel(spineResult.certificationTier)}
@@ -994,11 +1180,13 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
                   {spineResult.manufacturingValidation?.status}):
                 </span>
                 <span className="text-corporate-text-secondary">
-                  {spineResult.operationalStatus === 'REQUIRES_TECH_APPROVAL'
-                    ? 'Hardcover Colibri case-making tolerances (board overhang, hinge rastri and turn-in) are active for quote estimation and preflight preview, but require explicit Print House Technical Sign-off before die/cover plate release.'
-                    : panelStatus === 'PROVISIONAL_ESTIMATE'
-                      ? 'One or more substrate caliper or cover inputs are provisional or missing. Geometry is shown for preliminary estimation only and cannot be released to manufacturing without verified micrometer/datasheet provenance.'
-                      : 'Mathematical calculation succeeded, but this profile is pending industrial certification. Autonomous manufacturing release requires PRODUCTION_CERTIFIED status and verified substrate provenance.'}
+                  {isExperimentalReferenceResult
+                    ? 'ESTIMACIÓN TÉCNICA — NO APTA PARA FABRICACIÓN: This Flexibound calculation uses the experimental Livonia Colibri Flexi reference formula and is strictly blocked for automated production release (canReleaseToManufacturing: false). Switch to Perfect Bound or Thread Sewn Softcover for an active softcover profile.'
+                    : spineResult.operationalStatus === 'REQUIRES_TECH_APPROVAL'
+                      ? 'Hardcover Colibri case-making tolerances (board overhang, hinge rastri and turn-in) are active for quote estimation and preflight preview, but require explicit Print House Technical Sign-off before die/cover plate release.'
+                      : panelStatus === 'PROVISIONAL_ESTIMATE'
+                        ? 'One or more substrate caliper or cover inputs are provisional or missing. Geometry is shown for preliminary estimation only and cannot be released to manufacturing without verified micrometer/datasheet provenance.'
+                        : 'Mathematical calculation succeeded, but this profile is pending industrial certification. Autonomous manufacturing release requires PRODUCTION_CERTIFIED status and verified substrate provenance.'}
                 </span>
               </div>
             </div>
@@ -1171,7 +1359,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
             )}
 
             {/* Technical SVG Spread Blueprint */}
-            {blueprintSvg && spineResult.spineWidthMm !== null && (
+            {blueprintSvg && effectiveDisplaySpineWidthMm !== null && (
               <div className="rounded-xl bg-corporate-secondary border border-corporate-border p-4 space-y-2.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-[10px] font-technical uppercase font-bold text-corporate-text-secondary">
@@ -1324,7 +1512,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
                       fill="#dc0000"
                       className="font-technical text-[10px] font-black"
                     >
-                      SPINE {spineResult.spineWidthMm.toFixed(1)} mm
+                      SPINE {effectiveDisplaySpineWidthMm.toFixed(1)} mm
                     </text>
 
                     {/* Bottom Total Spread Width Callout */}

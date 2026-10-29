@@ -284,7 +284,12 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
     const product = groupedProducts.find((p) => p.key === productKey);
     if (!product || product.variants.length === 0) return;
 
-    const defaultVariant = product.variants.find((v) => v.isAvailable) || product.variants[0];
+    // SPINE-05-PROD: Prefer an available variant that also has a verified caliper (µm)
+    const defaultVariant =
+      product.variants.find((v) => v.isAvailable && v.caliperUm != null && v.caliperUm > 0) ||
+      product.variants.find((v) => v.caliperUm != null && v.caliperUm > 0) ||
+      product.variants.find((v) => v.isAvailable) ||
+      product.variants[0];
     onSelectMaterial(buildSelectedMaterialFromVariant(defaultVariant));
   };
 
@@ -324,7 +329,10 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
         : 'Hardcover Endpapers';
 
   return (
-    <div className="bg-corporate-elevated/50 rounded-xl border border-corporate-border p-4 sm:p-6 md:p-7 flex flex-col gap-5 relative transition-all duration-200 min-w-0">
+    <div
+      id={`advanced-paper-selector-${target}`}
+      className="bg-corporate-elevated/50 rounded-xl border border-corporate-border p-4 sm:p-6 md:p-7 flex flex-col gap-5 relative transition-all duration-200 min-w-0"
+    >
       {/* Header and Mode Selector */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-corporate-border pb-4 min-w-0">
         <div className="min-w-0">
@@ -554,7 +562,7 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
                         ) : (
                           currentProductVariants.map((v) => (
                             <option key={v.variantId} value={v.variantId}>
-                              {v.gsm} GSM · {(v.finish && v.finish !== 'UNKNOWN') ? v.finish : (v.finishSummary && v.finishSummary !== 'UNKNOWN' ? v.finishSummary : 'Finish unspecified')} · {(v.grainDirection && v.grainDirection !== 'UNKNOWN') ? v.grainDirection : 'Grain unspecified'}{v.caliperUm ? ` · ${v.caliperUm} µm` : ''} · {v.sheetFormat || `${v.widthMm}x${v.heightMm} mm`}
+                              {v.gsm} GSM · {(v.finish && v.finish !== 'UNKNOWN') ? v.finish : (v.finishSummary && v.finishSummary !== 'UNKNOWN' ? v.finishSummary : 'Finish unspecified')} · {(v.grainDirection && v.grainDirection !== 'UNKNOWN') ? v.grainDirection : 'Grain unspecified'}{v.caliperUm ? ` · ${v.caliperUm} µm` : ' · No caliper (µm)'} · {v.sheetFormat || `${v.widthMm}x${v.heightMm} mm`}
                             </option>
                           ))
                         )}
@@ -590,7 +598,7 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
                                   : 'border-corporate-border bg-corporate-elevated text-corporate-text-secondary hover:border-corporate-accent/50 hover:text-corporate-text'
                               }`}
                             >
-                              {v.gsm}g · {v.widthMm}×{v.heightMm}mm
+                              {v.gsm}g{v.caliperUm ? ` · ${v.caliperUm}µm` : ''} · {v.widthMm}×{v.heightMm}mm
                             </button>
                           );
                         })}

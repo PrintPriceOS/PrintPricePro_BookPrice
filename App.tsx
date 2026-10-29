@@ -42,6 +42,7 @@ import { normaliseApiResponse } from './lib/normaliseApiResponse';
 import AssistantChat from './components/AssistantChat';
 import PdfUploadDropzone from './components/PdfUploadDropzone';
 import BookPriceForm from './components/BookPriceForm';
+import { resolveBpePaperTypeFromMaterial, CatalogItem } from './components/AdvancedPaperSelector';
 import PrintOffersPanel from './components/PrintOffersPanel';
 import CartPanel from './components/CartPanel';
 import Header from './components/Header';
@@ -483,14 +484,124 @@ const App: React.FC = () => {
     }
   }, []);
 
-  const handleSwitchInteriorToAdvancedCatalog = useCallback(() => {
+  const handleSwitchInteriorToAdvancedCatalog = useCallback(async () => {
+    const targetGsm = Number(bookPricePayload.paper_weight_interior) || 100;
+    const currentMat = bookPricePayload.interior_paper_material;
+    const currentCaliper = Number(currentMat?.caliperUm ?? currentMat?.caliper_um ?? 0);
+
     setBookPricePayload((prev) => ({
       ...prev,
       paper_mode_interior: 'advanced',
     }));
     setPayloadVersion((v) => v + 1);
     setIsSpecsStale(true);
-  }, []);
+
+    setTimeout(() => {
+      document.getElementById('advanced-paper-selector-interior')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }, 80);
+
+    if (!Number.isFinite(currentCaliper) || currentCaliper <= 0) {
+      try {
+        const res = await fetch('/api/budget/paper/search?q=' + encodeURIComponent(String(targetGsm)) + '&gsm=' + encodeURIComponent(String(targetGsm)) + '&limit=80');
+        if (res.ok) {
+          const data = await res.json();
+          let items: CatalogItem[] = data?.data?.items || [];
+          let withCaliper = items.filter(
+            (v) => v.caliperUm != null && Number(v.caliperUm) > 0
+          );
+          if (withCaliper.length === 0) {
+            const fallbackRes = await fetch('/api/budget/paper/search?limit=80');
+            if (fallbackRes.ok) {
+              const fallbackData = await fallbackRes.json();
+              items = fallbackData?.data?.items || [];
+              withCaliper = items.filter(
+                (v) => v.caliperUm != null && Number(v.caliperUm) > 0
+              );
+            }
+          }
+          const candidate =
+            withCaliper.find((v) => Number(v.gsm) === targetGsm && String(v.productName || '').toLowerCase().includes('amber graphic')) ||
+            withCaliper.find((v) => Number(v.gsm) === targetGsm && String(v.category).toUpperCase() === 'OFFSET') ||
+            withCaliper.find((v) => Number(v.gsm) === targetGsm) ||
+            withCaliper[0];
+          if (candidate) {
+            const selectedMaterial = {
+              productId: candidate.productId,
+              variantId: candidate.variantId,
+              productName: candidate.productName,
+              product_id: candidate.productId,
+              variant_id: candidate.variantId,
+              product_name: candidate.productName,
+              brand: candidate.brand || candidate.manufacturer || 'Control Plane Certified',
+              category: candidate.category,
+              gsm: candidate.gsm,
+              finish:
+                candidate.finish && candidate.finish !== 'UNKNOWN'
+                  ? candidate.finish
+                  : candidate.finishSummary && candidate.finishSummary !== 'UNKNOWN'
+                    ? candidate.finishSummary
+                    : undefined,
+              paperType: candidate.paperType || candidate.category || 'OTHER',
+              coatingStatus: candidate.coatingStatus || 'UNKNOWN',
+              grainDirection: candidate.grainDirection || 'UNKNOWN',
+              originalCode: candidate.originalCode || null,
+              caliperUm: candidate.caliperUm ?? null,
+              caliper_um: candidate.caliperUm ?? null,
+              caliperMm: candidate.caliperMm ?? null,
+              bulkFactor: candidate.bulkFactor ?? null,
+              caliperSource: candidate.caliperSource ?? null,
+              caliperConfidenceStatus: candidate.caliperConfidenceStatus ?? null,
+              caliperRevision: candidate.caliperRevision ?? null,
+              sheetWidthMm: candidate.widthMm,
+              sheetHeightMm: candidate.heightMm,
+              raw_sheet_format: candidate.sheetFormat,
+              availability: candidate.isAvailable
+                ? ('AVAILABLE_IN_CONTROL_PLANE' as const)
+                : ('SUBJECT_TO_MILL_CONFIRMATION' as const),
+              isAvailable: candidate.isAvailable,
+              source_catalog: 'CONTROL_PLANE_MASTER_HUB' as const,
+              certifications: candidate.certifications || ['FSC Mix Credit', 'ECF'],
+            };
+            const mappedType = resolveBpePaperTypeFromMaterial(
+              {
+                category: selectedMaterial.category,
+                brand: selectedMaterial.brand,
+                finish: selectedMaterial.finish,
+                productName: selectedMaterial.productName,
+              },
+              'interior'
+            );
+            setBookPricePayload((prev) => ({
+              ...prev,
+              paper_mode_interior: 'advanced',
+              interior_paper_material: selectedMaterial,
+              paper_weight_interior: selectedMaterial.gsm,
+              paper_type_interior: mappedType as any,
+            }));
+            setPayloadVersion((v) => v + 1);
+            setIsSpecsStale(true);
+          }
+        }
+      } catch {
+        // Non-fatal: user can still pick manually from AdvancedPaperSelector
+      }
+    }
+  }, [bookPricePayload.paper_weight_interior, bookPricePayload.interior_paper_material]);
+
+  const handleChangeBindingMethod = useCallback(
+    (bindingMethod: BookPricePayload['binding_method']) => {
+      setBookPricePayload((prev) => ({
+        ...prev,
+        binding_method: bindingMethod,
+      }));
+      setPayloadVersion((v) => v + 1);
+      setIsSpecsStale(true);
+    },
+    []
+  );
 
   const handlePayloadChange = useCallback(
     (payload: InitialBookPricePayload) => {
@@ -1364,6 +1475,8 @@ const App: React.FC = () => {
                   formData={bookPricePayload}
                   authContextKey={`${user?.user_id || 'anon'}:${user?.tenant_id || 'no-tenant'}`}
                   onSwitchInteriorToAdvancedCatalog={handleSwitchInteriorToAdvancedCatalog}
+                  onChangeBindingMethod={handleChangeBindingMethod}
+                  onRequestSignIn={() => setAuthModalOpen(true)}
                   onSpineResultChange={(result, status) => {
                     setSpineResult(result);
                     setSpineStatus(status);

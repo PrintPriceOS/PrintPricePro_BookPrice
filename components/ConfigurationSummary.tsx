@@ -61,18 +61,31 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
       ? `${payload.endpaper_material.productName || payload.endpaper_material.product_name} · ${payload.endpaper_material.gsm}g`
       : null;
 
+  const hasExperimentalReferenceGeometry =
+    spineStatus === 'ERROR' &&
+    spineResult !== null &&
+    spineResult.spineWidthMm === null &&
+    spineResult.operationalStatus === 'EXPERIMENTAL_DISABLED' &&
+    typeof spineResult.rawFormulaSpineWidthMm === 'number' &&
+    spineResult.rawFormulaSpineWidthMm > 0 &&
+    spineResult.coverGeometry !== null;
+
   const spineSummaryLine =
     spineResult && spineResult.spineWidthMm !== null && spineResult.coverGeometry
       ? `${spineResult.spineWidthMm.toFixed(1)} mm spine · ${spineResult.coverGeometry.netCoverWidthMm.toFixed(1)}×${spineResult.coverGeometry.netCoverHeightMm.toFixed(1)} mm cover`
-      : spineStatus === 'CALIPER_VERIFICATION_REQUIRED'
-        ? 'Caliper (µm) required'
-        : spineStatus === 'HARDCOVER_PROFILE_PARAMETERS_REQUIRED'
-          ? 'Hardcover profile params required'
-          : spineStatus === 'INVALID_BOOK_DIMENSIONS'
-            ? 'Invalid book dimensions'
-            : spineStatus === 'SPINE_NOT_AVAILABLE'
-              ? 'SPINE_NOT_AVAILABLE'
-              : null;
+      : hasExperimentalReferenceGeometry && spineResult && spineResult.coverGeometry
+        ? `${spineResult.rawFormulaSpineWidthMm!.toFixed(1)} mm (Ref. No-Prod) · ${spineResult.coverGeometry.netCoverWidthMm.toFixed(1)}×${spineResult.coverGeometry.netCoverHeightMm.toFixed(1)} mm`
+        : spineStatus === 'CALIPER_VERIFICATION_REQUIRED'
+          ? 'Caliper (µm) required'
+          : spineStatus === 'HARDCOVER_PROFILE_PARAMETERS_REQUIRED'
+            ? 'Hardcover profile params required'
+            : spineStatus === 'INVALID_BOOK_DIMENSIONS'
+              ? 'Invalid book dimensions'
+              : spineStatus === 'SPINE_NOT_AVAILABLE'
+                ? 'SPINE_NOT_AVAILABLE'
+                : spineStatus === 'ERROR'
+                  ? 'Governance block / review required'
+                  : null;
 
   return (
     <>
@@ -253,6 +266,16 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
                 {spineResult.coverGeometry.netCoverWidthMm.toFixed(1)}×
                 {spineResult.coverGeometry.netCoverHeightMm.toFixed(1)} mm
               </span>
+            ) : hasExperimentalReferenceGeometry && spineResult && spineResult.coverGeometry ? (
+              <span
+                data-testid="summary-spine-dimensions"
+                className="text-xs font-bold text-corporate-accent font-technical tabular-nums block truncate"
+                title="Non-productive reference geometry (EXPERIMENTAL_DISABLED)"
+              >
+                {spineResult.rawFormulaSpineWidthMm!.toFixed(1)} mm (Ref. No-Prod) ·{' '}
+                {spineResult.coverGeometry.netCoverWidthMm.toFixed(1)}×
+                {spineResult.coverGeometry.netCoverHeightMm.toFixed(1)} mm
+              </span>
             ) : (
               <span
                 data-testid="summary-spine-status"
@@ -362,7 +385,9 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
                   {payload.book_size} · {payload.interior_pages}pp
                   {spineResult && spineResult.spineWidthMm !== null
                     ? ` · Spine ${spineResult.spineWidthMm.toFixed(1)}mm`
-                    : ''}
+                    : hasExperimentalReferenceGeometry && spineResult
+                      ? ` · Ref Spine ${spineResult.rawFormulaSpineWidthMm!.toFixed(1)}mm`
+                      : ''}
                 </span>
               </div>
               {isSpecsStale && offers && (

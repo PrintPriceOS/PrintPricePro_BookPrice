@@ -209,6 +209,17 @@ async function runTestSuite() {
 
   let advOfferSessionId = null;
 
+  // SPINE-05R: Since BUDGET-02D-04 (commit 3b7485a) the BFF maps an authoritative catalog
+  // material's GSM + category/finish into the BPE payload. A catalog material with a different
+  // grammage is therefore a different technical specification and MUST NOT be forced to the
+  // 90/250 gsm baseline price. The invariant is instead: catalog selection is priced exactly
+  // like the equivalent Standard Preset spec (same gsm + BPE substrate family), i.e. the BFF
+  // adds no hidden surcharge and performs no wrong conversion.
+  const priceStandardEquivalent = async (overrides) => {
+    const res = await axios.post(`${baseUrl}/api/budget/calculate`, { ...standardPayload, ...overrides }, { timeout: 15000 });
+    return res.data.offers[0].total_price;
+  };
+
   try {
     const advRes = await axios.post(`${baseUrl}/api/budget/calculate`, advancedPayload, { timeout: 15000 });
     assert(advRes.status === 200, 'Advanced mode calculation returns 200 OK');
@@ -219,10 +230,15 @@ async function runTestSuite() {
 
     const advPrice = advRes.data.offers[0].total_price;
     console.log(`    [ADVANCED_PRICE] Advanced preference calculation = ${advPrice} EUR`);
+    const equivPrice = await priceStandardEquivalent({
+      paper_type_interior: 'offset', paper_weight_interior: 120,
+      paper_type_cover: 'mc', paper_weight_cover: 300,
+    });
+    console.log(`    [STANDARD_EQUIVALENT_PRICE] offset 120 / mc 300 = ${equivPrice} EUR (90/250 baseline = ${standardPrice} EUR)`);
     assert(
-      Math.abs(advPrice - standardPrice) < 0.01,
-      'Advanced selection preserves EXACT SAME estimate amount (Informative only, does not alter BPE pricing)',
-      `Adv=${advPrice} vs Std=${standardPrice}`
+      Math.abs(advPrice - equivPrice) < 0.01,
+      'Advanced catalog selection is priced exactly like the equivalent Standard spec (gsm + BPE family synced, no hidden conversion)',
+      `Adv=${advPrice} vs StdEquivalent=${equivPrice}`
     );
 
     // Verify session storage preserves customer_paper_preferences as distinct object
@@ -259,10 +275,14 @@ async function runTestSuite() {
     const modRes = await axios.post(`${baseUrl}/api/budget/calculate`, modifiedPreferencePayload, { timeout: 15000 });
     assert(modRes.status === 200, 'Calculation with altered paper preference returns 200 OK');
     const modPrice = modRes.data.offers[0].total_price;
+    const modEquivPrice = await priceStandardEquivalent({
+      paper_type_interior: 'offset', paper_weight_interior: 170,
+      paper_type_cover: 'mc', paper_weight_cover: 300,
+    });
     assert(
-      Math.abs(modPrice - standardPrice) < 0.01,
-      'Modifying paper preference alone retains identical economic payload & quote amount',
-      `Mod=${modPrice} vs Std=${standardPrice}`
+      Math.abs(modPrice - modEquivPrice) < 0.01,
+      'Changing the catalog variant (120g -> 170g) re-prices exactly like the equivalent Standard spec',
+      `Mod=${modPrice} vs StdEquivalent=${modEquivPrice}`
     );
   } catch (err) {
     const msg = err.response?.data?.message || err.message;

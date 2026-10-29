@@ -551,7 +551,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
         };
       case 'MATH_VALIDATED_PENDING_INDUSTRIAL':
         return {
-          label: 'MATH VALIDATED · PENDING INDUSTRIAL VALIDATION',
+          label: 'Mathematically validated — industrial approval pending',
           className: 'bg-amber-500/15 border-amber-500/40 text-amber-500',
         };
       case 'EXCEL_EXAMPLE_PARITY_ONLY':
@@ -561,7 +561,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
         };
       case 'PROVISIONAL_ESTIMATE':
         return {
-          label: 'PROVISIONAL ESTIMATE · UNVERIFIED INPUTS',
+          label: 'Provisional estimate — cover thickness required',
           className: 'bg-amber-500/15 border-amber-500/40 text-amber-500',
         };
       case 'REQUIRES_TECH_APPROVAL':
@@ -589,7 +589,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
         };
       case 'SPINE_NOT_AVAILABLE':
         return {
-          label: 'SPINE_NOT_AVAILABLE',
+          label: 'Spine calculation unavailable',
           className:
             'bg-corporate-secondary border-corporate-border-strong text-corporate-muted',
         };
@@ -604,7 +604,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
         return {
           label: isExperimentalReferenceResult
             ? 'EXPERIMENTAL_DISABLED · PROFILE_REQUIRES_PRINTHOUSE_TECH_APPROVAL'
-            : errorCode || 'GEOMETRY BLOCKED',
+            : errorCode || 'Manufacturing release blocked',
           className:
             'bg-corporate-accent/15 border-corporate-accent/50 text-corporate-accent',
         };
@@ -828,8 +828,8 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
               <SparklesIcon className="w-3.5 h-3.5" />
               <span>
                 {formData.paper_mode_interior === 'advanced'
-                  ? 'Select Another Paper With Caliper'
-                  : 'Select Certified Catalog Paper'}
+                  ? 'Select a catalog paper with known thickness'
+                  : 'Select a catalog paper with known thickness'}
               </span>
             </button>
           )}
@@ -932,8 +932,8 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
                   {errorCode === 'TENANT_CONTEXT_REQUIRED' || errorCode === 'UNAUTHORIZED'
                     ? 'Authenticated Tester Session Required for Spine Calculation'
                     : isExperimentalReferenceResult
-                      ? 'ESTIMACIÓN TÉCNICA — NO APTA PARA FABRICACIÓN (Perfil Experimental Bloqueado)'
-                      : 'Spine Calculation Blocked by Control Plane Governance'}
+                      ? 'TECHNICAL ESTIMATE — NOT FOR MANUFACTURING (Experimental profile blocked)'
+                      : 'Manufacturing release blocked by Control Plane governance'}
                 </p>
                 <span className="px-2 py-0.5 rounded-md bg-corporate-elevated border border-corporate-border text-[9px] font-technical font-bold text-corporate-text uppercase">
                   {errorCode}
@@ -967,7 +967,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
                 onChangeBindingMethod && (
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-[10px] font-technical uppercase font-bold text-corporate-muted mr-1">
-                      Calculate with active profile:
+                      Change binding method:
                     </span>
                     <button
                       type="button"
@@ -1026,7 +1026,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
               className="rounded-xl border border-amber-500/50 bg-amber-500/10 px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2 text-[11px] font-technical"
             >
               <span className="font-black uppercase tracking-wider text-amber-500">
-                ESTIMACIÓN TÉCNICA — NO APTA PARA FABRICACIÓN (canReleaseToManufacturing: false)
+                TECHNICAL ESTIMATE — NOT FOR MANUFACTURING · Manufacturing release blocked
               </span>
               <span className="text-corporate-text-secondary">
                 Profile: <strong className="text-corporate-text">{spineResult.fullProfileKey}</strong> · Status:{' '}
@@ -1181,7 +1181,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
                 </span>
                 <span className="text-corporate-text-secondary">
                   {isExperimentalReferenceResult
-                    ? 'ESTIMACIÓN TÉCNICA — NO APTA PARA FABRICACIÓN: This Flexibound calculation uses the experimental Livonia Colibri Flexi reference formula and is strictly blocked for automated production release (canReleaseToManufacturing: false). Switch to Perfect Bound or Thread Sewn Softcover for an active softcover profile.'
+                    ? 'TECHNICAL ESTIMATE — NOT FOR MANUFACTURING: This Flexibound calculation uses the experimental Livonia Colibri Flexi reference formula and is strictly blocked for automated production release (canReleaseToManufacturing: false). Switch to Perfect Bound or Thread Sewn Softcover for an active softcover profile.'
                     : spineResult.operationalStatus === 'REQUIRES_TECH_APPROVAL'
                       ? 'Hardcover Colibri case-making tolerances (board overhang, hinge rastri and turn-in) are active for quote estimation and preflight preview, but require explicit Print House Technical Sign-off before die/cover plate release.'
                       : panelStatus === 'PROVISIONAL_ESTIMATE'

@@ -36,5 +36,8 @@ jobs:
       - name: Run SPINE-04 Spine Calculator Integration & Governance Suite
         run: node server/scripts/test_spine_04_integration.js
 
+      - name: Run SPINE-05S White-Label Branding Guard
+        run: node server/scripts/test_spine_05s_white_label.js
+
       - name: Run BUDGET-01D Mandatory Regression Suite
         run: node server/scripts/verify_budget_01d_regression.js

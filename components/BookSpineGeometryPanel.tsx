@@ -23,6 +23,54 @@ import {
   SparklesIcon,
 } from '@heroicons/react/24/outline';
 
+
+/**
+ * SPINE-05S White-label presentation layer.
+ * Authoritative API values (fullProfileKey, machineryLine, caliperSource, certification enums)
+ * are NEVER mutated; they stay intact for audit/provenance. These helpers only derive
+ * customer-facing English labels under the PrintPrice OS product identity.
+ */
+const EXTERNAL_BRAND_PATTERN = /\b(livonia|colibri|alegro|kolbus)\b[\s\-_/]*/gi;
+
+export function presentProfileLabel(fullProfileKey?: string | null): string {
+  const key = String(fullProfileKey || '').toLowerCase();
+  if (key.includes('flexi')) return 'Flexibound — Technical Reference';
+  if (key.includes('hardcover')) return 'Hardcover Casebound — Reference Model';
+  if (key.includes('softcover')) return 'Softcover — Reference Model';
+  return 'PrintPrice OS Spine Reference Model';
+}
+
+export function presentCaliperSource(source?: string | null): string {
+  switch (String(source || '').toUpperCase()) {
+    case 'LIVONIA_REFERENCE_IMPORT':
+      return 'REFERENCE DOCUMENT IMPORT';
+    case 'SUPPLIER_IMPORT':
+      return 'SUPPLIER IMPORT';
+    case 'MILL_DATASHEET':
+      return 'MILL DATASHEET';
+    case 'MICROMETER_MEASURED':
+      return 'MICROMETER MEASURED';
+    case 'NONE':
+    case '':
+      return 'NO VERIFIED SOURCE';
+    default:
+      return presentText(String(source).replace(/_/g, ' '));
+  }
+}
+
+export function presentCertificationTier(tier?: string | null): string {
+  if (tier === 'EXCEL_EXAMPLE_PARITY') return 'REFERENCE MODEL VALIDATED';
+  return String(tier || '').replace(/_/g, ' ');
+}
+
+/** Scrubs external company / machine brand names from free-text engine messages. */
+export function presentText(text?: string | null): string {
+  return String(text ?? '')
+    .replace(EXTERNAL_BRAND_PATTERN, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 export interface BookSpineGeometryPanelProps {
   formData: BookPricePayload;
   authContextKey?: string;
@@ -117,7 +165,7 @@ const formatTierBadgeLabel = (tier?: string | null): string => {
     case 'MATH_BRANCH_VALIDATED':
       return 'Math Validated · Pending Industrial Sign-Off';
     case 'EXCEL_EXAMPLE_PARITY':
-      return 'Excel Example Parity · Uncertified';
+      return 'Reference Model Validated · Industrial Approval Pending';
     default:
       return tier || 'Unverified Tier';
   }
@@ -556,7 +604,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
         };
       case 'EXCEL_EXAMPLE_PARITY_ONLY':
         return {
-          label: 'EXCEL PARITY ONLY · NOT INDUSTRIALLY CERTIFIED',
+          label: 'REFERENCE MODEL VALIDATED · NOT INDUSTRIALLY CERTIFIED',
           className: 'bg-amber-500/15 border-amber-500/40 text-amber-500',
         };
       case 'PROVISIONAL_ESTIMATE':
@@ -669,9 +717,9 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
       },
       {
         key: 'EXCEL_EXAMPLE_PARITY',
-        label: '2. Excel Reference Parity',
+        label: '2. Reference Model Validation',
         active: Boolean(levels.excelExampleParity),
-        detail: levels.excelExampleParity ? 'Livonia v2.0 Parity' : 'Unverified',
+        detail: levels.excelExampleParity ? 'Reference Model Validated' : 'Unverified',
       },
       {
         key: 'PENDING_INDUSTRIAL_VALIDATION',
@@ -785,7 +833,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
               </span>
             </div>
             <p className="text-xs text-corporate-text-secondary leading-relaxed">
-              {errorMessage}
+              {presentText(errorMessage)}
             </p>
           </div>
         </div>
@@ -809,7 +857,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
                 </span>
               </div>
               <p className="text-xs text-corporate-text-secondary leading-relaxed">
-                {errorMessage}
+                {presentText(errorMessage)}
               </p>
               <p className="text-[10px] font-technical text-corporate-muted">
                 Current Interior Spec: <strong className="text-corporate-text">{readiness.caliperTelemetry.interiorPaperName}</strong> ·{' '}
@@ -853,7 +901,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
               </span>
             </div>
             <p className="text-xs text-corporate-text-secondary leading-relaxed">
-              {errorMessage}
+              {presentText(errorMessage)}
             </p>
           </div>
         </div>
@@ -876,7 +924,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
               </span>
             </div>
             <p className="text-xs text-corporate-text-secondary leading-relaxed">
-              {errorMessage ||
+              {presentText(errorMessage) ||
                 'Control Plane Spine Engine (/api/v1/spine) is not active in this environment yet. In compliance with PrintPrice OS governance, no synthetic client-side spine dimensions are generated.'}
             </p>
           </div>
@@ -892,7 +940,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
           <div className="flex items-start gap-3 min-w-0">
             <InformationCircleIcon className="w-4 h-4 text-corporate-muted shrink-0 mt-0.5" />
             <p className="text-xs text-corporate-text-secondary leading-relaxed">
-              {errorMessage}
+              {presentText(errorMessage)}
             </p>
           </div>
           {onChangeBindingMethod && (
@@ -945,12 +993,12 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
                 )}
               </div>
               <p className="text-xs text-corporate-text-secondary leading-relaxed">
-                {errorMessage}
+                {presentText(errorMessage)}
               </p>
               {isExperimentalReferenceResult && (
                 <p className="text-[11px] font-technical text-amber-500 font-bold leading-relaxed">
-                  Control Plane profile <code className="text-corporate-text">{spineResult?.fullProfileKey}</code> is marked{' '}
-                  <code className="text-corporate-text">EXPERIMENTAL_DISABLED</code> (<code className="text-corporate-text">PROFILE_REQUIRES_PRINTHOUSE_TECH_APPROVAL</code>). Below is the non-productive mathematical reference geometry (<code className="text-corporate-text">EXCEL_EXAMPLE_PARITY</code>) returned by Control Plane. For an active <code className="text-corporate-text">MATH_VALIDATED_ACTIVE</code> softcover calculation, switch binding below.
+                  Profile <code className="text-corporate-text">{presentProfileLabel(spineResult?.fullProfileKey)}</code> is marked{' '}
+                  <code className="text-corporate-text">EXPERIMENTAL_DISABLED</code> (<code className="text-corporate-text">PROFILE_REQUIRES_PRINTHOUSE_TECH_APPROVAL</code>). Below is the non-productive reference-model geometry returned by the PrintPrice OS Control Plane. For an active <code className="text-corporate-text">MATH_VALIDATED_ACTIVE</code> softcover calculation, switch binding below.
                 </p>
               )}
             </div>
@@ -1029,7 +1077,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
                 TECHNICAL ESTIMATE — NOT FOR MANUFACTURING · Manufacturing release blocked
               </span>
               <span className="text-corporate-text-secondary">
-                Profile: <strong className="text-corporate-text">{spineResult.fullProfileKey}</strong> · Status:{' '}
+                Profile: <strong className="text-corporate-text">{presentProfileLabel(spineResult.fullProfileKey)}</strong> · Status:{' '}
                 <strong className="text-amber-500">{spineResult.operationalStatus}</strong>
               </span>
             </div>
@@ -1057,7 +1105,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
                 </span>
               </div>
               <span className="text-[9px] font-technical text-corporate-accent uppercase font-bold mt-1 block truncate">
-                {spineResult.machineryLine || spineResult.fullProfileKey}
+                {presentProfileLabel(spineResult.fullProfileKey)}
               </span>
             </div>
 
@@ -1121,9 +1169,9 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
               <span
                 data-testid="spine-caliper-provenance"
                 className="text-[9px] font-technical text-corporate-text-secondary uppercase font-bold mt-0.5 block truncate"
-                title={`${primarySegmentProvenance.caliperSource} · ${primarySegmentProvenance.caliperConfidenceStatus}`}
+                title={`${presentCaliperSource(primarySegmentProvenance.caliperSource)} · ${primarySegmentProvenance.caliperConfidenceStatus}`}
               >
-                {primarySegmentProvenance.caliperSource} · {primarySegmentProvenance.caliperConfidenceStatus}
+                {presentCaliperSource(primarySegmentProvenance.caliperSource)} · {primarySegmentProvenance.caliperConfidenceStatus}
               </span>
               <span
                 data-testid="spine-certification-tier"
@@ -1175,15 +1223,15 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
               <ShieldCheckIcon className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
               <div className="text-[11px] leading-relaxed min-w-0">
                 <span className="font-technical font-black uppercase tracking-wider text-corporate-text block">
-                  Manufacturing Release Governance ({spineResult.certificationTier} ·{' '}
+                  Manufacturing Release Governance ({presentCertificationTier(spineResult.certificationTier)} ·{' '}
                   {spineResult.operationalStatus} ·{' '}
                   {spineResult.manufacturingValidation?.status}):
                 </span>
                 <span className="text-corporate-text-secondary">
                   {isExperimentalReferenceResult
-                    ? 'TECHNICAL ESTIMATE — NOT FOR MANUFACTURING: This Flexibound calculation uses the experimental Livonia Colibri Flexi reference formula and is strictly blocked for automated production release (canReleaseToManufacturing: false). Switch to Perfect Bound or Thread Sewn Softcover for an active softcover profile.'
+                    ? 'TECHNICAL ESTIMATE — NOT FOR MANUFACTURING: This Flexibound calculation uses the experimental Flexibound reference model and is strictly blocked for automated production release (canReleaseToManufacturing: false). Switch to Perfect Bound or Thread Sewn Softcover for an active softcover profile.'
                     : spineResult.operationalStatus === 'REQUIRES_TECH_APPROVAL'
-                      ? 'Hardcover Colibri case-making tolerances (board overhang, hinge rastri and turn-in) are active for quote estimation and preflight preview, but require explicit Print House Technical Sign-off before die/cover plate release.'
+                      ? 'Hardcover case-making tolerances (board overhang, hinge score and turn-in) are active for quote estimation and preflight preview, but require explicit Print House Technical Sign-off before die/cover plate release.'
                       : panelStatus === 'PROVISIONAL_ESTIMATE'
                         ? 'One or more substrate caliper or cover inputs are provisional or missing. Geometry is shown for preliminary estimation only and cannot be released to manufacturing without verified micrometer/datasheet provenance.'
                         : 'Mathematical calculation succeeded, but this profile is pending industrial certification. Autonomous manufacturing release requires PRODUCTION_CERTIFIED status and verified substrate provenance.'}
@@ -1206,7 +1254,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
                     <span className="font-technical font-bold text-amber-500 uppercase mr-2">
                       [{w.code}]
                     </span>
-                    <span className="text-corporate-text-secondary">{w.message}</span>
+                    <span className="text-corporate-text-secondary">{presentText(w.message)}</span>
                   </div>
                 </div>
               ))}
@@ -1320,7 +1368,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
               >
                 <div>
                   <span className="text-[9px] text-corporate-muted uppercase block">
-                    Board Size (Puse)
+                    Board Size
                   </span>
                   <span className="text-corporate-text font-bold tabular-nums">
                     {formatMm(spineResult.coverGeometry.panels.boardWidthMm, 1)} ×{' '}
@@ -1329,7 +1377,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
                 </div>
                 <div>
                   <span className="text-[9px] text-corporate-muted uppercase block">
-                    Hinge Score (Rastri)
+                    Hinge Score
                   </span>
                   <span className="text-corporate-text font-bold tabular-nums">
                     {formatMm(spineResult.coverGeometry.panels.leftHingeScoreMm, 1)}
@@ -1337,7 +1385,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
                 </div>
                 <div>
                   <span className="text-[9px] text-corporate-muted uppercase block">
-                    Turn-In (Noloki)
+                    Turn-In
                   </span>
                   <span className="text-corporate-text font-bold tabular-nums">
                     {formatMm(spineResult.coverGeometry.panels.turnInMm, 1)}

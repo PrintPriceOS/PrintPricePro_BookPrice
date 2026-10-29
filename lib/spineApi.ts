@@ -216,21 +216,21 @@ export function mapBindingMethodToSpineContract(bindingMethod: BindingMethod): {
         supported: true,
         bindingCategory: 'SOFTCOVER_STANDARD',
         processingType: 'GLUED',
-        bindingLabel: 'Softcover Perfect Bound (Alegro Glued)',
+        bindingLabel: 'Softcover Perfect Bound (Glued)',
       };
     case 'thread_sewn_sc':
       return {
         supported: true,
         bindingCategory: 'SOFTCOVER_STANDARD',
         processingType: 'SEWN',
-        bindingLabel: 'Softcover Thread Sewn (Alegro Sewn)',
+        bindingLabel: 'Softcover Thread Sewn',
       };
     case 'thread_sewn_hc':
       return {
         supported: true,
         bindingCategory: 'HARDCOVER',
         processingType: 'SEWN',
-        bindingLabel: 'Hardcover Casebound Thread Sewn (Colibri)',
+        bindingLabel: 'Hardcover Casebound Thread Sewn',
       };
     case 'flexibound':
       return {

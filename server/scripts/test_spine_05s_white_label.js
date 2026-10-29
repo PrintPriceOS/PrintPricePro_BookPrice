@@ -76,6 +76,10 @@ for (const label of [
   assert(panel.includes(label), `Panel contains "${label}"`);
 }
 
+console.log('\n[SPINE-05S] Raw certification enums are never interpolated into visible text');
+assert(!panel.includes('(${tier})'), 'Certification matrix does not render raw tier enum (e.g. EXCEL_EXAMPLE_PARITY)');
+assert(!panel.includes('Governance ({spineResult.certificationTier}'), 'Governance notice does not render raw tier enum');
+
 console.log('\n[SPINE-05S] Internal identifiers and provenance preserved (not mutated)');
 assert(panel.includes("certificationTier === 'EXCEL_EXAMPLE_PARITY'"), 'EXCEL_EXAMPLE_PARITY enum still used internally');
 assert(fs.readFileSync(path.join(ROOT, 'lib/spineApi.ts'), 'utf8').includes("'LIVONIA_REFERENCE_IMPORT'"), 'LIVONIA_REFERENCE_IMPORT provenance code preserved in API contract');

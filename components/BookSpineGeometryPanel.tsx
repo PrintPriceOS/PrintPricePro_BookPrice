@@ -727,7 +727,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
         active: !isPendingIndustrial,
         isWarning: isPendingIndustrial,
         detail: isPendingIndustrial
-          ? `Pending Plant Sign-Off (${tier})`
+          ? `Pending Plant Sign-Off (${presentCertificationTier(tier)})`
           : 'Industrially Validated',
       },
       {

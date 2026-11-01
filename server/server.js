@@ -5292,7 +5292,27 @@ app.post('/api/printhouse/queue/:packageId/status', async (req, res) => {
                 await repositories.orderIntents.update(intent.order_intent_id, intent);
             }
 
-            // 6. Control Plane Sync
+            // 6. Control Plane & B2B Customer Portal Timeline Sync
+            const targetOrderRef = intent.control_plane?.order_ref || pkg.control_plane_order_ref || intent.public_ref || pkg.order_intent_id;
+            if (targetOrderRef && CONTROL_PLANE_BASE_URL) {
+                try {
+                    await axios.post(
+                        `${CONTROL_PLANE_BASE_URL}/api/customer/orders/${encodeURIComponent(targetOrderRef)}/stage`,
+                        {
+                            package_id: pkg.package_id,
+                            order_intent_id: intent.order_intent_id,
+                            public_ref: intent.public_ref,
+                            status: requestedStatus,
+                            operator_notes,
+                            rejection_reason,
+                            shipment,
+                            updated_at: now
+                        },
+                        { headers: buildControlPlaneHeaders(), timeout: 6000 }
+                    );
+                } catch (_) {}
+            }
+
             if (CONTROL_PLANE_PRODUCTION_STATUS_SYNC_ENABLED) {
                 try {
                     const cpUrl = CONTROL_PLANE_PRODUCTION_STATUS_ENDPOINT.replace(':orderRef', intent.control_plane?.order_ref || intent.public_ref);

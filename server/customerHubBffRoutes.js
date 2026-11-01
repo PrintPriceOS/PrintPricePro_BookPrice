@@ -516,15 +516,21 @@ function registerCustomerHubBffRoutes(app, deps) {
         } catch (_) {}
 
         const order = localHubFallbackOrders.get(orderId) || Array.from(localHubFallbackOrders.values())[0];
-        const isDelivered = order?.status === 'DELIVERED';
-        const shipmentId = `SHP-2026-${String(orderId).replace(/[^0-9]/g, '').slice(-4) || '9901'}`;
-        const trackingNumber = `DACHSER-EU-${String(orderId).replace(/[^A-Za-z0-9]/g, '').slice(-6).toUpperCase()}88`;
+        const statusUpper = String(order?.status || 'IN_PRODUCTION').toUpperCase();
+        const prodStage = String(order?.productionStage || '').toUpperCase();
+        const isDelivered = statusUpper === 'DELIVERED' || prodStage === 'DELIVERED';
+        const isShipped = isDelivered || ['SHIPPED', 'IN_TRANSIT'].includes(statusUpper) || prodStage.includes('TRANSIT') || prodStage.includes('STAGE_05');
+        const activeStageIndex = Number(order?.activeStageIndex) || (isDelivered || isShipped ? 5 : statusUpper === 'COMPLETED' ? 4 : statusUpper.includes('BINDING') ? 3 : 2);
+        const shipmentId = order?.shipment?.shipmentId || `SHP-2026-${String(orderId).replace(/[^0-9]/g, '').slice(-4) || '9901'}`;
+        const trackingNumber = order?.shipment?.tracking_number || order?.shipment?.trackingNumber || `DACHSER-EU-${String(orderId).replace(/[^A-Za-z0-9]/g, '').slice(-6).toUpperCase()}88`;
+        const carrierName = order?.shipment?.carrier || order?.shipment?.carrierName || 'Dachser European Logistics B2B';
+        const stageStatus = (step) => isDelivered ? 'COMPLETED' : activeStageIndex > step ? 'COMPLETED' : activeStageIndex === step ? 'IN_PROGRESS' : 'PENDING';
         const stages = [
             { step: 1, stepNumber: 1, key: 'PREFLIGHT_APPROVED', stageKey: 'PREFLIGHT_APPROVED', label: 'Stage 01: Preflight Approved', subtitle: 'PDF/X-4 · 3.0mm Bleed · Validated Spine', status: 'COMPLETED', timestamp: order.createdAt, description: 'Master PDF files validated with zero geometric blocks.' },
-            { step: 2, stepNumber: 2, key: 'ON_PRESS_PRINTING', stageKey: 'ON_PRESS_PRINTING', label: 'Stage 02: On Press (Plates & Print Run)', subtitle: order.printhouseName, status: isDelivered ? 'COMPLETED' : 'IN_PROGRESS', timestamp: order.updatedAt, description: 'Signature imposition with creep compensation and industrial press run.' },
-            { step: 3, stepNumber: 3, key: 'BINDING_AND_FINISHING', stageKey: 'BINDING_AND_FINISHING', label: 'Stage 03: Binding & Finishing', subtitle: `Spine ${order.specs?.calculatedSpineMm || 12.4} mm`, status: isDelivered ? 'COMPLETED' : 'PENDING', timestamp: isDelivered ? order.updatedAt : null, description: 'Signature gathering, spine milling, and PUR / Hardcover binding.' },
-            { step: 4, stepNumber: 4, key: 'EPAL_PALLETIZATION', stageKey: 'EPAL_PALLETIZATION', label: 'Stage 04: EPAL Palletization', subtitle: 'FEFCO 0201 Cartons · GS1-128 SSCC-18', status: isDelivered ? 'COMPLETED' : 'PENDING', timestamp: isDelivered ? order.updatedAt : null, description: '3D palletizing on EPAL Euro-Pallets (1200x800 mm) with stretch wrap.' },
-            { step: 5, stepNumber: 5, key: 'IN_TRANSIT_AND_POD', stageKey: 'IN_TRANSIT_AND_POD', label: isDelivered ? 'Stage 05: Delivered (Signed POD)' : 'Stage 05: In Transit', subtitle: 'Telematic Tracking & Signed POD / CMR', status: isDelivered ? 'COMPLETED' : 'PENDING', timestamp: isDelivered ? order.updatedAt : null, description: 'B2B freight dispatch with telematic tracking and signed POD delivery note.' }
+            { step: 2, stepNumber: 2, key: 'ON_PRESS_PRINTING', stageKey: 'ON_PRESS_PRINTING', label: 'Stage 02: On Press (Plates & Print Run)', subtitle: order.printhouseName, status: stageStatus(2), timestamp: activeStageIndex >= 2 ? order.updatedAt : null, description: 'Signature imposition with creep compensation and industrial press run.' },
+            { step: 3, stepNumber: 3, key: 'BINDING_AND_FINISHING', stageKey: 'BINDING_AND_FINISHING', label: 'Stage 03: Binding & Finishing', subtitle: `Spine ${order.specs?.calculatedSpineMm || 12.4} mm`, status: stageStatus(3), timestamp: activeStageIndex >= 3 ? order.updatedAt : null, description: 'Signature gathering, spine milling, and PUR / Hardcover binding.' },
+            { step: 4, stepNumber: 4, key: 'EPAL_PALLETIZATION', stageKey: 'EPAL_PALLETIZATION', label: 'Stage 04: EPAL Palletization', subtitle: 'FEFCO 0201 Cartons · GS1-128 SSCC-18', status: stageStatus(4), timestamp: activeStageIndex >= 4 ? order.updatedAt : null, description: '3D palletizing on EPAL Euro-Pallets (1200x800 mm) with stretch wrap.' },
+            { step: 5, stepNumber: 5, key: 'IN_TRANSIT_AND_POD', stageKey: 'IN_TRANSIT_AND_POD', label: isDelivered ? 'Stage 05: Delivered (Signed POD)' : 'Stage 05: In Transit', subtitle: 'Telematic Tracking & Signed POD / CMR', status: stageStatus(5), timestamp: activeStageIndex >= 5 ? order.updatedAt : null, description: 'B2B freight dispatch with telematic tracking and signed POD delivery note.' }
         ];
 
         return res.status(200).json({
@@ -534,15 +540,15 @@ function registerCustomerHubBffRoutes(app, deps) {
             title: order.title,
             bookTitle: order.title || order.bookTitle,
             isbn: order.isbn,
-            customerStatus: isDelivered ? 'DELIVERED' : 'IN_PRODUCTION',
-            overallStatus: isDelivered ? 'DELIVERED' : 'IN_PRODUCTION',
-            activeStageIndex: isDelivered ? 5 : 2,
-            currentStageIndex: isDelivered ? 5 : 2,
+            customerStatus: isDelivered ? 'DELIVERED' : isShipped ? 'IN_TRANSIT' : 'IN_PRODUCTION',
+            overallStatus: isDelivered ? 'DELIVERED' : isShipped ? 'IN_TRANSIT' : 'IN_PRODUCTION',
+            activeStageIndex,
+            currentStageIndex: activeStageIndex,
             stages,
             timeline: stages,
             carrier: {
                 carrierCode: 'DACHSER_DE',
-                carrierName: 'Dachser European Logistics B2B',
+                carrierName,
                 serviceLevel: 'Targospeed 48h Book Pallet',
                 trackingNumber,
                 trackingCode: trackingNumber,
@@ -559,7 +565,7 @@ function registerCustomerHubBffRoutes(app, deps) {
             },
             telemetry: {
                 shipmentId,
-                carrierName: 'Dachser European Logistics B2B',
+                carrierName,
                 carrierService: 'Targospeed 48h Book Pallet',
                 trackingCode: trackingNumber,
                 trackingUrl: `https://elogistics.dachser.com/tracking?ref=${encodeURIComponent(trackingNumber)}`,
@@ -1069,7 +1075,112 @@ startxref
         });
     });
 
-    // ---- 10. SPA Route Fallback for Dedicated B2B Portal Views (/portal/* and /order/:orderId/files) ----
+    // 11. POST /api/customer/orders/:orderId/stage & /api/marketplace/orders/:orderId/payment/webhook
+    app.post('/api/customer/orders/:orderId/stage', async (req, res) => {
+        const { orderId } = req.params;
+        const { authHeaders, email } = buildCustomerHubHeaders(req);
+        ensureLocalHubSeed(email);
+
+        try {
+            const cpRes = await axios.post(
+                `${CONTROL_PLANE_BASE_URL}/api/customer/orders/${encodeURIComponent(orderId)}/stage`,
+                req.body || {},
+                { headers: authHeaders, timeout: 8000 }
+            );
+            if (cpRes.data && cpRes.data.ok) {
+                const localOrd = localHubFallbackOrders.get(orderId);
+                if (localOrd) {
+                    localOrd.status = cpRes.data.status || localOrd.status;
+                    localOrd.productionStage = cpRes.data.productionStage || localOrd.productionStage;
+                    localOrd.activeStageIndex = cpRes.data.activeStageIndex || localOrd.activeStageIndex;
+                    if (req.body?.shipment) localOrd.shipment = { ...(localOrd.shipment || {}), ...req.body.shipment };
+                    localOrd.updatedAt = new Date().toISOString();
+                    localHubFallbackOrders.set(orderId, normalizeBffOrder(localOrd));
+                }
+                return res.status(200).json(cpRes.data);
+            }
+        } catch (_) {}
+
+        const order = localHubFallbackOrders.get(orderId) || Array.from(localHubFallbackOrders.values())[0];
+        const rawStage = String(req.body?.stage || req.body?.status || '').toUpperCase();
+        let nextStep = Number(req.body?.step || req.body?.activeStageIndex || order?.activeStageIndex || 2);
+        let nextStageKey = order?.productionStage || 'ON_PRESS_PRINTING';
+        let nextStatus = order?.status || 'IN_PRODUCTION';
+
+        if (['QUEUED', 'REVIEWING', 'PREFLIGHT_APPROVED', 'STAGE_01'].includes(rawStage)) {
+            nextStep = 1; nextStageKey = 'PREFLIGHT_APPROVED'; nextStatus = 'IN_PRODUCTION';
+        } else if (['ACCEPTED', 'IN_PREPRESS', 'IN_PRODUCTION', 'ON_PRESS_PRINTING', 'STAGE_02'].includes(rawStage)) {
+            nextStep = 2; nextStageKey = 'ON_PRESS_PRINTING'; nextStatus = 'IN_PRODUCTION';
+        } else if (['BINDING', 'BINDING_AND_FINISHING', 'STAGE_03', 'STAGE_03_BINDING'].includes(rawStage)) {
+            nextStep = 3; nextStageKey = 'BINDING_AND_FINISHING'; nextStatus = 'IN_PRODUCTION';
+        } else if (['COMPLETED', 'PALLETIZED', 'EPAL_PALLETIZATION', 'STAGE_04', 'STAGE_04_PALLETIZATION'].includes(rawStage)) {
+            nextStep = 4; nextStageKey = 'EPAL_PALLETIZATION'; nextStatus = 'IN_PRODUCTION';
+        } else if (['SHIPPED', 'IN_TRANSIT', 'IN_TRANSIT_AND_POD', 'STAGE_05'].includes(rawStage)) {
+            nextStep = 5; nextStageKey = 'IN_TRANSIT_AND_POD'; nextStatus = 'IN_TRANSIT';
+        } else if (['DELIVERED', 'DISPATCHED_AND_DELIVERED'].includes(rawStage)) {
+            nextStep = 5; nextStageKey = 'DELIVERED'; nextStatus = 'DELIVERED';
+        }
+
+        if (order) {
+            order.status = nextStatus;
+            order.productionStage = nextStageKey;
+            order.activeStageIndex = nextStep;
+            if (req.body?.shipment) order.shipment = { ...(order.shipment || {}), ...req.body.shipment };
+            order.updatedAt = new Date().toISOString();
+            localHubFallbackOrders.set(order.orderId, normalizeBffOrder(order));
+        }
+
+        return res.status(200).json({
+            ok: true,
+            orderId: order?.orderId || orderId,
+            status: nextStatus,
+            productionStage: nextStageKey,
+            activeStageIndex: nextStep
+        });
+    });
+
+    app.post('/api/marketplace/orders/:orderId/payment/webhook', async (req, res) => {
+        const { orderId } = req.params;
+        const { authHeaders, email } = buildCustomerHubHeaders(req);
+        ensureLocalHubSeed(email);
+
+        try {
+            const cpRes = await axios.post(
+                `${CONTROL_PLANE_BASE_URL}/api/marketplace/orders/${encodeURIComponent(orderId)}/payment/webhook`,
+                req.body || {},
+                { headers: authHeaders, timeout: 8000 }
+            );
+            if (cpRes.data && cpRes.data.ok) {
+                const localOrd = localHubFallbackOrders.get(orderId);
+                if (localOrd) {
+                    localOrd.paymentStatus = 'PAID';
+                    localOrd.status = 'IN_PRODUCTION';
+                    localOrd.escrowStatus = 'ESCROW_FUNDED';
+                    localOrd.activeStageIndex = 2;
+                    localHubFallbackOrders.set(orderId, normalizeBffOrder(localOrd));
+                }
+                return res.status(200).json(cpRes.data);
+            }
+        } catch (_) {}
+
+        const localOrd = localHubFallbackOrders.get(orderId);
+        if (localOrd) {
+            localOrd.paymentStatus = 'PAID';
+            localOrd.status = 'IN_PRODUCTION';
+            localOrd.escrowStatus = 'ESCROW_FUNDED';
+            localOrd.activeStageIndex = 2;
+            localHubFallbackOrders.set(orderId, normalizeBffOrder(localOrd));
+        }
+        return res.status(200).json({
+            ok: true,
+            orderId,
+            paymentStatus: 'CONFIRMED',
+            operationalStatus: 'READY_FOR_PRODUCTION',
+            orderStatus: 'IN_PRODUCTION'
+        });
+    });
+
+    // ---- 12. SPA Route Fallback for Dedicated B2B Portal Views (/portal/* and /order/:orderId/files) ----
     app.get(['/portal', '/portal/*', '/order/:orderId/files'], (req, res, next) => {
         const distIndex = path.join(__dirname, '..', 'dist', 'index.html');
         if (fs.existsSync(distIndex)) {

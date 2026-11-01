@@ -25,6 +25,14 @@ import {
   DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import OrderIntentDetails from './OrderIntentDetails';
+import {
+  StagePreflightSvg,
+  StageOnPressSvg,
+  StageBindingSvg,
+  StagePalletizationSvg,
+  StageInTransitSvg,
+  renderStageTimelineSvg,
+} from './portal/timeline-svgs';
 
 // ---------------------------------------------------------------------------
 // Types & Interfaces
@@ -2387,6 +2395,11 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                         {trackingData.timeline.map((stage) => {
                           const completed = stage.status === 'COMPLETED';
                           const inProgress = stage.status === 'IN_PROGRESS';
+                          const svgStatus: 'COMPLETED' | 'ACTIVE' | 'SCHEDULED' = completed
+                            ? 'COMPLETED'
+                            : inProgress
+                            ? 'ACTIVE'
+                            : 'SCHEDULED';
                           const canonicalStageTitle =
                             stage.stepNumber === 1
                               ? 'Stage 01: Preflight Approved'
@@ -2403,26 +2416,69 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                             <div
                               key={stage.stageKey}
                               className={`p-4 rounded-xl border transition-all flex flex-col justify-between ${
-                                completed
-                                  ? 'bg-[#10b981]/10 border-[#10b981]/40'
-                                  : inProgress
-                                  ? 'bg-[#dc2626]/15 border-[#dc2626]'
-                                  : 'bg-[#0a0b0d] border-[#1f2228] opacity-60'
+                                inProgress
+                                  ? 'bg-[#0f1115] border-[#dc2626] shadow-[0_0_18px_rgba(220,38,38,0.18)]'
+                                  : completed
+                                  ? 'bg-[#0f1115] border-[#10b981]/50'
+                                  : 'bg-[#0f1115] border-zinc-800'
                               }`}
                             >
                               <div>
+                                {/* Header Row: Stage Badge + Status Pill */}
                                 <div className="flex items-center justify-between text-[10px] font-technical font-black uppercase">
-                                  <span className={completed ? 'text-[#10b981]' : inProgress ? 'text-[#dc2626]' : 'text-gray-500'}>
+                                  <span
+                                    className={
+                                      completed
+                                        ? 'text-[#10b981]'
+                                        : inProgress
+                                        ? 'text-[#ef4444]'
+                                        : 'text-zinc-400'
+                                    }
+                                  >
                                     STAGE 0{stage.stepNumber}
                                   </span>
-                                  {completed && <CheckCircleIcon className="w-4 h-4 text-[#10b981]" />}
-                                  {inProgress && <ClockIcon className="w-4 h-4 text-[#dc2626] animate-spin" />}
+                                  <span
+                                    className={`px-1.5 py-0.5 rounded text-[8px] font-technical font-bold uppercase tracking-wider border ${
+                                      completed
+                                        ? 'bg-[#10b981]/10 text-[#10b981] border-[#10b981]/30'
+                                        : inProgress
+                                        ? 'bg-[#ef4444]/15 text-[#ef4444] border-[#ef4444]/40 animate-pulse'
+                                        : 'bg-zinc-900 text-zinc-500 border-zinc-800'
+                                    }`}
+                                  >
+                                    {completed ? 'VERIFIED' : inProgress ? 'ACTIVE' : 'SCHEDULED'}
+                                  </span>
                                 </div>
-                                <div className="text-xs font-bold text-white mt-2">{stage.labelEn || canonicalStageTitle}</div>
-                                <p className="text-[11px] text-gray-400 mt-1 leading-snug">{stage.description}</p>
+
+                                {/* Dedicated Technical CAD / Telemetry SVG Illustration (48x48px) */}
+                                <div
+                                  className={`my-3 py-2.5 px-3 rounded-lg border flex items-center justify-center ${
+                                    inProgress
+                                      ? 'bg-[#14171d] border-[#ef4444]/35'
+                                      : completed
+                                      ? 'bg-[#12151b] border-[#ef4444]/25'
+                                      : 'bg-[#0b0d11] border-zinc-800/80'
+                                  }`}
+                                >
+                                  {renderStageTimelineSvg(stage.stepNumber, svgStatus, 'w-12 h-12 shrink-0')}
+                                </div>
+
+                                <div className="text-xs font-bold text-white mt-1.5">
+                                  {stage.labelEn || canonicalStageTitle}
+                                </div>
+                                <p className="text-[11px] text-gray-400 mt-1 leading-snug">
+                                  {stage.description}
+                                </p>
                               </div>
-                              <div className="mt-3 pt-2 border-t border-white/10 text-[9px] font-technical text-gray-400">
-                                {stage.timestamp ? new Date(stage.timestamp).toISOString().slice(0, 16).replace('T', ' ') : 'Scheduled'}
+                              <div className="mt-3 pt-2 border-t border-white/10 flex items-center justify-between text-[9px] font-technical text-gray-400">
+                                <span>
+                                  {stage.timestamp
+                                    ? new Date(stage.timestamp).toISOString().slice(0, 16).replace('T', ' ')
+                                    : 'Scheduled'}
+                                </span>
+                                <span className="text-[8px] uppercase tracking-wider text-[#ef4444]/80">
+                                  CAD // 0{stage.stepNumber}
+                                </span>
                               </div>
                             </div>
                           );

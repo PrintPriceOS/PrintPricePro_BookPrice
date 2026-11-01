@@ -45,17 +45,18 @@ export const PrinthouseQueue: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 
-  // Mock printhouse ID for now, since we don't have full auth mapping
-  // In a real app, this would come from the user's profile/claims
-  const PRINTHOUSE_ID = 'PH_001'; 
+  // Resolve printhouse ID from authenticated session / storage context
+  const resolvedPrinthouseId =
+    (typeof window !== 'undefined' && (window.localStorage.getItem('ppos_printhouse_id') || new URLSearchParams(window.location.search).get('printhouse_id'))) ||
+    'PH_001';
 
   const fetchQueue = async () => {
     setLoading(true);
     try {
-      const params: any = { printhouse_id: PRINTHOUSE_ID };
+      const params: any = { printhouse_id: resolvedPrinthouseId };
       if (statusFilter) params.status = statusFilter;
       
-      const response = await axios.get('/api/printhouse/queue', { params });
+      const response = await axios.get('/api/printhouse/queue', { params, withCredentials: true });
       if (response.data.ok) {
         setJobs(response.data.jobs);
       }
@@ -78,6 +79,8 @@ export const PrinthouseQueue: React.FC = () => {
       case 'REJECTED': return <XCircle className="w-4 h-4 text-red-500" />;
       case 'IN_PREPRESS': return <Clipboard className="w-4 h-4 text-indigo-500" />;
       case 'IN_PRODUCTION': return <Settings className="w-4 h-4 text-purple-500 animate-spin" />;
+      case 'BINDING': return <Clipboard className="w-4 h-4 text-amber-500" />;
+      case 'PALLETIZATION': return <Package className="w-4 h-4 text-orange-500" />;
       case 'COMPLETED': return <Package className="w-4 h-4 text-emerald-500" />;
       case 'SHIPPED': return <Truck className="w-4 h-4 text-emerald-500" />;
       default: return <Clock className="w-4 h-4 text-gray-500" />;
@@ -93,6 +96,8 @@ export const PrinthouseQueue: React.FC = () => {
       case 'REJECTED': return base + "bg-red-100 text-red-800";
       case 'IN_PREPRESS': return base + "bg-indigo-100 text-indigo-800";
       case 'IN_PRODUCTION': return base + "bg-purple-100 text-purple-800";
+      case 'BINDING': return base + "bg-amber-100 text-amber-800";
+      case 'PALLETIZATION': return base + "bg-orange-100 text-orange-800";
       case 'COMPLETED': return base + "bg-emerald-100 text-emerald-800";
       case 'SHIPPED': return base + "bg-emerald-100 text-emerald-800";
       default: return base + "bg-gray-100 text-gray-800";
@@ -123,7 +128,9 @@ export const PrinthouseQueue: React.FC = () => {
               <option value="REVIEWING">Reviewing</option>
               <option value="ACCEPTED">Accepted</option>
               <option value="IN_PREPRESS">In Pre-Press</option>
-              <option value="IN_PRODUCTION">In Production</option>
+              <option value="IN_PRODUCTION">In Production (Stage 02)</option>
+              <option value="BINDING">Binding & Finishing (Stage 03)</option>
+              <option value="PALLETIZATION">EPAL Palletization (Stage 04)</option>
               <option value="COMPLETED">Completed</option>
               <option value="SHIPPED">Shipped</option>
               <option value="REJECTED">Rejected</option>

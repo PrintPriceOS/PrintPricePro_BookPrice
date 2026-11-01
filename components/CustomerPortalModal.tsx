@@ -532,6 +532,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
   const [sepaIbanInput, setSepaIbanInput] = useState<string>('ES91 2100 0418 4502 0005 1332');
   const [processingCheckout, setProcessingCheckout] = useState<boolean>(false);
   const [checkoutSessionData, setCheckoutSessionData] = useState<any | null>(null);
+  const [wireProofFile, setWireProofFile] = useState<File | null>(null);
   const [wireProofFileName, setWireProofFileName] = useState<string>('');
   const [wireBankReference, setWireBankReference] = useState<string>('');
   const [uploadingWireProof, setUploadingWireProof] = useState<boolean>(false);
@@ -977,20 +978,38 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
 
       if (method === 'STRIPE_CARD' || method === 'STRIPE_SEPA') {
         const updatedOrderId = selectedOrderForPayment.orderId;
-        setOrders((prev) =>
-          prev.map((o) =>
-            o.orderId === updatedOrderId
-              ? { ...o, paymentStatus: 'PAID', status: 'IN_PRODUCTION', paymentMethod: method }
-              : o
-          )
+        const webhookRes = await fetch(
+          `/api/marketplace/orders/${encodeURIComponent(updatedOrderId)}/payment/webhook`,
+          {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              stripePaymentIntentId: data?.sessionId || data?.payment?.stripePaymentIntentId || `pi_${Date.now()}`,
+              paymentMethod: method,
+              confirmedBy: 'STRIPE_CHECKOUT_WEBHOOK',
+            }),
+          }
         );
-        setSelectedOrderForPayment((prev) =>
-          prev ? { ...prev, paymentStatus: 'PAID', status: 'IN_PRODUCTION', paymentMethod: method } : null
-        );
-        notify(
-          `Payment confirmed via ${method === 'STRIPE_SEPA' ? 'SEPA B2B Direct Debit' : 'Stripe Corporate Card'}. Order released to press.`,
-          'success'
-        );
+        const webhookData = await webhookRes.json().catch(() => ({}));
+        if (webhookRes.ok && webhookData.ok !== false) {
+          setOrders((prev) =>
+            prev.map((o) =>
+              o.orderId === updatedOrderId
+                ? { ...o, paymentStatus: 'PAID', status: 'IN_PRODUCTION', paymentMethod: method }
+                : o
+            )
+          );
+          setSelectedOrderForPayment((prev) =>
+            prev ? { ...prev, paymentStatus: 'PAID', status: 'IN_PRODUCTION', paymentMethod: method } : null
+          );
+          notify(
+            `Payment confirmed and persisted in MySQL via ${method === 'STRIPE_SEPA' ? 'SEPA B2B Direct Debit' : 'Stripe Corporate Card'}. Order released to press.`,
+            'success'
+          );
+        } else {
+          notify(webhookData?.error || 'Payment authorization pending webhook confirmation.', 'error');
+        }
       } else {
         notify(
           `B2B wire instructions generated with reconciliation code ${data?.bankTransferInstructions?.referenceCode || selectedOrderForPayment.reconciliationCode}.`,
@@ -1009,19 +1028,22 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
     if (!selectedOrderForPayment) return;
     setUploadingWireProof(true);
     try {
+      const formData = new FormData();
+      if (wireProofFile) {
+        formData.append('file', wireProofFile);
+      }
+      formData.append('originalName', wireProofFileName || wireProofFile?.name || `wire_proof_${selectedOrderForPayment.orderId}.pdf`);
+      formData.append('reference', wireBankReference || selectedOrderForPayment.reconciliationCode || '');
+      formData.append('reconciliationCode', selectedOrderForPayment.reconciliationCode || '');
+      formData.append('amountEur', String(selectedOrderForPayment.totalPriceEur || selectedOrderForPayment.offer_price || 0));
+      formData.append('uploadedByEmail', userEmail || fiscalProfile.billingEmail || '');
+
       const res = await fetch(
         `/api/marketplace/orders/${encodeURIComponent(selectedOrderForPayment.orderId)}/payment/wire-proof`,
         {
           method: 'POST',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fileName: wireProofFileName || `wire_proof_${selectedOrderForPayment.orderId}.pdf`,
-            bankReference: wireBankReference || selectedOrderForPayment.reconciliationCode,
-            reconciliationCode: selectedOrderForPayment.reconciliationCode,
-            amountEur: selectedOrderForPayment.totalPriceEur || selectedOrderForPayment.offer_price,
-            uploadedByEmail: userEmail || fiscalProfile.billingEmail,
-          }),
+          body: formData,
         }
       );
       const data = await res.json();
@@ -1041,6 +1063,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
           `Wire proof registered (${data.proofId || 'PRF-OK'}). Production unlocked in priority mode.`,
           'success'
         );
+        setWireProofFile(null);
         setWireProofFileName('');
         setWireBankReference('');
       } else {
@@ -2277,7 +2300,10 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                                 accept=".pdf,.png,.jpg,.jpeg"
                                 onChange={(e) => {
                                   const f = e.target.files?.[0];
-                                  if (f) setWireProofFileName(f.name);
+                                  if (f) {
+                                    setWireProofFile(f);
+                                    setWireProofFileName(f.name);
+                                  }
                                 }}
                                 className="w-full text-xs text-zinc-700 dark:text-zinc-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-technical file:font-bold file:uppercase file:bg-zinc-200 dark:file:bg-[#14161a] file:text-zinc-900 dark:file:text-white hover:file:bg-[#dc2626] hover:file:text-white cursor-pointer"
                               />

@@ -274,9 +274,29 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
             <section>
               <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-100 mb-3 flex items-center gap-2">
                 <Download className="w-4 h-4 text-emerald-500" />
-                Production Assets
+                Production Assets & Logistics Labels
               </h3>
               <div className="space-y-2">
+                <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-[#0a0b0d] border border-slate-200 dark:border-zinc-800 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 rounded-lg">
+                      <Package className="w-4 h-4" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-slate-700 dark:text-zinc-200">GS1-128 SSCC-18 Pallet Label (DIN A6)</span>
+                      <span className="text-[10px] text-slate-400 uppercase">OFFICIAL EPAL LOGISTICS LABEL • PDF</span>
+                    </div>
+                  </div>
+                  <a
+                    href={`/api/logistics/shipments/${encodeURIComponent(job.control_plane_order_ref || job.public_ref || job.package_id)}/labels/sscc-pdf`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    SSCC PDF
+                  </a>
+                </div>
                 {job.files?.map((f: any) => (
                   <div key={f.file_id} className="flex items-center justify-between p-3 bg-white dark:bg-[#12141a] border border-slate-200 dark:border-zinc-800 dark:border-zinc-800 rounded-xl hover:shadow-md transition-shadow">
                     <div className="flex items-center gap-3">
@@ -417,9 +437,43 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
           )}
 
           {currentStatus === 'IN_PRODUCTION' && (
+            <>
+              <ActionButton 
+                targetStatus="BINDING" 
+                label="Start Binding & Trimming (Stage 03)" 
+                icon={Clipboard} 
+                colorClass="bg-amber-600 text-white hover:bg-amber-700" 
+              />
+              <ActionButton 
+                targetStatus="COMPLETED" 
+                label="Mark Completed" 
+                icon={CheckCircle} 
+                colorClass="bg-emerald-600 text-white hover:bg-emerald-700" 
+              />
+            </>
+          )}
+
+          {currentStatus === 'BINDING' && (
+            <>
+              <ActionButton 
+                targetStatus="PALLETIZATION" 
+                label="EPAL Palletization (Stage 04)" 
+                icon={Package} 
+                colorClass="bg-orange-600 text-white hover:bg-orange-700" 
+              />
+              <ActionButton 
+                targetStatus="COMPLETED" 
+                label="Mark Completed" 
+                icon={CheckCircle} 
+                colorClass="bg-emerald-600 text-white hover:bg-emerald-700" 
+              />
+            </>
+          )}
+
+          {currentStatus === 'PALLETIZATION' && (
             <ActionButton 
               targetStatus="COMPLETED" 
-              label="Mark Completed" 
+              label="Finalize EPAL Load & Complete" 
               icon={CheckCircle} 
               colorClass="bg-emerald-600 text-white hover:bg-emerald-700" 
             />

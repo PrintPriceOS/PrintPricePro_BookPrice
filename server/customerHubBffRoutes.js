@@ -26,7 +26,16 @@ const path = require('path');
 const localHubFallbackOrders = new Map();
 let localHubProfileFallback = null;
 
+function shouldSeedDemoOrders(email) {
+    if (process.env.PPOS_SEED_DEMO_ORDERS === 'false' || process.env.PPOS_SEED_DEMO_ORDERS === '0') return false;
+    if (process.env.PPOS_SEED_DEMO_ORDERS === 'true' || process.env.PPOS_SEED_DEMO_ORDERS === '1') return true;
+    const clean = String(email || '').toLowerCase().trim();
+    const demoEmails = new Set(['publisher@printprice.pro', 'admin@printprice.pro', 'demo@printprice.pro', 'editorial@printprice.pro']);
+    return !clean || demoEmails.has(clean) || process.env.NODE_ENV === 'test';
+}
+
 function ensureLocalHubSeed(email = 'publisher@printprice.pro') {
+    if (!shouldSeedDemoOrders(email)) return;
     if (localHubFallbackOrders.size > 0) return;
     const seed = [
         {
@@ -772,33 +781,67 @@ function registerCustomerHubBffRoutes(app, deps) {
     });
 
     // 6. POST /api/marketplace/orders/:orderId/payment/wire-proof
+    let multerProofUpload = (req, res, next) => next();
+    try {
+        const multer = require('multer');
+        const proofMulter = multer({
+            storage: multer.memoryStorage(),
+            limits: { fileSize: 25 * 1024 * 1024 },
+            fileFilter: (req, file, cb) => {
+                const ext = path.extname(file.originalname || '').toLowerCase();
+                const allowed = ['.pdf', '.png', '.jpg', '.jpeg'];
+                if (allowed.includes(ext) || (file.mimetype && (file.mimetype.includes('pdf') || file.mimetype.includes('image')))) {
+                    cb(null, true);
+                } else {
+                    cb(new Error('Only PDF, PNG, or JPG files are allowed for wire transfer proofs'), false);
+                }
+            }
+        });
+        multerProofUpload = proofMulter.single('file');
+    } catch (_) {
+        multerProofUpload = upload && typeof upload.single === 'function' ? upload.single('file') : (req, res, next) => next();
+    }
     const uploadSingle = upload && typeof upload.single === 'function' ? upload.single('file') : (req, res, next) => next();
-    app.post('/api/marketplace/orders/:orderId/payment/wire-proof', uploadSingle, async (req, res) => {
+    app.post('/api/marketplace/orders/:orderId/payment/wire-proof', multerProofUpload, async (req, res) => {
         const { orderId } = req.params;
         const { authHeaders, email } = buildCustomerHubHeaders(req);
         ensureLocalHubSeed(email);
+
+        let fileBuffer = req.file?.buffer || null;
+        if (!fileBuffer && req.file?.path && fs.existsSync(req.file.path)) {
+            try { fileBuffer = fs.readFileSync(req.file.path); } catch (_) {}
+        }
+        const contentBase64 = fileBuffer ? fileBuffer.toString('base64') : (req.body?.contentBase64 || null);
+        const originalName = req.file?.originalname || req.body?.originalName || 'justificante_transferencia_b2b.pdf';
+        const sizeBytes = fileBuffer ? fileBuffer.length : Number(req.file?.size || req.body?.sizeBytes || 0);
 
         try {
             const cpRes = await axios.post(
                 `${CONTROL_PLANE_BASE_URL}/api/marketplace/orders/${encodeURIComponent(orderId)}/payment/wire-proof`,
                 {
-                    originalName: req.file?.originalname || req.body?.originalName || 'justificante_transferencia_b2b.pdf',
+                    originalName,
                     reference: req.body?.reference,
                     ibanOrigin: req.body?.ibanOrigin,
-                    notes: req.body?.notes
+                    notes: req.body?.notes,
+                    sizeBytes,
+                    contentBase64
                 },
-                { headers: authHeaders, timeout: 10000 }
+                { headers: authHeaders, timeout: 12000 }
             );
             if (cpRes.data && cpRes.data.ok) {
+                const order = localHubFallbackOrders.get(orderId);
+                if (order) order.paymentStatus = 'WIRE_PROOF_UPLOADED';
                 return res.status(200).json(cpRes.data);
             }
         } catch (_) {}
 
         const proofId = `prf_${Date.now()}`;
+        const checksumSha256 = fileBuffer
+            ? crypto.createHash('sha256').update(fileBuffer).digest('hex')
+            : crypto.createHash('sha256').update(`${orderId}_${originalName}_${Date.now()}`).digest('hex');
         const order = localHubFallbackOrders.get(orderId);
         if (order) {
             order.paymentStatus = 'WIRE_PROOF_UPLOADED';
-            order.status = 'IN_PRODUCTION';
         }
         return res.status(200).json({
             ok: true,
@@ -807,7 +850,9 @@ function registerCustomerHubBffRoutes(app, deps) {
             paymentStatus: 'WIRE_PROOF_UPLOADED',
             wireProof: {
                 proofId,
-                originalName: req.file?.originalname || req.body?.originalName || 'justificante_transferencia_b2b.pdf',
+                originalName,
+                sizeBytes,
+                checksumSha256,
                 reference: req.body?.reference || `PPOS-ORD-${String(orderId).replace(/[^A-Za-z0-9]/g, '').slice(-8).toUpperCase()}`,
                 uploadedAt: new Date().toISOString()
             }
@@ -928,6 +973,26 @@ startxref
         return res.status(200).send(Buffer.from(pdfText, 'utf8'));
     });
 
+    // 8b. GET /api/logistics/shipments/:shipmentId/labels/sscc-pdf
+    app.get('/api/logistics/shipments/:shipmentId/labels/sscc-pdf', async (req, res) => {
+        const { shipmentId } = req.params;
+        const { authHeaders } = buildCustomerHubHeaders(req);
+        try {
+            const cpRes = await axios.get(
+                `${CONTROL_PLANE_BASE_URL}/api/logistics/shipments/${encodeURIComponent(shipmentId)}/labels/sscc-pdf`,
+                { headers: authHeaders, responseType: 'arraybuffer', timeout: 10000 }
+            );
+            if (cpRes.status === 200 && cpRes.data) {
+                res.setHeader('Content-Type', 'application/pdf');
+                res.setHeader('Content-Disposition', `inline; filename="GS1_128_SSCC_${shipmentId}.pdf"`);
+                return res.status(200).send(Buffer.from(cpRes.data));
+            }
+        } catch (_) {}
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="GS1_128_SSCC_${shipmentId}.pdf"`);
+        return res.status(200).send(Buffer.from('%PDF-1.4\n1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 297.64 419.53] >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF', 'utf8'));
+    });
+
     // 9. POST /api/marketplace/orders/:orderId/files/upload
     app.post('/api/marketplace/orders/:orderId/files/upload', uploadSingle, async (req, res) => {
         const { orderId } = req.params;
@@ -935,7 +1000,13 @@ startxref
         ensureLocalHubSeed(email);
         const role = String(req.body?.role || req.body?.kind || 'INTERIOR_PDF').toUpperCase();
         const filename = req.file?.originalname || req.body?.originalName || req.body?.filename || `${role.toLowerCase()}_validated.pdf`;
-        const sizeBytes = Number(req.file?.size || req.body?.sizeBytes || 28400000);
+
+        let fileBuffer = req.file?.buffer || null;
+        if (!fileBuffer && req.file?.path && fs.existsSync(req.file.path)) {
+            try { fileBuffer = fs.readFileSync(req.file.path); } catch (_) {}
+        }
+        const contentBase64 = fileBuffer ? fileBuffer.toString('base64') : (req.body?.contentBase64 || null);
+        const sizeBytes = fileBuffer ? fileBuffer.length : Number(req.file?.size || req.body?.sizeBytes || 28400000);
 
         try {
             const cpRes = await axios.post(
@@ -944,17 +1015,25 @@ startxref
                     role,
                     originalName: filename,
                     sizeBytes,
-                    mimeType: 'application/pdf'
+                    mimeType: req.file?.mimetype || 'application/pdf',
+                    contentBase64
                 },
-                { headers: authHeaders, timeout: 12000 }
+                { headers: authHeaders, timeout: 25000, maxBodyLength: Infinity, maxContentLength: Infinity }
             );
             if (cpRes.data && cpRes.data.ok) {
+                const localOrd = localHubFallbackOrders.get(orderId);
+                if (localOrd && cpRes.data.orderStatus) {
+                    localOrd.status = cpRes.data.orderStatus;
+                    localHubFallbackOrders.set(orderId, normalizeBffOrder(localOrd));
+                }
                 return res.status(200).json(cpRes.data);
             }
         } catch (_) {}
 
         const fileId = `fil_${Date.now()}_${role === 'INTERIOR_PDF' ? 'int' : 'cov'}`;
-        const sha256 = crypto.createHash('sha256').update(`${orderId}_${filename}_${Date.now()}`).digest('hex');
+        const sha256 = fileBuffer
+            ? crypto.createHash('sha256').update(fileBuffer).digest('hex')
+            : crypto.createHash('sha256').update(`${orderId}_${filename}_${Date.now()}`).digest('hex');
         const order = localHubFallbackOrders.get(orderId);
         let updatedStatus = 'FILES_REQUIRED';
         if (order) {

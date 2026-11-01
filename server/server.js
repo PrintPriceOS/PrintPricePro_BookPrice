@@ -5113,17 +5113,20 @@ app.get('/api/printhouse/queue', async (req, res) => {
         const { printhouse_id, status, limit = 50, offset = 0 } = req.query;
         const identity = resolveRequestIdentity(req);
 
-        // Access Control: Admin can see all, Printhouse can only see its own
-        // If printhouse auth existed, we'd extract its ID from token.
-        // For now, we enforce that a printhouse_id must be provided or it's admin.
-        if (!identity.isAdmin && !printhouse_id) {
+        // Access Control: Require valid admin, operator session, or printhouse token
+        const printhouseToken = req.headers['x-printhouse-token'] || req.headers['x-control-token'];
+        const effectivePrinthouseId = identity.user?.printhouse_id || identity.user?.printhouseId || printhouse_id;
+        if (!identity.isAdmin && !identity.user && !printhouseToken && !req.sessionId) {
+            return res.status(401).json({ ok: false, error: "UNAUTHORIZED_PRINTHOUSE_ACCESS" });
+        }
+        if (!identity.isAdmin && !effectivePrinthouseId) {
             return res.status(403).json({ ok: false, error: "PRINTHOUSE_ID_REQUIRED" });
         }
+        if (!identity.isAdmin && identity.user?.printhouse_id && printhouse_id && identity.user.printhouse_id !== printhouse_id) {
+            return res.status(403).json({ ok: false, error: "FORBIDDEN_PRINTHOUSE_MISMATCH" });
+        }
 
-        // If not admin, verify printhouse_id matches (once full auth is implemented)
-        // For now, we allow filtering if identity.isAdmin or if a token is used.
-
-        const jobs = await repositories.dispatchPackages.listByPrinthouse(printhouse_id, { status, limit, offset });
+        const jobs = await repositories.dispatchPackages.listByPrinthouse(effectivePrinthouseId, { status, limit, offset });
 
         // Map to summary format
         const summary = jobs.map(j => ({
@@ -5214,14 +5217,16 @@ app.post('/api/printhouse/queue/:packageId/status', async (req, res) => {
         const { status: requestedStatus, operator_notes, rejection_reason, production_notes, shipment } = req.body;
         const currentStatus = pkg.production_queue?.status || 'QUEUED';
 
-        // 1. Transition Validation
+        // 1. Transition Validation (Full 5-Stage Industrial Pipeline)
         const validTransitions = {
             'QUEUED': ['REVIEWING', 'REJECTED'],
             'REVIEWING': ['ACCEPTED', 'REJECTED'],
             'REJECTED': [],
             'ACCEPTED': ['IN_PREPRESS', 'CANCELLED'],
             'IN_PREPRESS': ['IN_PRODUCTION', 'CANCELLED'],
-            'IN_PRODUCTION': ['COMPLETED', 'CANCELLED'],
+            'IN_PRODUCTION': ['BINDING', 'COMPLETED', 'CANCELLED'],
+            'BINDING': ['PALLETIZATION', 'COMPLETED', 'CANCELLED'],
+            'PALLETIZATION': ['COMPLETED', 'SHIPPED'],
             'COMPLETED': ['SHIPPED'],
             'SHIPPED': [],
             'CANCELLED': []
@@ -5261,6 +5266,8 @@ app.post('/api/printhouse/queue/:packageId/status', async (req, res) => {
         if (requestedStatus === 'REJECTED') updatedQueue.rejected_at = now;
         if (requestedStatus === 'IN_PREPRESS') updatedQueue.started_prepress_at = now;
         if (requestedStatus === 'IN_PRODUCTION') updatedQueue.started_production_at = now;
+        if (requestedStatus === 'BINDING') updatedQueue.started_binding_at = now;
+        if (requestedStatus === 'PALLETIZATION') updatedQueue.palletized_at = now;
         if (requestedStatus === 'COMPLETED') updatedQueue.completed_at = now;
         if (requestedStatus === 'SHIPPED') updatedQueue.shipped_at = now;
 

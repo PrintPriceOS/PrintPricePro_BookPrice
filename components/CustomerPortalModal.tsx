@@ -23,9 +23,11 @@ import {
   ArrowLeftIcon,
   LinkIcon,
   DocumentTextIcon,
+  ChartBarSquareIcon,
 } from '@heroicons/react/24/outline';
 import OrderIntentDetails from './OrderIntentDetails';
 import BookSoftProofViewer3D, { SoftProofBookGeometry } from './BookSoftProofViewer3D';
+import OperationsTelemetryDashboard from './OperationsTelemetryDashboard';
 import {
   StagePreflightSvg,
   StageOnPressSvg,
@@ -43,7 +45,8 @@ export type PortalTabId =
   | 'INVOICES_PAYMENTS'
   | 'LIVE_LOGISTICS'
   | 'SHIPPING_LOGISTICS'
-  | 'FISCAL_BILLING';
+  | 'FISCAL_BILLING'
+  | 'OPERATIONS_TELEMETRY';
 
 export type ReprintPurposeId =
   | 'STRAIGHT_REPRINT'
@@ -239,6 +242,7 @@ export const PORTAL_TAB_ROUTES: Record<PortalTabId, string> = {
   LIVE_LOGISTICS: '/portal/tracking',
   SHIPPING_LOGISTICS: '/portal/shipping',
   FISCAL_BILLING: '/portal/fiscal',
+  OPERATIONS_TELEMETRY: '/portal/telemetry',
 };
 
 export function resolvePortalRouteFromPathname(pathname: string): {
@@ -274,6 +278,9 @@ export function resolvePortalRouteFromPathname(pathname: string): {
   }
   if (/^\/portal\/fiscal\/?$/i.test(clean)) {
     return { isPortalRoute: true, tab: 'FISCAL_BILLING', trackingOrderId: null, assetIntakeOrderId: null };
+  }
+  if (/^\/portal\/(?:telemetry|operations)\/?$/i.test(clean)) {
+    return { isPortalRoute: true, tab: 'OPERATIONS_TELEMETRY', trackingOrderId: null, assetIntakeOrderId: null };
   }
   if (/^\/portal(?:\/orders)?\/?$/i.test(clean)) {
     return { isPortalRoute: true, tab: 'ORDERS_REPRINTS', trackingOrderId: null, assetIntakeOrderId: null };
@@ -1400,6 +1407,13 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
       label: 'FISCAL & BILLING DATA',
       badge: vatValidation.valid ? 'VIES OK' : 'Review VAT',
       icon: <BuildingOffice2Icon className="w-4 h-4" />,
+    },
+    {
+      id: 'OPERATIONS_TELEMETRY',
+      route: '/portal/telemetry',
+      label: 'PLANT & ESCROW TELEMETRY',
+      badge: 'LIVE KPIs',
+      icon: <ChartBarSquareIcon className="w-4 h-4" />,
     },
   ];
 
@@ -3324,6 +3338,20 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                   </div>
                 </form>
               </div>
+            )}
+
+            {/* ===================================================================
+                TAB 6: PLANT & ESCROW TELEMETRY (/portal/telemetry)
+               =================================================================== */}
+            {activeTab === 'OPERATIONS_TELEMETRY' && (
+              <OperationsTelemetryDashboard
+                userEmail={userEmail || fiscalProfile.billingEmail}
+                userId={userId}
+                onSelectOrderForTracking={(orderId) => {
+                  setSelectedOrderForTracking(orderId);
+                  navigateTabWithUrl('LIVE_LOGISTICS', orderId);
+                }}
+              />
             )}
           </>
         )}

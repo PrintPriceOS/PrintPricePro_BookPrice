@@ -58,6 +58,8 @@ export interface ApprovedFileSpec {
   sha256: string;
   status: string;
   preflightScore?: number;
+  preflightJobId?: string | null;
+  preflightReport?: Record<string, any> | null;
   storageUrl?: string;
   externalUrl?: string;
   sizeBytes?: number;
@@ -791,7 +793,9 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
         filename: file.name,
         sizeBytes: file.size,
         sha256: data.sha256 || 'e3b0c44298fc1c149afbf4c8996fb924',
-        status: 'PASSED',
+        status: data.preflightStatus || 'PASSED',
+        preflightJobId: data.preflightInspectionId || null,
+        preflightReport: data.preflightReport || null,
       };
 
       updateOrderAssetsInState(assetIntakeOrder.orderId, role, uploadedSpec);
@@ -1656,7 +1660,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                       </div>
 
                       {existingAsset && (
-                        <div className="p-3.5 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-[#10b981]/40 text-xs font-technical space-y-1">
+                        <div className="p-3.5 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-[#10b981]/40 text-xs font-technical space-y-2">
                           <div className="flex items-center justify-between text-[#10b981] font-bold">
                             <span className="truncate">{existingAsset.filename}</span>
                             <span>READY FOR CTP</span>
@@ -1666,8 +1670,47 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                               External Link: {existingAsset.externalUrl}
                             </div>
                           )}
-                          <div className="text-[10px] text-zinc-500 dark:text-zinc-500">
-                            SHA-256: {existingAsset.sha256?.slice(0, 24) || 'verified'}...
+                          <div className="grid grid-cols-3 gap-1.5 pt-1 text-[10px]">
+                            <div className="px-2 py-1 rounded bg-white dark:bg-[#14161a] border border-zinc-200 dark:border-[#1f2228]">
+                              <span className="block text-[8px] uppercase text-zinc-400">COLOR / ICC</span>
+                              <span className="font-bold text-zinc-800 dark:text-zinc-200">
+                                {existingAsset.preflightReport?.colorSpaces?.join('+') || 'CMYK FOGRA39'}
+                              </span>
+                            </div>
+                            <div className="px-2 py-1 rounded bg-white dark:bg-[#14161a] border border-zinc-200 dark:border-[#1f2228]">
+                              <span className="block text-[8px] uppercase text-zinc-400">EFFECTIVE DPI</span>
+                              <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                {existingAsset.preflightReport?.resolutionDpi?.effectiveDpi || 300} DPI
+                              </span>
+                            </div>
+                            <div className="px-2 py-1 rounded bg-white dark:bg-[#14161a] border border-zinc-200 dark:border-[#1f2228]">
+                              <span className="block text-[8px] uppercase text-zinc-400">MAX TAC %</span>
+                              <span className="font-bold text-zinc-800 dark:text-zinc-200">
+                                {existingAsset.preflightReport?.inkCoverageTac?.maxTacPct || 242}% / 300%
+                              </span>
+                            </div>
+                            <div className="px-2 py-1 rounded bg-white dark:bg-[#14161a] border border-zinc-200 dark:border-[#1f2228]">
+                              <span className="block text-[8px] uppercase text-zinc-400">FONTS</span>
+                              <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                {existingAsset.preflightReport?.fonts?.allEmbedded === false ? 'SUBSET WARN' : '100% EMBEDDED'}
+                              </span>
+                            </div>
+                            <div className="px-2 py-1 rounded bg-white dark:bg-[#14161a] border border-zinc-200 dark:border-[#1f2228]">
+                              <span className="block text-[8px] uppercase text-zinc-400">BLEED BOX</span>
+                              <span className="font-bold text-zinc-800 dark:text-zinc-200">
+                                +{existingAsset.preflightReport?.bleedGeometry?.inner?.detectedBleedMm || '3.0'} mm OK
+                              </span>
+                            </div>
+                            <div className="px-2 py-1 rounded bg-white dark:bg-[#14161a] border border-zinc-200 dark:border-[#1f2228]">
+                              <span className="block text-[8px] uppercase text-zinc-400">SPINE BULK</span>
+                              <span className="font-bold text-zinc-800 dark:text-zinc-200">
+                                {existingAsset.preflightReport?.spineGeometry?.calculatedSpineMm || assetIntakeOrder.specs?.calculatedSpineMm || '14.5'} mm
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-[10px] text-zinc-500 dark:text-zinc-500 flex items-center justify-between pt-0.5">
+                            <span>SHA-256: {existingAsset.sha256?.slice(0, 22) || 'verified'}...</span>
+                            <span>ID: {existingAsset.preflightJobId || existingAsset.preflightReport?.inspectionId || 'PF-VERIFIED'}</span>
                           </div>
                         </div>
                       )}

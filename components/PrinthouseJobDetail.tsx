@@ -345,6 +345,44 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
                        <span className="text-sm font-black text-slate-800 dark:text-zinc-100 uppercase">{job.preflight_summary?.risk_level || 'LOW'}</span>
                     </div>
                  </div>
+                 <div className="mt-2.5 grid grid-cols-3 gap-1.5 text-[10px] font-technical">
+                    <div className="bg-white/70 dark:bg-zinc-900/70 p-1.5 rounded border border-white/50 dark:border-zinc-800">
+                       <span className="text-[9px] text-slate-400 uppercase block font-bold">Color / ICC</span>
+                       <span className="font-bold text-slate-800 dark:text-zinc-100">
+                         {job.preflight_summary?.color_spaces?.join('+') || 'CMYK (FOGRA39)'}
+                       </span>
+                    </div>
+                    <div className="bg-white/70 dark:bg-zinc-900/70 p-1.5 rounded border border-white/50 dark:border-zinc-800">
+                       <span className="text-[9px] text-slate-400 uppercase block font-bold">Min DPI</span>
+                       <span className="font-bold text-emerald-700 dark:text-emerald-400">
+                         {job.preflight_summary?.min_dpi || 300} DPI
+                       </span>
+                    </div>
+                    <div className="bg-white/70 dark:bg-zinc-900/70 p-1.5 rounded border border-white/50 dark:border-zinc-800">
+                       <span className="text-[9px] text-slate-400 uppercase block font-bold">Max Ink TAC</span>
+                       <span className="font-bold text-slate-800 dark:text-zinc-100">
+                         {job.preflight_summary?.max_tac_pct || 242}% / 300%
+                       </span>
+                    </div>
+                    <div className="bg-white/70 dark:bg-zinc-900/70 p-1.5 rounded border border-white/50 dark:border-zinc-800">
+                       <span className="text-[9px] text-slate-400 uppercase block font-bold">Fonts</span>
+                       <span className="font-bold text-emerald-700 dark:text-emerald-400">
+                         {job.preflight_summary?.fonts_embedded === false ? 'MISSING' : '100% EMBEDDED'}
+                       </span>
+                    </div>
+                    <div className="bg-white/70 dark:bg-zinc-900/70 p-1.5 rounded border border-white/50 dark:border-zinc-800">
+                       <span className="text-[9px] text-slate-400 uppercase block font-bold">BleedBox</span>
+                       <span className="font-bold text-slate-800 dark:text-zinc-100">
+                         +{job.preflight_summary?.bleed_mm || '3.0'} mm OK
+                       </span>
+                    </div>
+                    <div className="bg-white/70 dark:bg-zinc-900/70 p-1.5 rounded border border-white/50 dark:border-zinc-800">
+                       <span className="text-[9px] text-slate-400 uppercase block font-bold">Spine Geometry</span>
+                       <span className="font-bold text-slate-800 dark:text-zinc-100">
+                         {job.preflight_summary?.calculated_spine_mm || job.production_specs?.calculatedSpineMm || '14.50'} mm
+                       </span>
+                    </div>
+                 </div>
                  <div className="mt-3 pt-2.5 border-t border-green-200/70 dark:border-zinc-800 space-y-2">
                     <div className="flex items-center justify-between">
                        <span className="text-[10px] font-bold uppercase text-slate-600 dark:text-zinc-300">

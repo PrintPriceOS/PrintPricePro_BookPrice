@@ -282,9 +282,45 @@ const App: React.FC = () => {
   }, [isDark]);
 
   const [bookPricePayload, setBookPricePayload] =
-    useState<InitialBookPricePayload>(INITIAL_BOOK_PRICE_PAYLOAD);
+    useState<InitialBookPricePayload>(() => {
+      if (typeof window !== 'undefined') {
+        try {
+          const cached = sessionStorage.getItem('ppos_draft_book_specs_v1');
+          if (cached) {
+            return { ...INITIAL_BOOK_PRICE_PAYLOAD, ...JSON.parse(cached) };
+          }
+        } catch {}
+      }
+      return INITIAL_BOOK_PRICE_PAYLOAD;
+    });
 
-  const [offers, setOffers] = useState<BookPriceResponse | null>(null);
+  const [offers, setOffers] = useState<BookPriceResponse | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cachedOffers = sessionStorage.getItem('ppos_draft_book_offers_v1');
+        if (cachedOffers) {
+          return JSON.parse(cachedOffers);
+        }
+      } catch {}
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('ppos_draft_book_specs_v1', JSON.stringify(bookPricePayload));
+    } catch {}
+  }, [bookPricePayload]);
+
+  useEffect(() => {
+    try {
+      if (offers) {
+        sessionStorage.setItem('ppos_draft_book_offers_v1', JSON.stringify(offers));
+      } else {
+        sessionStorage.removeItem('ppos_draft_book_offers_v1');
+      }
+    } catch {}
+  }, [offers]);
   const [isSpecsStale, setIsSpecsStale] = useState<boolean>(false);
   const [spineResult, setSpineResult] = useState<SpineCalculationResult | null>(null);
   const [spineStatus, setSpineStatus] = useState<SpinePanelStatus>('CALIPER_VERIFICATION_REQUIRED');

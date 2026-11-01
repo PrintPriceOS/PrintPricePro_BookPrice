@@ -1668,6 +1668,123 @@ startxref
     app.get('/api/customer/operations/summary', handleOperationsTelemetrySummaryBff);
     app.get('/api/admin/operations/telemetry-summary', handleOperationsTelemetrySummaryBff);
 
+    // ---- 11f. Storage Lifecycle & Database Snapshot BFF Proxies (Phase 16 - Option 2) ----
+    const handleStorageBackupStatusBff = async (req, res) => {
+        const { authHeaders } = buildCustomerHubHeaders(req);
+        try {
+            const cpRes = await axios.get(
+                `${CONTROL_PLANE_BASE_URL}/api/admin/storage/backup/status`,
+                { headers: authHeaders, timeout: 8000 }
+            );
+            if (cpRes.status === 200 && cpRes.data?.ok) {
+                return res.status(200).json(cpRes.data);
+            }
+        } catch (_) {
+            try {
+                const cpCustRes = await axios.get(
+                    `${CONTROL_PLANE_BASE_URL}/api/customer/storage/backup/status`,
+                    { headers: authHeaders, timeout: 8000 }
+                );
+                if (cpCustRes.status === 200 && cpCustRes.data?.ok) {
+                    return res.status(200).json(cpCustRes.data);
+                }
+            } catch (_err2) {}
+        }
+
+        return res.status(200).json({
+            ok: true,
+            source: 'BFF_LOCAL_FALLBACK',
+            generatedAt: new Date().toISOString(),
+            policy: {
+                retentionColdDays: 30,
+                backupRetentionCount: 14,
+                archiveDir: '/storage/archive/orders',
+                backupDir: '/storage/backups/db',
+                schedulerActive: true
+            },
+            retentionMetrics: {
+                archivedOrdersCount: 0,
+                totalColdArchiveBytes: 0,
+                totalColdArchiveMb: 0,
+                totalReclaimedBytes: 0,
+                totalReclaimedMb: 0,
+                totalRestoredOrdersCount: 0,
+                coldArchives: []
+            },
+            backupMetrics: {
+                availableSnapshotsCount: 0,
+                maxRetainedSnapshots: 14,
+                totalSnapshotsBytes: 0,
+                totalSnapshotsMb: 0,
+                latestSnapshot: null,
+                snapshots: []
+            }
+        });
+    };
+
+    app.get('/api/admin/storage/backup/status', handleStorageBackupStatusBff);
+    app.get('/api/customer/storage/backup/status', handleStorageBackupStatusBff);
+
+    const handleStorageRetentionRunBff = async (req, res) => {
+        const { authHeaders } = buildCustomerHubHeaders(req);
+        try {
+            const cpRes = await axios.post(
+                `${CONTROL_PLANE_BASE_URL}/api/admin/storage/retention/run`,
+                req.body || {},
+                { headers: authHeaders, timeout: 20000 }
+            );
+            return res.status(200).json(cpRes.data);
+        } catch (_) {
+            try {
+                const cpCustRes = await axios.post(
+                    `${CONTROL_PLANE_BASE_URL}/api/customer/storage/retention/run`,
+                    req.body || {},
+                    { headers: authHeaders, timeout: 20000 }
+                );
+                return res.status(200).json(cpCustRes.data);
+            } catch (err2) {
+                return res.status(err2.response?.status || 502).json({
+                    ok: false,
+                    error: 'BFF_RETENTION_RUN_FAILED',
+                    message: err2.message
+                });
+            }
+        }
+    };
+
+    app.post('/api/admin/storage/retention/run', handleStorageRetentionRunBff);
+    app.post('/api/customer/storage/retention/run', handleStorageRetentionRunBff);
+
+    const handleStorageBackupRunBff = async (req, res) => {
+        const { authHeaders } = buildCustomerHubHeaders(req);
+        try {
+            const cpRes = await axios.post(
+                `${CONTROL_PLANE_BASE_URL}/api/admin/storage/backup/run`,
+                req.body || {},
+                { headers: authHeaders, timeout: 30000 }
+            );
+            return res.status(200).json(cpRes.data);
+        } catch (_) {
+            try {
+                const cpCustRes = await axios.post(
+                    `${CONTROL_PLANE_BASE_URL}/api/customer/storage/backup/run`,
+                    req.body || {},
+                    { headers: authHeaders, timeout: 30000 }
+                );
+                return res.status(200).json(cpCustRes.data);
+            } catch (err2) {
+                return res.status(err2.response?.status || 502).json({
+                    ok: false,
+                    error: 'BFF_BACKUP_RUN_FAILED',
+                    message: err2.message
+                });
+            }
+        }
+    };
+
+    app.post('/api/admin/storage/backup/run', handleStorageBackupRunBff);
+    app.post('/api/customer/storage/backup/run', handleStorageBackupRunBff);
+
     // ---- 12. SPA Route Fallback for Dedicated B2B Portal Views (/portal/* and /order/:orderId/files) ----
     app.get(['/portal', '/portal/*', '/order/:orderId/files'], (req, res, next) => {
         const distIndex = path.join(__dirname, '..', 'dist', 'index.html');

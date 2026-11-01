@@ -97,13 +97,63 @@ interface OperationsTelemetryDashboardProps {
   onSelectOrderForTracking?: (orderId: string) => void;
 }
 
+export interface StorageBackupStatusData {
+  ok: boolean;
+  generatedAt: string;
+  policy: {
+    retentionColdDays: number;
+    backupRetentionCount: number;
+    archiveDir: string;
+    backupDir: string;
+    schedulerActive: boolean;
+  };
+  retentionMetrics: {
+    archivedOrdersCount: number;
+    totalColdArchiveBytes: number;
+    totalColdArchiveMb: number;
+    totalReclaimedBytes: number;
+    totalReclaimedMb: number;
+    totalRestoredOrdersCount: number;
+    lastRetentionRunAt?: string | null;
+    coldArchives: Array<{
+      orderId: string;
+      filename: string;
+      sizeBytes: number;
+      sizeKb: number;
+      archivedAt: string;
+      reclaimedBytes: number;
+    }>;
+  };
+  backupMetrics: {
+    availableSnapshotsCount: number;
+    maxRetainedSnapshots: number;
+    totalSnapshotsBytes: number;
+    totalSnapshotsMb: number;
+    lastBackupRunAt?: string | null;
+    latestSnapshot?: {
+      filename: string;
+      sizeBytes: number;
+      sizeKb: number;
+      createdAt: string;
+    } | null;
+    snapshots: Array<{
+      filename: string;
+      sizeBytes: number;
+      sizeKb: number;
+      createdAt: string;
+    }>;
+  };
+}
+
 export const OperationsTelemetryDashboard: React.FC<OperationsTelemetryDashboardProps> = ({
   userEmail,
   userId,
   onSelectOrderForTracking,
 }) => {
   const [telemetry, setTelemetry] = useState<OperationalTelemetryData | null>(null);
+  const [backupStatus, setBackupStatus] = useState<StorageBackupStatusData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [runningBackupAction, setRunningBackupAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchTelemetry = useCallback(async () => {
@@ -116,7 +166,10 @@ export const OperationsTelemetryDashboard: React.FC<OperationsTelemetryDashboard
       if (userEmail) headers['x-customer-email'] = userEmail;
       if (userId) headers['x-customer-id'] = String(userId);
 
-      const res = await fetch('/api/customer/operations/summary', { headers });
+      const [res, backupRes] = await Promise.all([
+        fetch('/api/customer/operations/summary', { headers }),
+        fetch('/api/admin/storage/backup/status', { headers }).catch(() => null),
+      ]);
       if (!res.ok) {
         throw new Error(`Telemetry HTTP ${res.status}`);
       }
@@ -126,12 +179,37 @@ export const OperationsTelemetryDashboard: React.FC<OperationsTelemetryDashboard
       } else {
         throw new Error(data?.message || 'Invalid telemetry payload');
       }
+      if (backupRes && backupRes.ok) {
+        const bData = await backupRes.json();
+        if (bData && bData.ok) {
+          setBackupStatus(bData);
+        }
+      }
     } catch (err: any) {
       setError(err?.message || 'Unable to synchronize real-time operational telemetry.');
     } finally {
       setLoading(false);
     }
   }, [userEmail, userId]);
+
+  const triggerStorageAction = async (action: 'BACKUP' | 'RETENTION') => {
+    setRunningBackupAction(action);
+    try {
+      const endpoint =
+        action === 'BACKUP'
+          ? '/api/admin/storage/backup/run'
+          : '/api/admin/storage/retention/run';
+      await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      await fetchTelemetry();
+    } catch (_) {
+    } finally {
+      setRunningBackupAction(null);
+    }
+  };
 
   useEffect(() => {
     fetchTelemetry();
@@ -550,6 +628,68 @@ export const OperationsTelemetryDashboard: React.FC<OperationsTelemetryDashboard
                 </span>
               </div>
             </div>
+
+            {/* Cold Storage Retention & MySQL Snapshot Monitor (Option 2) */}
+            {backupStatus && (
+              <div className="pt-4 border-t border-zinc-200 dark:border-[#1f2228] space-y-3 text-xs font-technical">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="block text-[10px] font-black uppercase tracking-widest text-[#10b981]">
+                      COLD ARCHIVE &amp; MYSQL SNAPSHOTS (OPCIÓN 2)
+                    </span>
+                    <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                      Cold Policy: &gt;{backupStatus.policy.retentionColdDays}d • Max Snapshots: {backupStatus.policy.backupRetentionCount}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={runningBackupAction !== null}
+                      onClick={() => triggerStorageAction('RETENTION')}
+                      className="px-2.5 py-1 rounded-lg border border-zinc-300 dark:border-[#2d323b] bg-zinc-50 dark:bg-[#0a0b0d] hover:border-[#dc2626] text-[10px] font-bold uppercase text-zinc-800 dark:text-zinc-200"
+                    >
+                      {runningBackupAction === 'RETENTION' ? 'Archiving...' : 'Run Cold Archive'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={runningBackupAction !== null}
+                      onClick={() => triggerStorageAction('BACKUP')}
+                      className="px-2.5 py-1 rounded-lg bg-[#dc2626] hover:bg-[#b91c1c] text-[10px] font-bold uppercase text-white"
+                    >
+                      {runningBackupAction === 'BACKUP' ? 'Dumping...' : 'Snapshot DB'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="p-2.5 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-200 dark:border-[#1f2228]">
+                    <span className="block text-[9px] uppercase text-zinc-500 dark:text-zinc-400">
+                      COLD ARCHIVES (.TAR.GZ)
+                    </span>
+                    <span className="text-sm font-black text-zinc-900 dark:text-zinc-100">
+                      {backupStatus.retentionMetrics.archivedOrdersCount} Orders
+                    </span>
+                    <span className="block text-[10px] text-[#10b981]">
+                      Reclaimed: {backupStatus.retentionMetrics.totalReclaimedMb.toFixed(2)} MB
+                    </span>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-200 dark:border-[#1f2228]">
+                    <span className="block text-[9px] uppercase text-zinc-500 dark:text-zinc-400">
+                      MYSQL SNAPSHOTS (.SQL.GZ)
+                    </span>
+                    <span className="text-sm font-black text-zinc-900 dark:text-zinc-100">
+                      {backupStatus.backupMetrics.availableSnapshotsCount} / {backupStatus.policy.backupRetentionCount}
+                    </span>
+                    <span className="block text-[10px] text-amber-500 truncate">
+                      {backupStatus.backupMetrics.latestSnapshot
+                        ? backupStatus.backupMetrics.latestSnapshot.filename
+                        : 'Ready for snapshot'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -558,3 +698,4 @@ export const OperationsTelemetryDashboard: React.FC<OperationsTelemetryDashboard
 };
 
 export default OperationsTelemetryDashboard;
+

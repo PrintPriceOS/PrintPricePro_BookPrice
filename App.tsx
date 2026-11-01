@@ -311,7 +311,7 @@ const App: React.FC = () => {
   const [portalRoute, setPortalRoute] = useState(() =>
     typeof window !== 'undefined'
       ? resolvePortalRouteFromPathname(window.location.pathname)
-      : { isPortalRoute: false, tab: 'orders' as PortalTabId }
+      : { isPortalRoute: false, tab: 'ORDERS_REPRINTS' as PortalTabId, trackingOrderId: null, assetIntakeOrderId: null }
   );
 
   useEffect(() => {
@@ -324,23 +324,20 @@ const App: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const handleOpenPortalRoute = useCallback((tab: PortalTabId = 'orders') => {
+  const handleOpenPortalRoute = useCallback((tab: PortalTabId = 'ORDERS_REPRINTS') => {
     const path = PORTAL_TAB_ROUTES[tab] || '/portal/orders';
     if (window.location.pathname !== path) {
       window.history.pushState({}, '', path);
     }
-    setPortalRoute({ isPortalRoute: true, tab });
+    setPortalRoute({ isPortalRoute: true, tab, trackingOrderId: null, assetIntakeOrderId: null });
     setShowMyOrders(true);
     setIsCartOpen(false);
   }, []);
 
   const handleClosePortalRoute = useCallback(() => {
     setShowMyOrders(false);
-    setPortalRoute({ isPortalRoute: false, tab: 'orders' });
-    if (
-      window.location.pathname.startsWith('/portal') ||
-      window.location.pathname.startsWith('/order/')
-    ) {
+    setPortalRoute({ isPortalRoute: false, tab: 'ORDERS_REPRINTS', trackingOrderId: null, assetIntakeOrderId: null });
+    if (window.location.pathname !== '/') {
       window.history.pushState({}, '', '/');
     }
   }, []);
@@ -1398,7 +1395,7 @@ const App: React.FC = () => {
         cartCount={cart.length}
         onCartClick={() => setIsCartOpen(prev => !prev)}
         onMyOrdersClick={() => {
-          handleOpenPortalRoute('orders');
+          handleOpenPortalRoute('ORDERS_REPRINTS');
           setIsCartOpen(false);
         }}
         isDark={isDark}
@@ -1408,7 +1405,10 @@ const App: React.FC = () => {
         onLogout={handleLogout}
         onNavigatePortal={(tab) => handleOpenPortalRoute(tab)}
         currentView={currentView}
-        onViewChange={ENABLE_PUBLIC_CONSOLE ? setCurrentView : undefined}
+        onViewChange={(view) => {
+          handleClosePortalRoute();
+          if (ENABLE_PUBLIC_CONSOLE) setCurrentView(view);
+        }}
       />
 
       {showMyOrders || portalRoute.isPortalRoute ? (
@@ -1417,8 +1417,9 @@ const App: React.FC = () => {
           userEmail={user?.email}
           userName={user?.name}
           initialTab={portalRoute.tab}
-          initialOrderId={portalRoute.orderId}
+          initialOrderId={portalRoute.trackingOrderId}
           initialAssetIntakeOrderId={portalRoute.assetIntakeOrderId}
+          onClose={handleClosePortalRoute}
           onBackToConfigurator={handleClosePortalRoute}
           onLoadSpecsToCalculator={(reprintSpecs, bookTitle) => {
             setBookPricePayload((prev) => ({

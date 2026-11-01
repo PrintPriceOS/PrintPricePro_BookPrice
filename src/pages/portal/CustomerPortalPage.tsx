@@ -3,7 +3,9 @@ import CustomerPortalModal, { CustomerPortalModalProps, PortalTabId } from '../.
 
 export type { PortalTabId, CustomerPortalModalProps };
 
-export interface CustomerPortalPageProps extends Omit<CustomerPortalModalProps, 'isFullPage'> {
+export interface CustomerPortalPageProps extends Omit<CustomerPortalModalProps, 'isFullPage' | 'onClose'> {
+  onClose?: () => void;
+  onBackToConfigurator?: () => void;
   activeRoutePath?: string;
   onNavigateRoute?: (path: string, tab?: PortalTabId, orderId?: string | null) => void;
 }
@@ -18,8 +20,20 @@ export interface CustomerPortalPageProps extends Omit<CustomerPortalModalProps, 
  * - /portal/fiscal
  * - /order/:orderId/files
  */
-export const CustomerPortalPage: React.FC<CustomerPortalPageProps> = (props) => {
-  return <CustomerPortalModal {...props} isFullPage={true} />;
+export const CustomerPortalPage: React.FC<CustomerPortalPageProps> = ({
+  onClose,
+  onBackToConfigurator,
+  ...props
+}) => {
+  const handleClose = () => {
+    if (onBackToConfigurator) {
+      onBackToConfigurator();
+    }
+    if (onClose) {
+      onClose();
+    }
+  };
+  return <CustomerPortalModal {...props} onClose={handleClose} isFullPage={true} />;
 };
 
 export default CustomerPortalPage;

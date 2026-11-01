@@ -1286,8 +1286,11 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
             onClick={() => {
               if (typeof window !== 'undefined' && window.location.pathname !== '/') {
                 window.history.pushState({}, '', '/');
+                window.dispatchEvent(new PopStateEvent('popstate'));
               }
-              onClose();
+              if (typeof onClose === 'function') {
+                onClose();
+              }
             }}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#dc2626] hover:bg-[#b91c1c] text-white text-[10px] font-technical font-black uppercase tracking-wider transition-all shadow-sm"
           >

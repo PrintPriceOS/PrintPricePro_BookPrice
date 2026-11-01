@@ -1368,6 +1368,40 @@ startxref
     app.post('/api/customer/orders/:orderId/soft-proof/approve', handleSoftProofDecisionBff('APPROVED'));
     app.post('/api/customer/orders/:orderId/soft-proof/reject', handleSoftProofDecisionBff('REJECTED'));
 
+    // ---- 11c. GET /api/customer/orders/:orderId/soft-proof/certificate.pdf (DIN A4 Digital Imprimatur PDF) ----
+    app.get('/api/customer/orders/:orderId/soft-proof/certificate.pdf', async (req, res) => {
+        const { orderId } = req.params;
+        const { authHeaders, email } = buildCustomerHubHeaders(req);
+        ensureLocalHubSeed(email);
+
+        try {
+            const cpRes = await axios.get(
+                `${CONTROL_PLANE_BASE_URL}/api/customer/orders/${encodeURIComponent(orderId)}/soft-proof/certificate.pdf`,
+                {
+                    headers: authHeaders,
+                    responseType: 'arraybuffer',
+                    timeout: 12000
+                }
+            );
+            if (cpRes.status === 200 && cpRes.data) {
+                const pdfBuf = Buffer.from(cpRes.data);
+                res.setHeader('Content-Type', 'application/pdf');
+                res.setHeader(
+                    'Content-Disposition',
+                    `inline; filename="Imprimatur_Certificate_${encodeURIComponent(orderId)}.pdf"`
+                );
+                res.setHeader('Content-Length', String(pdfBuf.length));
+                return res.status(200).send(pdfBuf);
+            }
+        } catch (err) {
+            return res.status(err.response?.status || 502).json({
+                ok: false,
+                error: 'CERTIFICATE_PDF_PROXY_FAILED',
+                message: err.message
+            });
+        }
+    });
+
     // ---- 12. SPA Route Fallback for Dedicated B2B Portal Views (/portal/* and /order/:orderId/files) ----
     app.get(['/portal', '/portal/*', '/order/:orderId/files'], (req, res, next) => {
         const distIndex = path.join(__dirname, '..', 'dist', 'index.html');

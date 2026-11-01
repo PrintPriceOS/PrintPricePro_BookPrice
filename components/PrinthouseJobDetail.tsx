@@ -345,7 +345,7 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
                        <span className="text-sm font-black text-slate-800 dark:text-zinc-100 uppercase">{job.preflight_summary?.risk_level || 'LOW'}</span>
                     </div>
                  </div>
-                 <div className="mt-3 pt-2.5 border-t border-green-200/70 dark:border-zinc-800">
+                 <div className="mt-3 pt-2.5 border-t border-green-200/70 dark:border-zinc-800 space-y-2">
                     <div className="flex items-center justify-between">
                        <span className="text-[10px] font-bold uppercase text-slate-600 dark:text-zinc-300">
                          3D Soft-Proof Sign-Off (eIDAS / SHA-256)
@@ -354,11 +354,20 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
                          {job.preflight_summary?.soft_proof_status || 'APPROVED_FOR_PRESS'}
                        </span>
                     </div>
-                    <span className="block mt-1 text-[10px] font-mono text-emerald-700 dark:text-emerald-400 break-all">
+                    <span className="block text-[10px] font-mono text-emerald-700 dark:text-emerald-400 break-all">
                       {job.preflight_summary?.proof_signature_hash ||
                         job.proof_signature_hash ||
                         `SHA256:9f84b2c1e77d08a4c5e3109f${String(job.order_id || job.id || 'ORD').replace(/[^a-zA-Z0-9]/g, '').toLowerCase()}`}
                     </span>
+                    <a
+                      href={`/api/customer/orders/${encodeURIComponent(job.order_id || job.id || 'ORD_2026_101')}/soft-proof/certificate.pdf`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center justify-center gap-1.5 w-full py-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wider transition-all"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Download Sign-Off Certificate (PDF)</span>
+                    </a>
                  </div>
               </div>
             </section>

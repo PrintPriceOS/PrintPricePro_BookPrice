@@ -8,6 +8,7 @@ import {
   SparklesIcon,
   EyeIcon,
   ShieldCheckIcon,
+  DocumentArrowDownIcon,
 } from '@heroicons/react/24/outline';
 
 export interface SoftProofBookGeometry {
@@ -439,10 +440,10 @@ export const BookSoftProofViewer3D: React.FC<BookSoftProofViewer3DProps> = ({
 
           {/* Formal Telematic Action Buttons */}
           <div className="space-y-2.5 pt-2 border-t border-zinc-200 dark:border-[#1f2228]">
-            {book.proofStatus === 'APPROVED_FOR_PRESS' && (
+            {(book.proofStatus === 'APPROVED_FOR_PRESS' || !!book.proofSignatureHash) && (
               <div
                 data-testid="soft-proof-approved-banner"
-                className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-[#10b981] font-technical text-[11px] space-y-1"
+                className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-[#10b981] font-technical text-[11px] space-y-2"
               >
                 <div className="font-bold flex items-center gap-2">
                   <CheckBadgeIcon className="w-4 h-4 shrink-0" />
@@ -454,6 +455,16 @@ export const BookSoftProofViewer3D: React.FC<BookSoftProofViewer3DProps> = ({
                     <span>{book.proofSignatureHash}</span>
                   </div>
                 )}
+                <a
+                  href={`/api/customer/orders/${encodeURIComponent(book.orderId)}/soft-proof/certificate.pdf`}
+                  target="_blank"
+                  rel="noreferrer"
+                  data-testid="btn-download-imprimatur-pdf"
+                  className="w-full py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-technical text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-xs"
+                >
+                  <DocumentArrowDownIcon className="w-4 h-4 shrink-0" />
+                  <span>DOWNLOAD SIGN-OFF CERTIFICATE (PDF)</span>
+                </a>
               </div>
             )}
 
@@ -514,3 +525,4 @@ export const BookSoftProofViewer3D: React.FC<BookSoftProofViewer3DProps> = ({
 };
 
 export default BookSoftProofViewer3D;
+

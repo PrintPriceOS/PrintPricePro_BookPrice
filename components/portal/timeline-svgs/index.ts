@@ -21,15 +21,15 @@ export const renderStageTimelineSvg = (
 ): React.ReactNode => {
   switch (stepNumber) {
     case 1:
-      return <StagePreflightSvg status={status} className={className} />;
+      return React.createElement(StagePreflightSvg, { status, className });
     case 2:
-      return <StageOnPressSvg status={status} className={className} />;
+      return React.createElement(StageOnPressSvg, { status, className });
     case 3:
-      return <StageBindingSvg status={status} className={className} />;
+      return React.createElement(StageBindingSvg, { status, className });
     case 4:
-      return <StagePalletizationSvg status={status} className={className} />;
+      return React.createElement(StagePalletizationSvg, { status, className });
     case 5:
     default:
-      return <StageInTransitSvg status={status} className={className} />;
+      return React.createElement(StageInTransitSvg, { status, className });
   }
 };

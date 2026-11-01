@@ -75,16 +75,28 @@ const CustomerPaymentPanel: React.FC<Props> = ({ cpOrderId, fetchDetails, onRefr
     fetchStatus();
   }, [fetchStatus]);
 
-  // Generate invoice action
+  // Generate invoice & canonical checkout session action
   const handleGenerateInvoice = async () => {
     setGenerating(true);
     setError(null);
     try {
-      const res = await fetch(`/api/marketplace-order/${cpOrderId}/invoice/generate`, {
+      // Primary: Try canonical B2B Marketplace checkout/session endpoint
+      const canonicalRes = await fetch(`/api/marketplace/orders/${encodeURIComponent(cpOrderId)}/checkout/session`, {
         method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentMethod: 'BANK_TRANSFER_B2B',
+          settlementModality: 'MODALITY_A_ESCROW_MOR'
+        })
       });
-      const resData = await res.json();
-      if (!res.ok) {
+
+      const res = await fetch(`/api/marketplace-order/${encodeURIComponent(cpOrderId)}/invoice/generate`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      const resData = await res.json().catch(() => ({}));
+      if (!res.ok && !canonicalRes.ok) {
         throw new Error(resData.message || 'Failed to generate invoice.');
       }
       await fetchStatus();

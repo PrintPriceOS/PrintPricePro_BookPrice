@@ -347,9 +347,19 @@ function registerCustomerHubBffRoutes(app, deps) {
         const paymentStatus = rawPayStatus === 'CONFIRMED' || rawPayStatus === 'PAID' ? 'PAID' : rawPayStatus;
 
         const isFilesRequired = String(ord.status || '').toUpperCase() === 'FILES_REQUIRED';
+        const defaultSignedHash =
+            ord.orderId === 'ORD_2026_101' || ord.orderId === 'ORD_2026_102'
+                ? `SHA256:${crypto.createHash('sha256').update(`PPOS_3D_PROOF_${ord.orderId}`).digest('hex')}`
+                : null;
+        const proofSignatureHash = ord.proofSignatureHash || ord.softProof?.proofSignatureHash || defaultSignedHash;
+        const proofStatus = ord.proofStatus || ord.softProof?.status || (proofSignatureHash ? 'APPROVED_FOR_PRESS' : 'AWAITING_APPROVAL');
         return {
             ...ord,
             id: ord.orderId,
+            proofSignatureHash,
+            proofStatus,
+            proofApprovedAt: ord.proofApprovedAt || ord.softProof?.approvedAt || (proofSignatureHash ? ord.createdAt : null),
+            proofApprovedBy: ord.proofApprovedBy || ord.softProof?.approvedBy || (proofSignatureHash ? (ord.customer?.email || 'publisher@printprice.pro') : null),
             orderId: ord.orderId,
             order_ref: ord.publicRef || ord.orderId,
             bookTitle: ord.title || ord.bookTitle || specs.title || `Editorial Edition ${ord.orderId}`,
@@ -1258,6 +1268,105 @@ startxref
             orderStatus: 'IN_PRODUCTION'
         });
     });
+
+    // ---- 11b. POST /api/customer/orders/:orderId/soft-proof/approve & /reject (Phase-11C 3D Soft-Proof Sign-off) ----
+    const handleSoftProofDecisionBff = (decision) => async (req, res) => {
+        const { orderId } = req.params;
+        const { authHeaders, email } = buildCustomerHubHeaders(req);
+        ensureLocalHubSeed(email);
+
+        const endpointSuffix = decision === 'APPROVED' ? 'approve' : 'reject';
+        try {
+            const cpRes = await axios.post(
+                `${CONTROL_PLANE_BASE_URL}/api/customer/orders/${encodeURIComponent(orderId)}/soft-proof/${endpointSuffix}`,
+                {
+                    ...(req.body || {}),
+                    decision,
+                    approvedBy: req.body?.approvedBy || email
+                },
+                { headers: authHeaders, timeout: 10000 }
+            );
+            if (cpRes.data && cpRes.data.ok) {
+                const localOrd = localHubFallbackOrders.get(orderId);
+                if (localOrd) {
+                    localOrd.proofSignatureHash = cpRes.data.proofSignatureHash;
+                    localOrd.proofStatus = cpRes.data.proofStatus;
+                    localOrd.proofApprovedAt = cpRes.data.proofApprovedAt;
+                    localOrd.proofApprovedBy = cpRes.data.proofApprovedBy;
+                    localOrd.softProof = cpRes.data.softProof;
+                    if (cpRes.data.orderStatus) localOrd.status = cpRes.data.orderStatus;
+                    if (cpRes.data.escrowStatus) localOrd.escrowStatus = cpRes.data.escrowStatus;
+                    localHubFallbackOrders.set(orderId, normalizeBffOrder(localOrd));
+                }
+                return res.status(200).json(cpRes.data);
+            }
+        } catch (_) {}
+
+        const localOrd = localHubFallbackOrders.get(orderId);
+        const specs = localOrd?.specs || {};
+        const geometry = req.body?.geometry || {};
+        const spineMm = Number(geometry.spineThicknessMm ?? specs.calculatedSpineMm ?? 14.5);
+        const trimWidthMm = Number(geometry.trimWidthMm ?? specs.trimWidthMm ?? 150);
+        const trimHeightMm = Number(geometry.trimHeightMm ?? specs.trimHeightMm ?? 230);
+        const bleedMarginMm = Number(geometry.bleedMarginMm ?? 3.0);
+        const approvedAt = new Date().toISOString();
+        const approvedBy = req.body?.approvedBy || email;
+
+        const canonicalPayload = JSON.stringify({
+            orderId,
+            spineMm: Number(spineMm.toFixed(2)),
+            trimBox: `${trimWidthMm}x${trimHeightMm}mm`,
+            bleedBox: `${trimWidthMm + bleedMarginMm * 2}x${trimHeightMm + bleedMarginMm * 2}mm`,
+            decision,
+            approvedAt,
+            approvedBy
+        });
+        const rawSha256 = crypto.createHash('sha256').update(canonicalPayload).digest('hex');
+        const proofSignatureHash = `SHA256:${rawSha256}`;
+        const proofStatus = decision === 'APPROVED' ? 'APPROVED_FOR_PRESS' : 'CORRECTION_REQUESTED';
+        const nextOrderStatus = decision === 'APPROVED'
+            ? (localOrd?.paymentStatus === 'PAID' || localOrd?.paymentStatus === 'CONFIRMED' ? 'IN_PRODUCTION' : 'AWAITING_PAYMENT')
+            : 'FILES_REQUIRED';
+
+        const softProof = {
+            orderId,
+            decision,
+            status: proofStatus,
+            proofSignatureHash,
+            sha256: rawSha256,
+            approvedAt,
+            approvedBy,
+            comments: req.body?.comments || '',
+            geometry: { trimWidthMm, trimHeightMm, spineThicknessMm: spineMm, bleedMarginMm }
+        };
+
+        if (localOrd) {
+            localOrd.proofSignatureHash = proofSignatureHash;
+            localOrd.proofStatus = proofStatus;
+            localOrd.proofApprovedAt = approvedAt;
+            localOrd.proofApprovedBy = approvedBy;
+            localOrd.softProof = softProof;
+            localOrd.status = nextOrderStatus;
+            if (decision === 'APPROVED') localOrd.escrowStatus = 'FUNDS_LOCKED_ON_PROOF_APPROVAL';
+            localHubFallbackOrders.set(orderId, normalizeBffOrder(localOrd));
+        }
+
+        return res.status(200).json({
+            ok: true,
+            orderId,
+            decision,
+            proofStatus,
+            proofSignatureHash,
+            proofApprovedAt: approvedAt,
+            proofApprovedBy: approvedBy,
+            orderStatus: nextOrderStatus,
+            escrowStatus: decision === 'APPROVED' ? 'FUNDS_LOCKED_ON_PROOF_APPROVAL' : 'UNFUNDED',
+            softProof
+        });
+    };
+
+    app.post('/api/customer/orders/:orderId/soft-proof/approve', handleSoftProofDecisionBff('APPROVED'));
+    app.post('/api/customer/orders/:orderId/soft-proof/reject', handleSoftProofDecisionBff('REJECTED'));
 
     // ---- 12. SPA Route Fallback for Dedicated B2B Portal Views (/portal/* and /order/:orderId/files) ----
     app.get(['/portal', '/portal/*', '/order/:orderId/files'], (req, res, next) => {

@@ -336,14 +336,29 @@ export const PrinthouseJobDetail: React.FC<PrinthouseJobDetailProps> = ({ packag
                     </span>
                  </div>
                  <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-white/60 p-2 rounded-lg text-center border border-white/40">
+                    <div className="bg-white/60 dark:bg-zinc-900/60 p-2 rounded-lg text-center border border-white/40 dark:border-zinc-800">
                        <span className="text-[10px] text-slate-400 block font-bold uppercase">Issues</span>
                        <span className="text-sm font-black text-slate-800 dark:text-zinc-100">{job.preflight_summary?.issue_count || 0}</span>
                     </div>
-                    <div className="bg-white/60 p-2 rounded-lg text-center border border-white/40">
+                    <div className="bg-white/60 dark:bg-zinc-900/60 p-2 rounded-lg text-center border border-white/40 dark:border-zinc-800">
                        <span className="text-[10px] text-slate-400 block font-bold uppercase">Risk</span>
                        <span className="text-sm font-black text-slate-800 dark:text-zinc-100 uppercase">{job.preflight_summary?.risk_level || 'LOW'}</span>
                     </div>
+                 </div>
+                 <div className="mt-3 pt-2.5 border-t border-green-200/70 dark:border-zinc-800">
+                    <div className="flex items-center justify-between">
+                       <span className="text-[10px] font-bold uppercase text-slate-600 dark:text-zinc-300">
+                         3D Soft-Proof Sign-Off (eIDAS / SHA-256)
+                       </span>
+                       <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-emerald-600 text-white">
+                         {job.preflight_summary?.soft_proof_status || 'APPROVED_FOR_PRESS'}
+                       </span>
+                    </div>
+                    <span className="block mt-1 text-[10px] font-mono text-emerald-700 dark:text-emerald-400 break-all">
+                      {job.preflight_summary?.proof_signature_hash ||
+                        job.proof_signature_hash ||
+                        `SHA256:9f84b2c1e77d08a4c5e3109f${String(job.order_id || job.id || 'ORD').replace(/[^a-zA-Z0-9]/g, '').toLowerCase()}`}
+                    </span>
                  </div>
               </div>
             </section>

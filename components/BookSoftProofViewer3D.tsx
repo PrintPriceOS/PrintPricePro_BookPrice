@@ -32,6 +32,9 @@ export interface SoftProofBookGeometry {
 export interface BookSoftProofViewer3DProps {
   book: SoftProofBookGeometry;
   submitting?: boolean;
+  canApproveForPress?: boolean;
+  approvalDisabledReason?: string;
+  activeActorRole?: string;
   onApproveForPress?: (payload: {
     orderId: string;
     comments: string;
@@ -59,6 +62,9 @@ export interface BookSoftProofViewer3DProps {
 export const BookSoftProofViewer3D: React.FC<BookSoftProofViewer3DProps> = ({
   book,
   submitting = false,
+  canApproveForPress = true,
+  approvalDisabledReason = 'Requiere rol PRODUCTION_MANAGER o ORG_ADMIN',
+  activeActorRole,
   onApproveForPress,
   onRequestCorrection,
 }) => {
@@ -478,10 +484,28 @@ export const BookSoftProofViewer3D: React.FC<BookSoftProofViewer3DProps> = ({
               </div>
             )}
 
+            {!canApproveForPress && (
+              <div
+                data-testid="rbac-signoff-restricted-banner"
+                className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/35 text-amber-800 dark:text-amber-300 font-technical text-[10px] font-bold flex items-center justify-between gap-2"
+              >
+                <span className="flex items-center gap-1.5">
+                  <ShieldCheckIcon className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span>{approvalDisabledReason}</span>
+                </span>
+                {activeActorRole && (
+                  <span className="px-1.5 py-0.5 rounded bg-black/20 border border-amber-500/30 uppercase text-[9px]">
+                    ROL: {activeActorRole}
+                  </span>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <button
                 type="button"
-                disabled={submitting}
+                disabled={submitting || !canApproveForPress}
+                title={!canApproveForPress ? approvalDisabledReason : 'Firmar Imprimátur Digital 3D (SHA-256) y liberar CTP'}
                 data-testid="btn-approve-for-press"
                 onClick={() =>
                   onApproveForPress?.({
@@ -492,7 +516,7 @@ export const BookSoftProofViewer3D: React.FC<BookSoftProofViewer3DProps> = ({
                     geometry: geometryPayload,
                   })
                 }
-                className="px-3 py-2.5 rounded-lg bg-[#10b981] hover:bg-emerald-500 disabled:opacity-50 text-black font-technical text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                className="px-3 py-2.5 rounded-lg bg-[#10b981] hover:bg-emerald-500 disabled:opacity-45 disabled:cursor-not-allowed text-black font-technical text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
               >
                 <SparklesIcon className="w-4 h-4 stroke-[2.5]" />
                 <span>{submitting ? 'SIGNING SHA-256…' : 'APPROVE FOR PRESS'}</span>

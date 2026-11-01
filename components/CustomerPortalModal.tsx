@@ -48,6 +48,58 @@ export type PortalTabId =
   | 'FISCAL_BILLING'
   | 'OPERATIONS_TELEMETRY';
 
+export type B2bOrganizationRoleId =
+  | 'ORG_ADMIN'
+  | 'PRODUCTION_MANAGER'
+  | 'FINANCE_APPROVER'
+  | 'PREPRESS_DESIGNER';
+
+export interface B2bOrganizationMemberItem {
+  memberId: string;
+  organizationId: string;
+  email: string;
+  fullName: string;
+  role: B2bOrganizationRoleId;
+  status: 'ACTIVE' | 'INVITED' | 'SUSPENDED' | string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+const B2B_ROLE_METADATA: Record<
+  B2bOrganizationRoleId,
+  {
+    label: string;
+    shortBadge: string;
+    description: string;
+    permissionsSummary: string;
+  }
+> = {
+  ORG_ADMIN: {
+    label: 'ORG_ADMIN — Director Editorial / Admin',
+    shortBadge: 'ORG_ADMIN (Total)',
+    description: 'Control total de cuenta fiscal, miembros RBAC, aprobaciones de imprenta y pagos Escrow.',
+    permissionsSummary: '✓ Subir PDFs · ✓ Firmar 3D Soft-Proof · ✓ Ejecutar Pagos · ✓ Gestionar Equipo',
+  },
+  PRODUCTION_MANAGER: {
+    label: 'PRODUCTION_MANAGER — Jefe de Producción',
+    shortBadge: 'PRODUCTION_MANAGER',
+    description: 'Crea pedidos, sube artes finales y firma el Imprimátur Digital 3D para liberación de planchas CTP.',
+    permissionsSummary: '✓ Subir PDFs · ✓ Firmar 3D Soft-Proof · ✕ Pagos Restringidos · ✕ Sin Gestión RBAC',
+  },
+  FINANCE_APPROVER: {
+    label: 'FINANCE_APPROVER — Tesorería & Contabilidad',
+    shortBadge: 'FINANCE_APPROVER',
+    description: 'Autoriza pagos Stripe/SEPA, sube justificantes SWIFT/B2B y descarga facturas EN 16931 (Facturae/XRechnung).',
+    permissionsSummary: '✕ Sin Subida PDF · ✕ Sin Firma 3D · ✓ Ejecutar Pagos & Facturas · ✕ Sin Gestión RBAC',
+  },
+  PREPRESS_DESIGNER: {
+    label: 'PREPRESS_DESIGNER — Maquetador / Arte Final',
+    shortBadge: 'PREPRESS_DESIGNER',
+    description: 'Sube archivos PDF/X-4 (interior y cubierta) y revisa reportes Preflight e inspección 3D sin firma ni pagos.',
+    permissionsSummary: '✓ Subir PDFs & Preflight · ✕ Sin Firma 3D · ✕ Sin Pagos · ✕ Sin Gestión RBAC',
+  },
+};
+
 export type ReprintPurposeId =
   | 'STRAIGHT_REPRINT'
   | 'NEW_EDITION_REVISED_FILES'
@@ -567,6 +619,70 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
   const [softProofModalOrder, setSoftProofModalOrder] = useState<CustomerOrderItem | null>(null);
   const [submittingSoftProof, setSubmittingSoftProof] = useState<boolean>(false);
 
+  // Multi-User B2B Organization & Editorial RBAC State (Phase 16 - Option 3)
+  const [activeB2bRole, setActiveB2bRole] = useState<B2bOrganizationRoleId>('ORG_ADMIN');
+  const [showTeamRbacDrawer, setShowTeamRbacDrawer] = useState<boolean>(false);
+  const [orgMembers, setOrgMembers] = useState<B2bOrganizationMemberItem[]>([
+    {
+      memberId: 'MEM_2026_0001',
+      organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
+      email: 'publisher@printprice.pro',
+      fullName: 'Carlos Mendoza (Director Editorial & Org Admin)',
+      role: 'ORG_ADMIN',
+      status: 'ACTIVE',
+    },
+    {
+      memberId: 'MEM_2026_0002',
+      organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
+      email: 'production@printprice.pro',
+      fullName: 'Elena Vargas (Jefa de Producción Editorial)',
+      role: 'PRODUCTION_MANAGER',
+      status: 'ACTIVE',
+    },
+    {
+      memberId: 'MEM_2026_0003',
+      organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
+      email: 'finance@printprice.pro',
+      fullName: 'Marcos Alarcón (Controller Financiero & Escrow)',
+      role: 'FINANCE_APPROVER',
+      status: 'ACTIVE',
+    },
+    {
+      memberId: 'MEM_2026_0004',
+      organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
+      email: 'prepress@printprice.pro',
+      fullName: 'Lucía Serrano (Maquetación & Arte Final PDF/X-4)',
+      role: 'PREPRESS_DESIGNER',
+      status: 'ACTIVE',
+    },
+  ]);
+  const [loadingOrgMembers, setLoadingOrgMembers] = useState<boolean>(false);
+  const [newMemberEmail, setNewMemberEmail] = useState<string>('');
+  const [newMemberFullName, setNewMemberFullName] = useState<string>('');
+  const [newMemberRole, setNewMemberRole] = useState<B2bOrganizationRoleId>('PREPRESS_DESIGNER');
+  const [submittingMemberAction, setSubmittingMemberAction] = useState<boolean>(false);
+
+  const canApproveSoftProof = activeB2bRole === 'ORG_ADMIN' || activeB2bRole === 'PRODUCTION_MANAGER';
+  const canExecutePayments = activeB2bRole === 'ORG_ADMIN' || activeB2bRole === 'FINANCE_APPROVER';
+  const canUploadProductionAssets =
+    activeB2bRole === 'ORG_ADMIN' ||
+    activeB2bRole === 'PRODUCTION_MANAGER' ||
+    activeB2bRole === 'PREPRESS_DESIGNER';
+  const canManageOrgMembers = activeB2bRole === 'ORG_ADMIN';
+
+  const buildB2bRbacHeaders = useCallback(
+    (extraHeaders?: Record<string, string>): Record<string, string> => {
+      const matchedMember = orgMembers.find((m) => m.role === activeB2bRole && m.status !== 'SUSPENDED');
+      return {
+        ...(extraHeaders || {}),
+        'x-b2b-role': activeB2bRole,
+        'x-b2b-member-id': matchedMember?.memberId || 'MEM_2026_0001',
+        'x-b2b-email': matchedMember?.email || userEmail || 'publisher@printprice.pro',
+      };
+    },
+    [activeB2bRole, orgMembers, userEmail]
+  );
+
   // Shipping & Fiscal Profile State
   const [shippingAddresses, setShippingAddresses] = useState<ShippingAddressItem[]>([]);
   const [fiscalProfile, setFiscalProfile] = useState<FiscalProfileData>({
@@ -664,9 +780,19 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
       if (userId) qs.set('user_id', String(userId));
       if (userEmail) qs.set('email', userEmail);
 
-      const [ordersRes, profileRes] = await Promise.all([
-        fetch(`/api/customer/orders?${qs.toString()}`, { credentials: 'include' }),
-        fetch(`/api/customer/profile?${qs.toString()}`, { credentials: 'include' }),
+      const [ordersRes, profileRes, membersRes] = await Promise.all([
+        fetch(`/api/customer/orders?${qs.toString()}`, {
+          credentials: 'include',
+          headers: buildB2bRbacHeaders(),
+        }),
+        fetch(`/api/customer/profile?${qs.toString()}`, {
+          credentials: 'include',
+          headers: buildB2bRbacHeaders(),
+        }),
+        fetch(`/api/customer/organization/members?${qs.toString()}`, {
+          credentials: 'include',
+          headers: buildB2bRbacHeaders(),
+        }).catch(() => null),
       ]);
 
       if (ordersRes.ok) {
@@ -714,12 +840,132 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
           }
         }
       }
+
+      if (membersRes && membersRes.ok) {
+        const memData = await membersRes.json().catch(() => null);
+        if (memData && Array.isArray(memData.members) && memData.members.length > 0) {
+          setOrgMembers(memData.members);
+        }
+      }
     } catch (err: any) {
       setErrorMsg(err?.message || 'Network error connecting to BFF / Control Plane.');
     } finally {
       setLoadingOrders(false);
     }
-  }, [userId, userEmail, initialOrderId, initialAssetIntakeOrderId]);
+  }, [userId, userEmail, initialOrderId, initialAssetIntakeOrderId, buildB2bRbacHeaders]);
+
+  const fetchOrgMembersList = useCallback(async () => {
+    setLoadingOrgMembers(true);
+    try {
+      const res = await fetch('/api/customer/organization/members', {
+        credentials: 'include',
+        headers: buildB2bRbacHeaders(),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.members)) {
+          setOrgMembers(data.members);
+        }
+      }
+    } catch {
+      // silent fallback
+    } finally {
+      setLoadingOrgMembers(false);
+    }
+  }, [buildB2bRbacHeaders]);
+
+  const handleInviteOrgMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMemberEmail.trim()) return;
+    setSubmittingMemberAction(true);
+    try {
+      const res = await fetch('/api/customer/organization/members', {
+        method: 'POST',
+        credentials: 'include',
+        headers: buildB2bRbacHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          email: newMemberEmail.trim(),
+          fullName: newMemberFullName.trim() || newMemberEmail.split('@')[0],
+          role: newMemberRole,
+          status: 'ACTIVE',
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) {
+        notify(data?.message || data?.error || 'RBAC Error: Could not invite member.', 'error');
+        return;
+      }
+      if (Array.isArray(data.members)) {
+        setOrgMembers(data.members);
+      } else if (data.member) {
+        setOrgMembers((prev) => [...prev, data.member]);
+      }
+      setNewMemberEmail('');
+      setNewMemberFullName('');
+      notify(`Miembro ${data.member?.email || newMemberEmail} añadido con rol ${newMemberRole}.`, 'success');
+    } catch (err: any) {
+      notify(err?.message || 'Network error inviting member.', 'error');
+    } finally {
+      setSubmittingMemberAction(false);
+    }
+  };
+
+  const handleUpdateOrgMemberRole = async (memberId: string, nextRole: B2bOrganizationRoleId) => {
+    setSubmittingMemberAction(true);
+    try {
+      const res = await fetch(`/api/customer/organization/members/${encodeURIComponent(memberId)}/role`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: buildB2bRbacHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ role: nextRole }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) {
+        notify(data?.message || data?.error || 'RBAC Error: Could not update member role.', 'error');
+        return;
+      }
+      if (Array.isArray(data.members)) {
+        setOrgMembers(data.members);
+      } else {
+        setOrgMembers((prev) =>
+          prev.map((m) => (m.memberId === memberId ? { ...m, role: nextRole } : m))
+        );
+      }
+      notify(`Rol actualizado a ${nextRole} para miembro ${memberId}.`, 'success');
+    } catch (err: any) {
+      notify(err?.message || 'Error updating role.', 'error');
+    } finally {
+      setSubmittingMemberAction(false);
+    }
+  };
+
+  const handleRevokeOrgMember = async (memberId: string) => {
+    setSubmittingMemberAction(true);
+    try {
+      const res = await fetch(`/api/customer/organization/members/${encodeURIComponent(memberId)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: buildB2bRbacHeaders(),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) {
+        notify(data?.message || data?.error || 'RBAC Error: Could not revoke member.', 'error');
+        return;
+      }
+      if (Array.isArray(data.members)) {
+        setOrgMembers(data.members);
+      } else {
+        setOrgMembers((prev) =>
+          prev.map((m) => (m.memberId === memberId ? { ...m, status: 'SUSPENDED' } : m))
+        );
+      }
+      notify(`Acceso revocado (SUSPENDED) para miembro ${memberId}.`, 'info');
+    } catch (err: any) {
+      notify(err?.message || 'Error revoking member.', 'error');
+    } finally {
+      setSubmittingMemberAction(false);
+    }
+  };
 
   useEffect(() => {
     fetchPortalData();
@@ -789,10 +1035,15 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
         {
           method: 'POST',
           credentials: 'include',
+          headers: buildB2bRbacHeaders(),
           body: formData,
         }
       );
       const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) {
+        notify(data?.message || data?.error || `RBAC Error uploading ${role}.`, 'error');
+        return;
+      }
       const uploadedSpec: ApprovedFileSpec = {
         kind: role,
         role,
@@ -831,7 +1082,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
         {
           method: 'POST',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          headers: buildB2bRbacHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({
             role,
             externalUrl: rawUrl,
@@ -1041,7 +1292,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
         {
           method: 'POST',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          headers: buildB2bRbacHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({
             decision,
             comments,
@@ -1053,7 +1304,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data.ok === false) {
-        notify(data?.error || 'Could not process 3D Soft-Proof sign-off.', 'error');
+        notify(data?.message || data?.error || 'Could not process 3D Soft-Proof sign-off.', 'error');
         return;
       }
 
@@ -1134,7 +1385,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
         {
           method: 'POST',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          headers: buildB2bRbacHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({
             paymentMethod: method,
             modality: selectedOrderForPayment.commercialModality || 'MODALITY_A_ESCROW_MOR',
@@ -1145,7 +1396,11 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
         }
       );
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) {
+        notify(data?.message || data?.error || 'Gestión reservada a departamento financiero.', 'error');
+        return;
+      }
       setCheckoutSessionData(data);
 
       if (method === 'STRIPE_CARD' || method === 'STRIPE_SEPA') {
@@ -1215,11 +1470,12 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
         {
           method: 'POST',
           credentials: 'include',
+          headers: buildB2bRbacHeaders(),
           body: formData,
         }
       );
-      const data = await res.json();
-      if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok !== false) {
         const targetId = selectedOrderForPayment.orderId;
         setOrders((prev) =>
           prev.map((o) =>
@@ -1475,7 +1731,45 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 self-end sm:self-auto">
+        <div className="flex items-center gap-2.5 self-end sm:self-auto flex-wrap">
+          {/* Active B2B Organization Role Switcher */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-zinc-300 dark:border-[#1f2228] bg-zinc-50 dark:bg-[#0a0b0d]">
+            <ShieldCheckIcon className="w-3.5 h-3.5 text-[#dc2626] shrink-0" />
+            <span className="text-[9px] font-technical uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              RBAC Role:
+            </span>
+            <select
+              aria-label="Active B2B Organization Role"
+              data-testid="select-active-b2b-role"
+              value={activeB2bRole}
+              onChange={(e) => {
+                const nextRole = e.target.value as B2bOrganizationRoleId;
+                setActiveB2bRole(nextRole);
+                notify(`Contexto RBAC cambiado a ${nextRole}: ${B2B_ROLE_METADATA[nextRole].permissionsSummary}`, 'info');
+              }}
+              className="bg-transparent text-[10px] font-technical font-black uppercase text-zinc-900 dark:text-zinc-100 focus:outline-none cursor-pointer"
+            >
+              <option value="ORG_ADMIN" className="bg-white dark:bg-[#12141a]">ORG_ADMIN (Total)</option>
+              <option value="PRODUCTION_MANAGER" className="bg-white dark:bg-[#12141a]">PRODUCTION_MANAGER</option>
+              <option value="FINANCE_APPROVER" className="bg-white dark:bg-[#12141a]">FINANCE_APPROVER</option>
+              <option value="PREPRESS_DESIGNER" className="bg-white dark:bg-[#12141a]">PREPRESS_DESIGNER</option>
+            </select>
+          </div>
+
+          <button
+            type="button"
+            data-testid="btn-open-team-rbac-drawer"
+            onClick={() => {
+              setShowTeamRbacDrawer(true);
+              fetchOrgMembersList();
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-zinc-300 dark:border-[#1f2228] bg-zinc-50 dark:bg-[#0a0b0d] text-[10px] font-technical font-bold uppercase tracking-wider transition-all hover:border-[#dc2626] text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white"
+            title="Manage Multi-User B2B Team & Editorial RBAC Matrix"
+          >
+            <ShieldCheckIcon className="w-3.5 h-3.5 text-[#10b981]" />
+            <span>Team &amp; RBAC ({orgMembers.filter((m) => m.status !== 'SUSPENDED').length})</span>
+          </button>
+
           <button
             type="button"
             onClick={fetchPortalData}
@@ -1757,8 +2051,20 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                         </button>
                       </div>
 
+                      {!canUploadProductionAssets && (
+                        <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/35 text-amber-800 dark:text-amber-300 font-technical text-[10px] font-bold">
+                          🔒 Subida de PDF/X-4 reservada a Maquetación o Producción (PREPRESS_DESIGNER, PRODUCTION_MANAGER u ORG_ADMIN).
+                        </div>
+                      )}
+
                       {mode === 'UPLOAD' ? (
-                        <label className="block border-2 border-dashed border-zinc-300 dark:border-[#2d323b] hover:border-[#dc2626] rounded-xl p-6 text-center cursor-pointer transition-all bg-zinc-50 dark:bg-zinc-50 dark:bg-[#0a0b0d]/70">
+                        <label
+                          className={`block border-2 border-dashed border-zinc-300 dark:border-[#2d323b] rounded-xl p-6 text-center transition-all bg-zinc-50 dark:bg-[#0a0b0d]/70 ${
+                            canUploadProductionAssets
+                              ? 'hover:border-[#dc2626] cursor-pointer'
+                              : 'opacity-50 cursor-not-allowed'
+                          }`}
+                        >
                           <ArrowUpTrayIcon className="w-7 h-7 text-[#dc2626] mx-auto mb-2" />
                           <span className="block text-xs font-technical font-bold text-zinc-900 dark:text-zinc-100 uppercase">
                             {isUploading ? 'Uploading & Running Preflight...' : 'Drag & Drop PDF/X-4 File or Click to Browse'}
@@ -1769,7 +2075,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                           <input
                             type="file"
                             accept=".pdf,application/pdf"
-                            disabled={isUploading}
+                            disabled={isUploading || !canUploadProductionAssets}
                             className="hidden"
                             onChange={(e) => {
                               const file = e.target.files?.[0];
@@ -1785,18 +2091,19 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                           <div className="flex gap-2">
                             <input
                               type="url"
+                              disabled={!canUploadProductionAssets}
                               placeholder="https://we.tl/t-... or https://www.dropbox.com/s/..."
                               value={assetExternalLinks[role]}
                               onChange={(e) =>
                                 setAssetExternalLinks((prev) => ({ ...prev, [role]: e.target.value }))
                               }
-                              className="flex-1 px-3 py-2 rounded-lg bg-white dark:bg-[#14161a] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-900 dark:text-zinc-100 font-technical focus:outline-none focus:border-[#dc2626]"
+                              className="flex-1 px-3 py-2 rounded-lg bg-white dark:bg-[#14161a] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-900 dark:text-zinc-100 font-technical focus:outline-none focus:border-[#dc2626] disabled:opacity-50"
                             />
                             <button
                               type="button"
-                              disabled={isUploading}
+                              disabled={isUploading || !canUploadProductionAssets}
                               onClick={() => handleRegisterOrderExternalLink(role)}
-                              className="px-4 py-2 rounded-lg bg-[#dc2626] hover:bg-[#b91c1c] text-white text-[10px] font-technical font-black uppercase tracking-wider"
+                              className="px-4 py-2 rounded-lg bg-[#dc2626] hover:bg-[#b91c1c] disabled:opacity-45 disabled:cursor-not-allowed text-white text-[10px] font-technical font-black uppercase tracking-wider"
                             >
                               {isUploading ? 'Verifying...' : 'Register Link'}
                             </button>
@@ -1817,6 +2124,9 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
               <BookSoftProofViewer3D
                 book={buildSoftProofGeometry(assetIntakeOrder)}
                 submitting={submittingSoftProof}
+                canApproveForPress={canApproveSoftProof}
+                approvalDisabledReason="Requiere rol PRODUCTION_MANAGER o ORG_ADMIN"
+                activeActorRole={activeB2bRole}
                 onApproveForPress={({ orderId, comments, geometry }) =>
                   handleSoftProofDecision(orderId, 'APPROVED', comments, geometry)
                 }
@@ -2400,18 +2710,36 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                             </div>
                           )}
 
+                          {!canExecutePayments && (
+                            <div
+                              data-testid="rbac-payment-restricted-banner"
+                              className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/35 text-amber-800 dark:text-amber-300 font-technical text-[10px] font-bold flex items-center justify-between gap-2"
+                            >
+                              <span className="flex items-center gap-1.5">
+                                <ShieldCheckIcon className="w-4 h-4 text-amber-500 shrink-0" />
+                                <span>Gestión reservada a departamento financiero</span>
+                              </span>
+                              <span className="px-1.5 py-0.5 rounded bg-black/20 border border-amber-500/30 uppercase text-[9px]">
+                                ROL: {activeB2bRole}
+                              </span>
+                            </div>
+                          )}
+
                           <button
                             type="button"
-                            disabled={processingCheckout}
+                            disabled={processingCheckout || !canExecutePayments}
+                            title={!canExecutePayments ? 'Gestión reservada a departamento financiero (requiere FINANCE_APPROVER u ORG_ADMIN)' : 'Autorizar cargo en Stripe'}
                             onClick={() =>
                               handleInitiateCheckoutSession(
                                 stripeMethodType === 'SEPA_DEBIT' ? 'STRIPE_SEPA' : 'STRIPE_CARD'
                               )
                             }
-                            className="w-full py-3 rounded-xl bg-[#dc2626] hover:bg-[#b91c1c] text-white text-xs font-technical font-black uppercase tracking-wider transition-all shadow-lg"
+                            className="w-full py-3 rounded-xl bg-[#dc2626] hover:bg-[#b91c1c] disabled:opacity-45 disabled:cursor-not-allowed text-white text-xs font-technical font-black uppercase tracking-wider transition-all shadow-lg"
                           >
                             {processingCheckout
                               ? 'Processing Stripe authorization...'
+                              : !canExecutePayments
+                              ? '🔒 Gestión reservada a departamento financiero'
                               : `Authorize & Pay €${Number(
                                   selectedOrderForPayment.totalPriceEur || selectedOrderForPayment.offer_price || 0
                                 ).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
@@ -2585,13 +2913,28 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                             </div>
                           </div>
 
+                          {!canExecutePayments && (
+                            <div
+                              data-testid="rbac-wire-restricted-banner"
+                              className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/35 text-amber-800 dark:text-amber-300 font-technical text-[10px] font-bold flex items-center justify-between gap-2"
+                            >
+                              <span>Gestión reservada a departamento financiero</span>
+                              <span className="px-1.5 py-0.5 rounded bg-black/20 border border-amber-500/30 uppercase text-[9px]">
+                                {activeB2bRole}
+                              </span>
+                            </div>
+                          )}
+
                           <button
                             type="submit"
-                            disabled={uploadingWireProof}
-                            className="w-full py-3 rounded-xl bg-[#10b981] hover:bg-[#059669] text-black font-technical font-black text-xs uppercase tracking-wider transition-all"
+                            disabled={uploadingWireProof || !canExecutePayments}
+                            title={!canExecutePayments ? 'Gestión reservada a departamento financiero' : 'Subir justificante de transferencia B2B'}
+                            className="w-full py-3 rounded-xl bg-[#10b981] hover:bg-[#059669] disabled:opacity-45 disabled:cursor-not-allowed text-black font-technical font-black text-xs uppercase tracking-wider transition-all"
                           >
                             {uploadingWireProof
                               ? 'Registering wire proof in Control Plane...'
+                              : !canExecutePayments
+                              ? '🔒 Gestión reservada a departamento financiero'
                               : 'UPLOAD WIRE PROOF'}
                           </button>
                         </form>
@@ -3738,6 +4081,9 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
             <BookSoftProofViewer3D
               book={buildSoftProofGeometry(softProofModalOrder)}
               submitting={submittingSoftProof}
+              canApproveForPress={canApproveSoftProof}
+              approvalDisabledReason="Requiere rol PRODUCTION_MANAGER o ORG_ADMIN"
+              activeActorRole={activeB2bRole}
               onApproveForPress={({ orderId, comments, geometry }) =>
                 handleSoftProofDecision(orderId, 'APPROVED', comments, geometry)
               }
@@ -3755,6 +4101,202 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
           orderIntentId={legacyIntentDetailId}
           onClose={() => setLegacyIntentDetailId(null)}
         />
+      )}
+
+      {/* ===================================================================
+          MODAL DRAWER: TEAM & EDITORIAL RBAC GOVERNANCE (PHASE 16 - OPTION 3)
+         =================================================================== */}
+      {showTeamRbacDrawer && (
+        <div
+          data-testid="team-rbac-governance-drawer"
+          className="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto"
+        >
+          <div className="w-full max-w-4xl rounded-2xl border border-[#dc2626] bg-white dark:bg-[#12141a] p-6 space-y-5 shadow-2xl my-auto max-h-[92vh] overflow-y-auto">
+            <div className="flex items-start justify-between border-b border-zinc-200 dark:border-[#1f2228] pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <ShieldCheckIcon className="w-4 h-4 text-[#dc2626]" />
+                  <span className="text-[10px] font-technical font-black uppercase tracking-[0.2em] text-[#dc2626]">
+                    B2B MULTI-USER GOVERNANCE // EDITORIAL RBAC MATRIX
+                  </span>
+                </div>
+                <h3 className="text-base font-black text-zinc-900 dark:text-zinc-100 mt-1">
+                  {fiscalProfile.legalEntityName || 'Penguin Random House Publishing Group S.A.U.'}
+                </h3>
+                <p className="text-xs font-technical text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  Segregación criptográfica de funciones entre Maquetación (PDF/X-4), Producción (Imprimátur 3D), Finanzas (Escrow &amp; EN 16931) y Administración.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTeamRbacDrawer(false)}
+                className="p-1.5 rounded-lg border border-zinc-200 dark:border-[#1f2228] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Active Session Role Simulator Banner */}
+            <div className="p-4 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-200 dark:border-[#1f2228] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <span className="block text-[10px] font-technical font-black uppercase tracking-wider text-[#10b981]">
+                  ACTIVE SESSION ACTOR ROLE: {activeB2bRole}
+                </span>
+                <p className="text-xs text-zinc-700 dark:text-zinc-300 mt-0.5">
+                  {B2B_ROLE_METADATA[activeB2bRole].description}
+                </p>
+                <span className="inline-block text-[10px] font-technical text-zinc-500 dark:text-zinc-400 mt-1">
+                  {B2B_ROLE_METADATA[activeB2bRole].permissionsSummary}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5 shrink-0">
+                {(['ORG_ADMIN', 'PRODUCTION_MANAGER', 'FINANCE_APPROVER', 'PREPRESS_DESIGNER'] as B2bOrganizationRoleId[]).map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setActiveB2bRole(r)}
+                    className={`px-2.5 py-1.5 rounded-lg text-[10px] font-technical font-black uppercase border transition-all ${
+                      activeB2bRole === r
+                        ? 'bg-[#dc2626] text-white border-[#dc2626]'
+                        : 'bg-white dark:bg-[#14161a] text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-[#2d323b] hover:border-[#dc2626]'
+                    }`}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Invite Member Form (ORG_ADMIN Only) */}
+            <form
+              onSubmit={handleInviteOrgMember}
+              className="p-4 rounded-xl border border-zinc-200 dark:border-[#1f2228] bg-zinc-50/70 dark:bg-[#0a0b0d] space-y-3"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-technical font-black uppercase tracking-wider text-zinc-800 dark:text-zinc-200">
+                  INVITE EDITORIAL TEAM MEMBER (CUSTOMER_B2B_MEMBERS)
+                </span>
+                {!canManageOrgMembers && (
+                  <span className="text-[10px] font-technical font-bold text-amber-500">
+                    🔒 Requiere rol ORG_ADMIN para invitar o cambiar permisos
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
+                <input
+                  type="text"
+                  placeholder="Full Name (e.g. Sofía Martín)"
+                  disabled={!canManageOrgMembers || submittingMemberAction}
+                  value={newMemberFullName}
+                  onChange={(e) => setNewMemberFullName(e.target.value)}
+                  className="px-3 py-2 rounded-lg bg-white dark:bg-[#14161a] border border-zinc-300 dark:border-[#2d323b] text-xs font-technical text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+                />
+                <input
+                  type="email"
+                  required
+                  placeholder="corporativo@editorial.eu"
+                  disabled={!canManageOrgMembers || submittingMemberAction}
+                  value={newMemberEmail}
+                  onChange={(e) => setNewMemberEmail(e.target.value)}
+                  className="px-3 py-2 rounded-lg bg-white dark:bg-[#14161a] border border-zinc-300 dark:border-[#2d323b] text-xs font-technical text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+                />
+                <select
+                  value={newMemberRole}
+                  disabled={!canManageOrgMembers || submittingMemberAction}
+                  onChange={(e) => setNewMemberRole(e.target.value as B2bOrganizationRoleId)}
+                  className="px-3 py-2 rounded-lg bg-white dark:bg-[#14161a] border border-zinc-300 dark:border-[#2d323b] text-xs font-technical text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+                >
+                  <option value="PREPRESS_DESIGNER">PREPRESS_DESIGNER</option>
+                  <option value="PRODUCTION_MANAGER">PRODUCTION_MANAGER</option>
+                  <option value="FINANCE_APPROVER">FINANCE_APPROVER</option>
+                  <option value="ORG_ADMIN">ORG_ADMIN</option>
+                </select>
+                <button
+                  type="submit"
+                  disabled={!canManageOrgMembers || submittingMemberAction}
+                  className="px-4 py-2 rounded-lg bg-[#10b981] hover:bg-emerald-500 disabled:opacity-45 disabled:cursor-not-allowed text-black font-technical text-xs font-black uppercase tracking-wider"
+                >
+                  {submittingMemberAction ? 'SAVING...' : '+ INVITE MEMBER'}
+                </button>
+              </div>
+            </form>
+
+            {/* Organization Members Table */}
+            <div className="rounded-xl border border-zinc-200 dark:border-[#1f2228] overflow-hidden">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-100/80 dark:bg-zinc-900/80 text-[10px] font-technical font-black uppercase text-zinc-500 dark:text-zinc-400">
+                    <th className="py-3 px-4">MEMBER / ID</th>
+                    <th className="py-3 px-4">EMAIL</th>
+                    <th className="py-3 px-4">ASSIGNED RBAC ROLE</th>
+                    <th className="py-3 px-4">STATUS</th>
+                    <th className="py-3 px-4 text-right">GOVERNANCE ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                  {loadingOrgMembers ? (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center font-technical text-zinc-500">
+                        Loading organization members from Control Plane...
+                      </td>
+                    </tr>
+                  ) : (
+                    orgMembers.map((mem) => (
+                      <tr key={mem.memberId} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
+                        <td className="py-3 px-4">
+                          <div className="font-bold text-zinc-900 dark:text-zinc-100">{mem.fullName}</div>
+                          <div className="text-[10px] font-technical text-zinc-500">{mem.memberId}</div>
+                        </td>
+                        <td className="py-3 px-4 font-technical text-zinc-700 dark:text-zinc-300">
+                          {mem.email}
+                        </td>
+                        <td className="py-3 px-4">
+                          <select
+                            aria-label={`Change role for ${mem.email}`}
+                            disabled={!canManageOrgMembers || submittingMemberAction || mem.status === 'SUSPENDED'}
+                            value={mem.role}
+                            onChange={(e) =>
+                              handleUpdateOrgMemberRole(mem.memberId, e.target.value as B2bOrganizationRoleId)
+                            }
+                            className="px-2.5 py-1 rounded-lg bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-300 dark:border-[#2d323b] text-[10px] font-technical font-bold text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
+                          >
+                            <option value="ORG_ADMIN">ORG_ADMIN</option>
+                            <option value="PRODUCTION_MANAGER">PRODUCTION_MANAGER</option>
+                            <option value="FINANCE_APPROVER">FINANCE_APPROVER</option>
+                            <option value="PREPRESS_DESIGNER">PREPRESS_DESIGNER</option>
+                          </select>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span
+                            className={`px-2 py-0.5 rounded text-[9px] font-technical font-black uppercase border ${
+                              mem.status === 'SUSPENDED'
+                                ? 'bg-red-500/15 text-red-400 border-red-500/30'
+                                : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                            }`}
+                          >
+                            {mem.status}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          {mem.status !== 'SUSPENDED' && (
+                            <button
+                              type="button"
+                              disabled={!canManageOrgMembers || submittingMemberAction}
+                              onClick={() => handleRevokeOrgMember(mem.memberId)}
+                              className="px-2.5 py-1 rounded-lg border border-red-500/40 bg-red-500/10 hover:bg-red-500/25 disabled:opacity-40 text-red-400 text-[10px] font-technical font-bold uppercase"
+                            >
+                              Revoke
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -327,7 +327,37 @@ function registerCustomerHubBffRoutes(app, deps) {
         if (customerId) authHeaders['x-customer-id'] = String(customerId);
         if (sessionId) authHeaders['x-session-id'] = String(sessionId);
 
-        return { authHeaders, identity, email, customerId, sessionId, tenantId };
+        const b2bRole = req.headers['x-b2b-role'] || req.query?.b2bRole || req.body?.b2bRole || null;
+        const b2bMemberId = req.headers['x-b2b-member-id'] || req.query?.b2bMemberId || req.body?.b2bMemberId || null;
+        const b2bEmail = req.headers['x-b2b-email'] || req.query?.b2bEmail || req.body?.b2bEmail || null;
+        const b2bOrgId = req.headers['x-b2b-org-id'] || req.query?.organizationId || req.body?.organizationId || null;
+
+        if (b2bRole) authHeaders['x-b2b-role'] = String(b2bRole).trim().toUpperCase();
+        if (b2bMemberId) authHeaders['x-b2b-member-id'] = String(b2bMemberId).trim();
+        if (b2bEmail) authHeaders['x-b2b-email'] = String(b2bEmail).trim();
+        if (b2bOrgId) authHeaders['x-b2b-org-id'] = String(b2bOrgId).trim();
+
+        return { authHeaders, identity, email, customerId, sessionId, tenantId, b2bRole: authHeaders['x-b2b-role'] || 'ORG_ADMIN' };
+    }
+
+    function checkLocalBffRbac(req, allowedRoles, errorCode, message) {
+        const rawRole = String(req.headers['x-b2b-role'] || req.query?.b2bRole || req.body?.b2bRole || 'ORG_ADMIN').trim().toUpperCase();
+        const validRoles = ['ORG_ADMIN', 'PRODUCTION_MANAGER', 'FINANCE_APPROVER', 'PREPRESS_DESIGNER'];
+        const role = validRoles.includes(rawRole) ? rawRole : 'ORG_ADMIN';
+        if (!allowedRoles.includes(role)) {
+            return {
+                allowed: false,
+                status: 403,
+                payload: {
+                    ok: false,
+                    error: errorCode,
+                    message,
+                    actorRole: role,
+                    requiredRoles: allowedRoles
+                }
+            };
+        }
+        return { allowed: true, role };
     }
 
     function normalizeBffOrder(ord) {
@@ -758,7 +788,21 @@ function registerCustomerHubBffRoutes(app, deps) {
             if (cpRes.data && cpRes.data.ok) {
                 return res.status(200).json(cpRes.data);
             }
-        } catch (_) {}
+        } catch (err) {
+            if (err.response && err.response.status === 403) {
+                return res.status(403).json(err.response.data);
+            }
+        }
+
+        const rbacCheck = checkLocalBffRbac(
+            req,
+            ['ORG_ADMIN', 'FINANCE_APPROVER'],
+            'FORBIDDEN_RBAC_FINANCE_RIGHTS_REQUIRED',
+            'Gestión reservada a departamento financiero. Se requiere rol FINANCE_APPROVER u ORG_ADMIN.'
+        );
+        if (!rbacCheck.allowed) {
+            return res.status(403).json(rbacCheck.payload);
+        }
 
         const order = localHubFallbackOrders.get(orderId) || Array.from(localHubFallbackOrders.values())[0];
         const paymentMethod = req.body?.paymentMethod || 'BANK_TRANSFER_B2B';
@@ -866,7 +910,21 @@ function registerCustomerHubBffRoutes(app, deps) {
                 if (order) order.paymentStatus = 'WIRE_PROOF_UPLOADED';
                 return res.status(200).json(cpRes.data);
             }
-        } catch (_) {}
+        } catch (err) {
+            if (err.response && err.response.status === 403) {
+                return res.status(403).json(err.response.data);
+            }
+        }
+
+        const rbacCheck = checkLocalBffRbac(
+            req,
+            ['ORG_ADMIN', 'FINANCE_APPROVER'],
+            'FORBIDDEN_RBAC_FINANCE_RIGHTS_REQUIRED',
+            'Gestión reservada a departamento financiero. Se requiere rol FINANCE_APPROVER u ORG_ADMIN.'
+        );
+        if (!rbacCheck.allowed) {
+            return res.status(403).json(rbacCheck.payload);
+        }
 
         const proofId = `prf_${Date.now()}`;
         const checksumSha256 = fileBuffer
@@ -1061,7 +1119,21 @@ startxref
                 }
                 return res.status(200).json(cpRes.data);
             }
-        } catch (_) {}
+        } catch (err) {
+            if (err.response && err.response.status === 403) {
+                return res.status(403).json(err.response.data);
+            }
+        }
+
+        const rbacCheck = checkLocalBffRbac(
+            req,
+            ['ORG_ADMIN', 'PRODUCTION_MANAGER', 'PREPRESS_DESIGNER'],
+            'FORBIDDEN_RBAC_ASSET_UPLOAD_RIGHTS_REQUIRED',
+            'La ingesta de activos PDF/X-4 requiere rol PREPRESS_DESIGNER, PRODUCTION_MANAGER u ORG_ADMIN.'
+        );
+        if (!rbacCheck.allowed) {
+            return res.status(403).json(rbacCheck.payload);
+        }
 
         const fileId = `fil_${Date.now()}_${role === 'INTERIOR_PDF' ? 'int' : 'cov'}`;
         const sha256 = fileBuffer
@@ -1190,7 +1262,21 @@ startxref
             if (cpRes.data && cpRes.data.ok) {
                 return res.status(200).json(cpRes.data);
             }
-        } catch (_) {}
+        } catch (err) {
+            if (err.response && err.response.status === 403) {
+                return res.status(403).json(err.response.data);
+            }
+        }
+
+        const rbacCheck = checkLocalBffRbac(
+            req,
+            ['ORG_ADMIN', 'PRODUCTION_MANAGER', 'PREPRESS_DESIGNER'],
+            'FORBIDDEN_RBAC_ASSET_UPLOAD_RIGHTS_REQUIRED',
+            'La ingesta de activos PDF/X-4 requiere rol PREPRESS_DESIGNER, PRODUCTION_MANAGER u ORG_ADMIN.'
+        );
+        if (!rbacCheck.allowed) {
+            return res.status(403).json(rbacCheck.payload);
+        }
 
         const fileId = `fil_ext_${Date.now()}`;
         const filename = req.body?.originalName || `${role}_External_Link.pdf`;
@@ -1374,7 +1460,23 @@ startxref
                 }
                 return res.status(200).json(cpRes.data);
             }
-        } catch (_) {}
+        } catch (err) {
+            if (err.response && err.response.status === 403) {
+                return res.status(403).json(err.response.data);
+            }
+        }
+
+        if (decision === 'APPROVED') {
+            const rbacCheck = checkLocalBffRbac(
+                req,
+                ['ORG_ADMIN', 'PRODUCTION_MANAGER'],
+                'FORBIDDEN_RBAC_INSUFFICIENT_SIGN_OFF_RIGHTS',
+                'Requiere rol PRODUCTION_MANAGER o ORG_ADMIN para firmar el Imprimátur Digital 3D y liberar planchas CTP.'
+            );
+            if (!rbacCheck.allowed) {
+                return res.status(403).json(rbacCheck.payload);
+            }
+        }
 
         const localOrd = localHubFallbackOrders.get(orderId);
         const specs = localOrd?.specs || {};
@@ -1784,6 +1886,217 @@ startxref
 
     app.post('/api/admin/storage/backup/run', handleStorageBackupRunBff);
     app.post('/api/customer/storage/backup/run', handleStorageBackupRunBff);
+
+    // ---- 11g. B2B Multi-User Organization & Editorial RBAC Matrix BFF Proxies (Phase 16 - Option 3) ----
+    let localB2bMembersFallback = [
+        {
+            memberId: 'MEM_2026_0001',
+            organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
+            email: 'publisher@printprice.pro',
+            fullName: 'Carlos Mendoza (Director Editorial & Org Admin)',
+            role: 'ORG_ADMIN',
+            status: 'ACTIVE',
+            createdAt: '2026-01-10T09:00:00.000Z',
+            updatedAt: '2026-11-01T08:00:00.000Z'
+        },
+        {
+            memberId: 'MEM_2026_0002',
+            organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
+            email: 'production@printprice.pro',
+            fullName: 'Elena Vargas (Jefa de Producción Editorial)',
+            role: 'PRODUCTION_MANAGER',
+            status: 'ACTIVE',
+            createdAt: '2026-01-12T10:30:00.000Z',
+            updatedAt: '2026-11-01T08:00:00.000Z'
+        },
+        {
+            memberId: 'MEM_2026_0003',
+            organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
+            email: 'finance@printprice.pro',
+            fullName: 'Marcos Alarcón (Controller Financiero & Escrow)',
+            role: 'FINANCE_APPROVER',
+            status: 'ACTIVE',
+            createdAt: '2026-01-15T11:15:00.000Z',
+            updatedAt: '2026-11-01T08:00:00.000Z'
+        },
+        {
+            memberId: 'MEM_2026_0004',
+            organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
+            email: 'prepress@printprice.pro',
+            fullName: 'Lucía Serrano (Maquetación & Arte Final PDF/X-4)',
+            role: 'PREPRESS_DESIGNER',
+            status: 'ACTIVE',
+            createdAt: '2026-01-20T14:00:00.000Z',
+            updatedAt: '2026-11-01T08:00:00.000Z'
+        }
+    ];
+
+    app.get('/api/customer/organization/members', async (req, res) => {
+        const { authHeaders, b2bRole } = buildCustomerHubHeaders(req);
+        try {
+            const cpRes = await axios.get(
+                `${CONTROL_PLANE_BASE_URL}/api/customer/organization/members`,
+                { headers: authHeaders, params: req.query || {}, timeout: 8000 }
+            );
+            if (cpRes.data && cpRes.data.ok) {
+                return res.status(200).json(cpRes.data);
+            }
+        } catch (err) {
+            if (err.response && err.response.status === 403) {
+                return res.status(403).json(err.response.data);
+            }
+        }
+
+        const activeMember = localB2bMembersFallback.find((m) => m.role === b2bRole) || localB2bMembersFallback[0];
+        return res.status(200).json({
+            ok: true,
+            organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
+            actor: {
+                memberId: activeMember.memberId,
+                email: activeMember.email,
+                fullName: activeMember.fullName,
+                role: b2bRole
+            },
+            count: localB2bMembersFallback.length,
+            members: localB2bMembersFallback
+        });
+    });
+
+    app.post('/api/customer/organization/members', async (req, res) => {
+        const { authHeaders } = buildCustomerHubHeaders(req);
+        try {
+            const cpRes = await axios.post(
+                `${CONTROL_PLANE_BASE_URL}/api/customer/organization/members`,
+                req.body || {},
+                { headers: authHeaders, timeout: 8000 }
+            );
+            if (cpRes.data && cpRes.data.ok) {
+                return res.status(cpRes.status || 201).json(cpRes.data);
+            }
+        } catch (err) {
+            if (err.response && (err.response.status === 403 || err.response.status === 400)) {
+                return res.status(err.response.status).json(err.response.data);
+            }
+        }
+
+        const rbacCheck = checkLocalBffRbac(
+            req,
+            ['ORG_ADMIN'],
+            'FORBIDDEN_RBAC_ORG_ADMIN_REQUIRED',
+            'Solo el rol ORG_ADMIN está autorizado para gestionar miembros y permisos de la cuenta editorial.'
+        );
+        if (!rbacCheck.allowed) {
+            return res.status(403).json(rbacCheck.payload);
+        }
+
+        const email = String(req.body?.email || '').trim().toLowerCase();
+        if (!email || !email.includes('@')) {
+            return res.status(400).json({ ok: false, error: 'INVALID_MEMBER_EMAIL' });
+        }
+        const newMember = {
+            memberId: `MEM_2026_${Math.floor(1000 + Math.random() * 9000)}`,
+            organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
+            email,
+            fullName: String(req.body?.fullName || email.split('@')[0]),
+            role: String(req.body?.role || 'PREPRESS_DESIGNER').toUpperCase(),
+            status: 'ACTIVE',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+        localB2bMembersFallback.push(newMember);
+        return res.status(201).json({
+            ok: true,
+            organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
+            member: newMember,
+            members: localB2bMembersFallback
+        });
+    });
+
+    app.put('/api/customer/organization/members/:memberId/role', async (req, res) => {
+        const { memberId } = req.params;
+        const { authHeaders } = buildCustomerHubHeaders(req);
+        try {
+            const cpRes = await axios.put(
+                `${CONTROL_PLANE_BASE_URL}/api/customer/organization/members/${encodeURIComponent(memberId)}/role`,
+                req.body || {},
+                { headers: authHeaders, timeout: 8000 }
+            );
+            if (cpRes.data && cpRes.data.ok) {
+                return res.status(200).json(cpRes.data);
+            }
+        } catch (err) {
+            if (err.response && [400, 403, 404].includes(err.response.status)) {
+                return res.status(err.response.status).json(err.response.data);
+            }
+        }
+
+        const rbacCheck = checkLocalBffRbac(
+            req,
+            ['ORG_ADMIN'],
+            'FORBIDDEN_RBAC_ORG_ADMIN_REQUIRED',
+            'Solo el rol ORG_ADMIN está autorizado para gestionar miembros y permisos de la cuenta editorial.'
+        );
+        if (!rbacCheck.allowed) {
+            return res.status(403).json(rbacCheck.payload);
+        }
+
+        const idx = localB2bMembersFallback.findIndex((m) => m.memberId === memberId);
+        if (idx < 0) return res.status(404).json({ ok: false, error: 'MEMBER_NOT_FOUND' });
+        localB2bMembersFallback[idx] = {
+            ...localB2bMembersFallback[idx],
+            role: String(req.body?.role || localB2bMembersFallback[idx].role).toUpperCase(),
+            updatedAt: new Date().toISOString()
+        };
+        return res.status(200).json({
+            ok: true,
+            organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
+            member: localB2bMembersFallback[idx],
+            members: localB2bMembersFallback
+        });
+    });
+
+    app.delete('/api/customer/organization/members/:memberId', async (req, res) => {
+        const { memberId } = req.params;
+        const { authHeaders } = buildCustomerHubHeaders(req);
+        try {
+            const cpRes = await axios.delete(
+                `${CONTROL_PLANE_BASE_URL}/api/customer/organization/members/${encodeURIComponent(memberId)}`,
+                { headers: authHeaders, params: req.query || {}, timeout: 8000 }
+            );
+            if (cpRes.data && cpRes.data.ok) {
+                return res.status(200).json(cpRes.data);
+            }
+        } catch (err) {
+            if (err.response && [400, 403, 404].includes(err.response.status)) {
+                return res.status(err.response.status).json(err.response.data);
+            }
+        }
+
+        const rbacCheck = checkLocalBffRbac(
+            req,
+            ['ORG_ADMIN'],
+            'FORBIDDEN_RBAC_ORG_ADMIN_REQUIRED',
+            'Solo el rol ORG_ADMIN está autorizado para gestionar miembros y permisos de la cuenta editorial.'
+        );
+        if (!rbacCheck.allowed) {
+            return res.status(403).json(rbacCheck.payload);
+        }
+
+        const idx = localB2bMembersFallback.findIndex((m) => m.memberId === memberId);
+        if (idx < 0) return res.status(404).json({ ok: false, error: 'MEMBER_NOT_FOUND' });
+        localB2bMembersFallback[idx] = {
+            ...localB2bMembersFallback[idx],
+            status: 'SUSPENDED',
+            updatedAt: new Date().toISOString()
+        };
+        return res.status(200).json({
+            ok: true,
+            organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
+            revokedMemberId: memberId,
+            member: localB2bMembersFallback[idx],
+            members: localB2bMembersFallback
+        });
+    });
 
     // ---- 12. SPA Route Fallback for Dedicated B2B Portal Views (/portal/* and /order/:orderId/files) ----
     app.get(['/portal', '/portal/*', '/order/:orderId/files'], (req, res, next) => {

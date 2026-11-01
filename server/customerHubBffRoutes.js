@@ -1402,6 +1402,48 @@ startxref
         }
     });
 
+    // ---- 11d. GET & POST /api/customer/orders/:orderId/notifications (Transactional SMTP Outbox & Resend) ----
+    app.get('/api/customer/orders/:orderId/notifications', async (req, res) => {
+        const { orderId } = req.params;
+        const { authHeaders } = buildCustomerHubHeaders(req);
+        try {
+            const cpRes = await axios.get(
+                `${CONTROL_PLANE_BASE_URL}/api/customer/orders/${encodeURIComponent(orderId)}/notifications`,
+                { headers: authHeaders, timeout: 8000 }
+            );
+            return res.status(200).json(cpRes.data);
+        } catch (err) {
+            return res.status(200).json({
+                ok: true,
+                orderId,
+                count: 0,
+                notifications: []
+            });
+        }
+    });
+
+    app.post('/api/customer/orders/:orderId/notifications/send', async (req, res) => {
+        const { orderId } = req.params;
+        const { authHeaders, email } = buildCustomerHubHeaders(req);
+        try {
+            const cpRes = await axios.post(
+                `${CONTROL_PLANE_BASE_URL}/api/customer/orders/${encodeURIComponent(orderId)}/notifications/send`,
+                {
+                    ...(req.body || {}),
+                    recipientEmail: req.body?.recipientEmail || email
+                },
+                { headers: authHeaders, timeout: 10000 }
+            );
+            return res.status(200).json(cpRes.data);
+        } catch (err) {
+            return res.status(err.response?.status || 502).json({
+                ok: false,
+                error: 'BFF_NOTIFICATION_SEND_FAILED',
+                message: err.message
+            });
+        }
+    });
+
     // ---- 12. SPA Route Fallback for Dedicated B2B Portal Views (/portal/* and /order/:orderId/files) ----
     app.get(['/portal', '/portal/*', '/order/:orderId/files'], (req, res, next) => {
         const distIndex = path.join(__dirname, '..', 'dist', 'index.html');

@@ -1232,8 +1232,8 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
     <div
       className={
         isFullPage
-          ? 'min-h-screen w-full bg-[#0a0b0d] text-zinc-100 flex flex-col'
-          : 'w-full max-w-7xl h-[90vh] max-h-[90vh] flex flex-col bg-[#0e1014] border border-[#1f2228] rounded-xl shadow-2xl overflow-hidden text-zinc-100'
+          ? 'min-h-screen w-full bg-zinc-50 dark:bg-zinc-50 dark:bg-[#0a0b0d] text-zinc-900 dark:text-zinc-100 flex flex-col transition-colors'
+          : 'w-full max-w-7xl h-[90vh] max-h-[90vh] flex flex-col bg-white dark:bg-[#0e1014] border border-zinc-200 dark:border-zinc-200 dark:border-[#1f2228] rounded-xl shadow-2xl overflow-hidden text-zinc-900 dark:text-zinc-100 transition-colors'
       }
     >
       {/* Top Industrial Crimson Signal Bar */}
@@ -1241,13 +1241,11 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
 
       {/* Top Hub Header */}
       <div
-        className="px-4 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b shrink-0"
-        style={{ backgroundColor: '#14161a', borderColor: '#1f2228' }}
+        className="px-4 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-zinc-200 dark:border-zinc-200 dark:border-[#1f2228] bg-white dark:bg-[#12141a] shrink-0 transition-colors"
       >
         <div className="flex items-center gap-3.5">
           <div
-            className="h-10 w-10 rounded-xl flex items-center justify-center border shrink-0"
-            style={{ backgroundColor: '#0a0b0d', borderColor: '#dc2626' }}
+            className="h-10 w-10 rounded-xl flex items-center justify-center border border-[#dc2626] bg-red-50/60 dark:bg-zinc-50 dark:bg-[#0a0b0d] shrink-0"
           >
             <ShieldCheckIcon className="w-5 h-5 text-[#dc2626]" />
           </div>
@@ -1256,19 +1254,19 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
               <span className="text-[10px] font-technical font-black uppercase tracking-[0.25em] text-[#dc2626]">
                 USER ACCOUNT HUB // B2B PUBLISHER PORTAL
               </span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-technical font-bold uppercase tracking-wider bg-[#10b981]/10 text-[#10b981] border border-[#10b981]/30">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-technical font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
                 EN 16931 &amp; BPE Live
               </span>
-              <span className="hidden md:inline-block px-2 py-0.5 rounded text-[9px] font-technical text-zinc-400 bg-[#0a0b0d] border border-[#1f2228]">
+              <span className="hidden md:inline-block px-2 py-0.5 rounded text-[9px] font-technical text-zinc-400 bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-200 dark:border-[#1f2228]">
                 {assetIntakeOrder
                   ? `/order/${assetIntakeOrder.orderId}/files`
                   : PORTAL_TAB_ROUTES[activeTab]}
               </span>
             </div>
-            <h1 className="text-sm sm:text-base font-black tracking-tight text-white mt-0.5">
+            <h1 className="text-sm sm:text-base font-black tracking-tight text-zinc-900 dark:text-zinc-100 mt-0.5">
               {fiscalProfile.legalEntityName || userName || 'B2B Publisher Operations Center'}
-              <span className="ml-2 text-xs font-technical font-normal text-gray-400">
+              <span className="ml-2 text-xs font-technical font-normal text-zinc-500 dark:text-zinc-400">
                 ({userEmail || fiscalProfile.billingEmail})
               </span>
             </h1>
@@ -1280,8 +1278,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
             type="button"
             onClick={fetchPortalData}
             disabled={loadingOrders}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-technical font-bold uppercase tracking-wider transition-all hover:border-[#dc2626] text-gray-300 hover:text-white"
-            style={{ backgroundColor: '#0a0b0d', borderColor: '#1f2228' }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-200 dark:border-[#1f2228] bg-zinc-50 dark:bg-zinc-50 dark:bg-[#0a0b0d] text-[10px] font-technical font-bold uppercase tracking-wider transition-all hover:border-[#dc2626] text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-900 dark:hover:text-zinc-900 dark:text-zinc-100"
             title="Synchronize with Control Plane"
           >
             <ArrowPathIcon className={`w-3.5 h-3.5 ${loadingOrders ? 'animate-spin text-[#dc2626]' : ''}`} />
@@ -1310,8 +1307,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
 
       {/* 5-Tab Horizontal Navigation Bar */}
       <div
-        className="px-4 sm:px-8 pt-2 flex items-center gap-1.5 overflow-x-auto border-b shrink-0 no-scrollbar"
-        style={{ backgroundColor: '#101216', borderColor: '#1f2228' }}
+        className="px-4 sm:px-8 pt-2 flex items-center gap-1.5 overflow-x-auto border-b border-zinc-200 dark:border-zinc-200 dark:border-[#1f2228] bg-zinc-100/80 dark:bg-[#101216] shrink-0 no-scrollbar transition-colors"
         role="tablist"
       >
         {TABS.map((tab) => {
@@ -1325,11 +1321,11 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
               onClick={() => navigateTabWithUrl(tab.id, tab.id === 'LIVE_LOGISTICS' ? selectedOrderForTracking : null)}
               className={`group relative flex items-center gap-2 px-4 py-3 text-[11px] font-technical font-bold uppercase tracking-wider whitespace-nowrap transition-all border-b-2 ${
                 active
-                  ? 'border-[#dc2626] text-white bg-[#14161a]'
-                  : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-[#14161a]/50'
+                  ? 'border-[#dc2626] text-zinc-900 dark:text-white bg-white dark:bg-[#14161a] shadow-sm dark:shadow-none'
+                  : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-white/60 dark:hover:bg-white dark:bg-[#14161a]/50'
               } rounded-t-lg`}
             >
-              <span className={active ? 'text-[#dc2626]' : 'text-gray-500 group-hover:text-gray-300'}>
+              <span className={active ? 'text-[#dc2626]' : 'text-zinc-500 dark:text-zinc-500 group-hover:text-zinc-700 dark:text-zinc-300'}>
                 {tab.icon}
               </span>
               <span>{tab.label}</span>
@@ -1337,8 +1333,8 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                 <span
                   className={`px-1.5 py-0.5 rounded text-[9px] font-black ${
                     active
-                      ? 'bg-[#dc2626]/20 text-[#ef4444] border border-[#dc2626]/40'
-                      : 'bg-[#1f2228] text-gray-400'
+                      ? 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800/60'
+                      : 'bg-zinc-200/80 dark:bg-[#1f2228] text-zinc-600 dark:text-zinc-400'
                   }`}
                 >
                   {tab.badge}
@@ -1354,10 +1350,10 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
         <div
           className={`px-4 sm:px-8 py-2.5 flex items-center justify-between text-xs font-technical border-b shrink-0 ${
             toastMessage.type === 'error'
-              ? 'bg-[#dc2626]/20 text-red-200 border-[#dc2626]/40'
+              ? 'bg-red-50 dark:bg-[#dc2626]/20 text-red-800 dark:text-red-200 border-red-200 dark:border-[#dc2626]/40'
               : toastMessage.type === 'info'
-              ? 'bg-blue-500/15 text-blue-200 border-blue-500/30'
-              : 'bg-[#10b981]/15 text-emerald-200 border-[#10b981]/30'
+              ? 'bg-blue-50 dark:bg-blue-500/15 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-500/30'
+              : 'bg-emerald-50 dark:bg-[#10b981]/15 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-[#10b981]/30'
           }`}
         >
           <div className="flex items-center gap-2">
@@ -1394,20 +1390,20 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
            ================================================================= */}
         {assetIntakeOrder ? (
           <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-[#1f2228]">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-zinc-200 dark:border-[#1f2228]">
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-technical font-black uppercase tracking-[0.2em] text-amber-400">
                     PRODUCTION ASSET INTAKE // FILES OR EXTERNAL LINKS
                   </span>
-                  <span className="px-2 py-0.5 rounded text-[9px] font-technical font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                  <span className="px-2 py-0.5 rounded text-[9px] font-technical font-bold bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30">
                     {assetIntakeOrder.status}
                   </span>
                 </div>
-                <h2 className="text-base sm:text-lg font-black text-white mt-1">
+                <h2 className="text-base sm:text-lg font-black text-zinc-900 dark:text-zinc-100 mt-1">
                   {assetIntakeOrder.bookTitle} — <span className="text-[#dc2626]">{assetIntakeOrder.orderId}</span>
                 </h2>
-                <p className="text-xs text-gray-400 font-technical mt-0.5">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 font-technical mt-0.5">
                   Specs: {assetIntakeOrder.specsSummary} • Print Run: {Number(assetIntakeOrder.specs?.copies || 1000).toLocaleString('en-US')} copies
                 </p>
               </div>
@@ -1416,7 +1412,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                 <button
                   type="button"
                   onClick={closeAssetIntakeView}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[#2d323b] bg-[#14161a] hover:border-white text-xs font-technical font-bold uppercase text-gray-200"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-zinc-300 dark:border-[#2d323b] bg-white dark:bg-[#14161a] hover:border-zinc-900 dark:hover:border-white text-xs font-technical font-bold uppercase text-zinc-700 dark:text-zinc-200"
                 >
                   <ArrowLeftIcon className="w-3.5 h-3.5" />
                   <span>Back to Order History</span>
@@ -1450,11 +1446,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                 return (
                   <div
                     key={role}
-                    className="p-6 rounded-2xl border space-y-5 flex flex-col justify-between"
-                    style={{
-                      backgroundColor: '#14161a',
-                      borderColor: existingAsset ? '#10b981' : '#f59e0b',
-                    }}
+                    className={`p-6 rounded-2xl border space-y-5 flex flex-col justify-between bg-white dark:bg-[#12141a] shadow-sm dark:shadow-none ${existingAsset ? 'border-emerald-500' : 'border-amber-500'}`}
                   >
                     <div className="space-y-4">
                       <div className="flex items-start justify-between gap-2">
@@ -1462,49 +1454,49 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                           <span className="text-[10px] font-technical font-black uppercase tracking-widest text-[#dc2626]">
                             {isInterior ? 'SLOT 01 // INTERIOR BOOK BLOCK PDF' : 'SLOT 02 // COVER SPREAD + SPINE PDF'}
                           </span>
-                          <h3 className="text-sm font-black text-white mt-1">
+                          <h3 className="text-sm font-black text-zinc-900 dark:text-zinc-100 mt-1">
                             {isInterior
                               ? `Interior Pages (${assetIntakeOrder.specs?.interior_pages || 192} pp, ${assetIntakeOrder.specs?.book_size || 'A5'})`
                               : `Full Cover Spread (3.0mm Bleed + Validated Spine)`}
                           </h3>
                         </div>
                         {existingAsset ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-technical font-black uppercase bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/40">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-technical font-black uppercase bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60">
                             ✓ Preflight Passed
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-technical font-black uppercase bg-amber-500/15 text-amber-300 border border-amber-500/40">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-technical font-black uppercase bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/40">
                             ⚠ Asset Pending
                           </span>
                         )}
                       </div>
 
                       {existingAsset && (
-                        <div className="p-3.5 rounded-xl bg-[#0a0b0d] border border-[#10b981]/40 text-xs font-technical space-y-1">
+                        <div className="p-3.5 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-[#10b981]/40 text-xs font-technical space-y-1">
                           <div className="flex items-center justify-between text-[#10b981] font-bold">
                             <span className="truncate">{existingAsset.filename}</span>
                             <span>READY FOR CTP</span>
                           </div>
                           {existingAsset.externalUrl && (
-                            <div className="text-[10px] text-gray-400 truncate">
+                            <div className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate">
                               External Link: {existingAsset.externalUrl}
                             </div>
                           )}
-                          <div className="text-[10px] text-gray-500">
+                          <div className="text-[10px] text-zinc-500 dark:text-zinc-500">
                             SHA-256: {existingAsset.sha256?.slice(0, 24) || 'verified'}...
                           </div>
                         </div>
                       )}
 
                       {/* Mode Switcher: Upload PDF vs External HTTPS Link */}
-                      <div className="flex items-center gap-2 bg-[#0a0b0d] p-1 rounded-xl border border-[#1f2228]">
+                      <div className="flex items-center gap-2 bg-zinc-50 dark:bg-[#0a0b0d] p-1 rounded-xl border border-zinc-200 dark:border-[#1f2228]">
                         <button
                           type="button"
                           onClick={() => setAssetIntakeMode((prev) => ({ ...prev, [role]: 'UPLOAD' }))}
                           className={`flex-1 py-2 px-3 rounded-lg text-[10px] font-technical font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
                             mode === 'UPLOAD'
                               ? 'bg-[#dc2626] text-white'
-                              : 'text-gray-400 hover:text-white'
+                              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
                           }`}
                         >
                           <ArrowUpTrayIcon className="w-3.5 h-3.5" />
@@ -1516,7 +1508,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                           className={`flex-1 py-2 px-3 rounded-lg text-[10px] font-technical font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
                             mode === 'EXTERNAL_LINK'
                               ? 'bg-[#dc2626] text-white'
-                              : 'text-gray-400 hover:text-white'
+                              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
                           }`}
                         >
                           <LinkIcon className="w-3.5 h-3.5" />
@@ -1525,12 +1517,12 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                       </div>
 
                       {mode === 'UPLOAD' ? (
-                        <label className="block border-2 border-dashed border-[#2d323b] hover:border-[#dc2626] rounded-xl p-6 text-center cursor-pointer transition-all bg-[#0a0b0d]/70">
+                        <label className="block border-2 border-dashed border-zinc-300 dark:border-[#2d323b] hover:border-[#dc2626] rounded-xl p-6 text-center cursor-pointer transition-all bg-zinc-50 dark:bg-zinc-50 dark:bg-[#0a0b0d]/70">
                           <ArrowUpTrayIcon className="w-7 h-7 text-[#dc2626] mx-auto mb-2" />
-                          <span className="block text-xs font-technical font-bold text-white uppercase">
+                          <span className="block text-xs font-technical font-bold text-zinc-900 dark:text-zinc-100 uppercase">
                             {isUploading ? 'Uploading & Running Preflight...' : 'Drag & Drop PDF/X-4 File or Click to Browse'}
                           </span>
-                          <span className="block text-[10px] font-technical text-gray-400 mt-1">
+                          <span className="block text-[10px] font-technical text-zinc-500 dark:text-zinc-400 mt-1">
                             Endpoint: POST /api/marketplace/orders/{assetIntakeOrder.orderId}/files/upload
                           </span>
                           <input
@@ -1545,8 +1537,8 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                           />
                         </label>
                       ) : (
-                        <div className="space-y-3 bg-[#0a0b0d] p-4 rounded-xl border border-[#1f2228]">
-                          <label className="block text-[10px] font-technical uppercase text-gray-400">
+                        <div className="space-y-3 bg-zinc-50 dark:bg-[#0a0b0d] p-4 rounded-xl border border-zinc-200 dark:border-[#1f2228]">
+                          <label className="block text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400">
                             Secure HTTPS URL (WeTransfer, Dropbox, Google Drive, S3)
                           </label>
                           <div className="flex gap-2">
@@ -1557,7 +1549,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                               onChange={(e) =>
                                 setAssetExternalLinks((prev) => ({ ...prev, [role]: e.target.value }))
                               }
-                              className="flex-1 px-3 py-2 rounded-lg bg-[#14161a] border border-[#2d323b] text-xs text-white font-technical focus:outline-none focus:border-[#dc2626]"
+                              className="flex-1 px-3 py-2 rounded-lg bg-white dark:bg-[#14161a] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-900 dark:text-zinc-100 font-technical focus:outline-none focus:border-[#dc2626]"
                             />
                             <button
                               type="button"
@@ -1568,7 +1560,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                               {isUploading ? 'Verifying...' : 'Register Link'}
                             </button>
                           </div>
-                          <span className="block text-[10px] font-technical text-gray-500">
+                          <span className="block text-[10px] font-technical text-zinc-500 dark:text-zinc-500">
                             Endpoint: POST /api/marketplace/orders/{assetIntakeOrder.orderId}/files/external-link
                           </span>
                         </div>
@@ -1591,14 +1583,14 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                     <h3 className="text-xs font-technical font-black uppercase tracking-[0.2em] text-[#dc2626]">
                       01 // ORDER HISTORY &amp; 1-CLICK REPRINTS (2ND EDITIONS &amp; NEW RUNS)
                     </h3>
-                    <p className="text-xs text-gray-400 mt-1">
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                       Instant re-orders based on existing closed specifications. Re-use validated production assets and quickly adjust print runs with active rates.
                     </p>
                   </div>
                 </div>
 
                 {loadingOrders ? (
-                  <div className="py-16 flex flex-col items-center justify-center gap-3 text-gray-400">
+                  <div className="py-16 flex flex-col items-center justify-center gap-3 text-zinc-500 dark:text-zinc-400">
                     <ArrowPathIcon className="w-6 h-6 animate-spin text-[#dc2626]" />
                     <span className="text-xs font-technical uppercase tracking-widest">
                       Loading historical production catalog...
@@ -1606,24 +1598,21 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                   </div>
                 ) : orders.length === 0 ? (
                   <div
-                    className="p-12 rounded-2xl border text-center"
-                    style={{ backgroundColor: '#14161a', borderColor: '#1f2228' }}
+                    className="p-12 rounded-2xl border border-zinc-200 dark:border-zinc-200 dark:border-[#1f2228] bg-white dark:bg-[#12141a] shadow-sm dark:shadow-none text-center"
                   >
-                    <p className="text-xs font-technical uppercase tracking-widest text-gray-400">
+                    <p className="text-xs font-technical uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
                       No production orders registered for this publisher account.
                     </p>
                   </div>
                 ) : (
                   <div
-                    className="rounded-2xl border overflow-hidden"
-                    style={{ backgroundColor: '#14161a', borderColor: '#1f2228' }}
+                    className="rounded-2xl border border-zinc-200 dark:border-zinc-200 dark:border-[#1f2228] bg-white dark:bg-[#12141a] shadow-sm dark:shadow-none overflow-hidden"
                   >
                     <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr
-                            className="border-b text-[10px] font-technical font-black uppercase tracking-wider text-gray-400"
-                            style={{ backgroundColor: '#101216', borderColor: '#1f2228' }}
+                            className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-100/80 dark:bg-zinc-900/80 text-[10px] font-technical font-black uppercase tracking-wider text-zinc-500 dark:text-zinc-400"
                           >
                             <th className="py-3.5 px-4">BOOK TITLE / ORDER REF</th>
                             <th className="py-3.5 px-4">SPECIFICATIONS</th>
@@ -1633,7 +1622,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                             <th className="py-3.5 px-4 text-right">ACTIONS</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-[#1f2228] text-xs">
+                        <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 text-xs">
                           {orders.map((ord) => {
                             const statusUpper = String(ord.status || 'AWAITING_PAYMENT').toUpperCase();
                             const assetsComplete = hasCompleteValidatedAssets(ord);
@@ -1643,22 +1632,20 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                             return (
                               <tr
                                 key={ord.orderId}
-                                className="hover:bg-[#1a1d24]/70 transition-colors"
+                                className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors"
                               >
                                 {/* Book Thumbnail + Title + Order Ref */}
                                 <td className="py-4 px-4">
                                   <div className="flex items-start gap-3">
                                     {/* Stylized Mini Book Cover */}
                                     <div
-                                      className="w-10 h-14 rounded border flex flex-col justify-between p-1.5 shrink-0 shadow-inner"
+                                      className="w-10 h-14 rounded border border-zinc-300 dark:border-zinc-300 dark:border-[#2d323b] bg-zinc-50 dark:bg-zinc-50 dark:bg-[#0a0b0d] flex flex-col justify-between p-1.5 shrink-0 shadow-inner"
                                       style={{
-                                        backgroundColor: '#0a0b0d',
-                                        borderColor: '#2d323b',
                                         borderLeftWidth: '3px',
                                         borderLeftColor: isFilesRequired ? '#f59e0b' : '#dc2626',
                                       }}
                                     >
-                                      <span className="text-[6px] font-technical uppercase text-gray-500 leading-none truncate">
+                                      <span className="text-[6px] font-technical uppercase text-zinc-500 dark:text-zinc-500 leading-none truncate">
                                         PPOS
                                       </span>
                                       <BookOpenMiniIcon />
@@ -1672,15 +1659,15 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                                           {ord.orderId}
                                         </span>
                                         {ord.editionNumber && ord.editionNumber > 1 && (
-                                          <span className="px-1.5 py-0.5 rounded text-[9px] font-technical font-black bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                                          <span className="px-1.5 py-0.5 rounded text-[9px] font-technical font-black bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-500/30">
                                             EDITION #{ord.editionNumber}
                                           </span>
                                         )}
                                       </div>
-                                      <div className="font-bold text-white text-xs sm:text-sm truncate max-w-[260px] mt-0.5">
+                                      <div className="font-bold text-zinc-900 dark:text-zinc-100 text-xs sm:text-sm truncate max-w-[260px] mt-0.5">
                                         {ord.bookTitle}
                                       </div>
-                                      <div className="text-[10px] font-technical text-gray-400 mt-0.5">
+                                      <div className="text-[10px] font-technical text-zinc-500 dark:text-zinc-400 mt-0.5">
                                         ISBN: {ord.isbn || '978-84-0000-000-0'} • {new Date(ord.created_at).toISOString().slice(0, 10)}
                                       </div>
                                     </div>
@@ -1689,16 +1676,16 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
 
                                 {/* Closed Technical Specs + Preflight & Assets Badge */}
                                 <td className="py-4 px-4">
-                                  <div className="font-technical text-xs text-gray-200">
+                                  <div className="font-technical text-xs text-zinc-700 dark:text-zinc-200">
                                     {ord.specsSummary}
                                   </div>
                                   <div className="mt-1.5 flex items-center gap-2 flex-wrap">
                                     {assetsComplete ? (
-                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-technical font-bold bg-[#10b981]/10 text-[#10b981] border border-[#10b981]/30">
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-technical font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60">
                                         ✓ Preflight Passed ({ord.approvedFiles?.length || 2} PDFs)
                                       </span>
                                     ) : (
-                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-technical font-bold bg-amber-500/15 text-amber-300 border border-amber-500/40">
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-technical font-bold bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/40">
                                         ⚠ Assets Pending
                                       </span>
                                     )}
@@ -1707,18 +1694,18 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
 
                                 {/* Print Run */}
                                 <td className="py-4 px-4 font-technical">
-                                  <span className="text-sm font-black text-white">
+                                  <span className="text-sm font-black text-zinc-900 dark:text-zinc-100">
                                     {Number(ord.specs?.copies || 1000).toLocaleString('en-US')}
                                   </span>
-                                  <span className="block text-[10px] text-gray-400">copies</span>
+                                  <span className="block text-[10px] text-zinc-500 dark:text-zinc-400">copies</span>
                                 </td>
 
                                 {/* Printer + Price */}
                                 <td className="py-4 px-4">
-                                  <div className="text-xs font-bold text-white">
+                                  <div className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
                                     €{Number(ord.totalPriceEur || ord.offer_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                   </div>
-                                  <div className="text-[10px] font-technical text-gray-400 truncate max-w-[170px]">
+                                  <div className="text-[10px] font-technical text-zinc-500 dark:text-zinc-400 truncate max-w-[170px]">
                                     {ord.offer_print_house}
                                   </div>
                                 </td>
@@ -1728,15 +1715,15 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                                   <span
                                     className={`inline-flex items-center px-2 py-0.5 rounded text-[9px] font-technical font-black uppercase tracking-wider border ${
                                       statusUpper === 'DELIVERED'
-                                        ? 'bg-[#10b981]/15 text-[#10b981] border-[#10b981]/30'
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60'
                                         : statusUpper === 'IN_PRODUCTION'
-                                        ? 'bg-blue-500/15 text-blue-300 border-blue-500/30'
-                                        : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                                        ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30'
+                                        : 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30'
                                     }`}
                                   >
                                     {statusUpper}
                                   </span>
-                                  <div className="text-[10px] font-technical text-gray-400 mt-1">
+                                  <div className="text-[10px] font-technical text-zinc-500 dark:text-zinc-400 mt-1">
                                     Delivery: {ord.deliveryDate || 'Scheduled'}
                                   </div>
                                 </td>
@@ -1758,7 +1745,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                                         <button
                                           type="button"
                                           onClick={() => downloadProformaInvoicePdf(ord, fiscalProfile)}
-                                          className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl border border-[#1f2228] bg-[#0a0b0d] hover:border-white text-gray-300 hover:text-white text-[10px] font-technical font-bold uppercase transition-all"
+                                          className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl border border-zinc-200 dark:border-[#1f2228] bg-zinc-50 dark:bg-[#0a0b0d] hover:border-zinc-900 dark:hover:border-white text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-900 dark:text-zinc-100 text-[10px] font-technical font-bold uppercase transition-all"
                                         >
                                           <DocumentTextIcon className="w-3.5 h-3.5" />
                                           <span>VIEW PROFORMA</span>
@@ -1773,7 +1760,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                                             setSelectedOrderForPayment(ord);
                                             navigateTabWithUrl('INVOICES_PAYMENTS');
                                           }}
-                                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-black border border-amber-500/50 text-[10px] font-technical font-black uppercase tracking-wider transition-all"
+                                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-50 dark:bg-amber-500/20 hover:bg-amber-500 text-amber-800 dark:text-amber-300 hover:text-black border border-amber-300 dark:border-amber-500/50 text-[10px] font-technical font-black uppercase tracking-wider transition-all"
                                         >
                                           <CreditCardIcon className="w-3.5 h-3.5" />
                                           <span>PAY NOW</span>
@@ -1781,7 +1768,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                                         <button
                                           type="button"
                                           onClick={() => downloadProformaInvoicePdf(ord, fiscalProfile)}
-                                          className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl border border-[#1f2228] bg-[#0a0b0d] hover:border-white text-gray-300 hover:text-white text-[10px] font-technical font-bold uppercase transition-all"
+                                          className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl border border-zinc-200 dark:border-[#1f2228] bg-zinc-50 dark:bg-[#0a0b0d] hover:border-zinc-900 dark:hover:border-white text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-900 dark:text-zinc-100 text-[10px] font-technical font-bold uppercase transition-all"
                                         >
                                           <DocumentArrowDownIcon className="w-3.5 h-3.5" />
                                           <span>VIEW PROFORMA</span>
@@ -1813,7 +1800,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                                             setSelectedOrderForTracking(ord.orderId);
                                             navigateTabWithUrl('LIVE_LOGISTICS', ord.orderId);
                                           }}
-                                          className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl border border-[#1f2228] bg-[#0a0b0d] hover:border-[#10b981] text-gray-300 hover:text-[#10b981] text-[10px] font-technical font-bold uppercase transition-all"
+                                          className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl border border-zinc-200 dark:border-[#1f2228] bg-zinc-50 dark:bg-[#0a0b0d] hover:border-[#10b981] text-zinc-700 dark:text-zinc-300 hover:text-[#10b981] text-[10px] font-technical font-bold uppercase transition-all"
                                           title="Live Shipment Tracking & Signed POD"
                                         >
                                           <TruckIcon className="w-3.5 h-3.5" />
@@ -1826,7 +1813,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                                             setSelectedOrderForPayment(ord);
                                             navigateTabWithUrl('INVOICES_PAYMENTS');
                                           }}
-                                          className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl border border-[#1f2228] bg-[#0a0b0d] text-gray-300 hover:border-white text-[10px] font-technical font-bold uppercase transition-all"
+                                          className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl border border-zinc-200 dark:border-[#1f2228] bg-zinc-50 dark:bg-[#0a0b0d] text-zinc-700 dark:text-zinc-300 hover:border-zinc-900 dark:hover:border-white text-[10px] font-technical font-bold uppercase transition-all"
                                         >
                                           <CreditCardIcon className="w-3.5 h-3.5" />
                                           <span>VIEW INVOICE</span>
@@ -1855,21 +1842,19 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                   <h3 className="text-xs font-technical font-black uppercase tracking-[0.2em] text-[#dc2626]">
                     02 // DUAL PAYMENT GATEWAY &amp; NORMATIVE ELECTRONIC INVOICING (EN 16931)
                   </h3>
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                     Download official invoices in PDF, XML Facturae 3.2.2, and XML XRechnung 3.0. Settle pending orders via Stripe (Card / SEPA B2B) or Bank Wire.
                   </p>
                 </div>
 
                 {/* Invoices & Orders Financial Table */}
                 <div
-                  className="rounded-2xl border overflow-hidden"
-                  style={{ backgroundColor: '#14161a', borderColor: '#1f2228' }}
+                  className="rounded-2xl border border-zinc-200 dark:border-zinc-200 dark:border-[#1f2228] bg-white dark:bg-[#12141a] shadow-sm dark:shadow-none overflow-hidden"
                 >
                   <div
-                    className="px-4 py-3 border-b flex items-center justify-between flex-wrap gap-2"
-                    style={{ backgroundColor: '#101216', borderColor: '#1f2228' }}
+                    className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-100/80 dark:bg-zinc-900/80 flex items-center justify-between flex-wrap gap-2"
                   >
-                    <span className="text-[10px] font-technical font-black uppercase tracking-wider text-gray-300">
+                    <span className="text-[10px] font-technical font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
                       Billing Ledger &amp; Bank Reconciliation Registry
                     </span>
                     <span className="text-[10px] font-technical text-[#10b981]">
@@ -1881,8 +1866,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                     <table className="w-full text-left border-collapse text-xs">
                       <thead>
                         <tr
-                          className="border-b text-[10px] font-technical font-bold uppercase text-gray-400"
-                          style={{ borderColor: '#1f2228' }}
+                          className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-900/40 text-[10px] font-technical font-bold uppercase text-zinc-500 dark:text-zinc-400"
                         >
                           <th className="py-3 px-4">INVOICE / ORDER</th>
                           <th className="py-3 px-4">WORK / TITLE</th>
@@ -1892,7 +1876,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                           <th className="py-3 px-4 text-right">OFFICIAL COMPLIANCE DOWNLOADS</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-[#1f2228]">
+                      <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                         {orders.map((ord) => {
                           const isSelected = selectedOrderForPayment?.orderId === ord.orderId;
                           const isPaid = ord.paymentStatus === 'PAID';
@@ -1901,37 +1885,37 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                               key={ord.orderId}
                               onClick={() => setSelectedOrderForPayment(ord)}
                               className={`cursor-pointer transition-colors ${
-                                isSelected ? 'bg-[#dc2626]/10' : 'hover:bg-[#1a1d24]/60'
+                                isSelected ? 'bg-[#dc2626]/10' : 'hover:bg-zinc-50 dark:hover:bg-zinc-900/50'
                               }`}
                             >
                               <td className="py-3.5 px-4 font-technical">
-                                <div className="font-bold text-white">
+                                <div className="font-bold text-zinc-900 dark:text-zinc-100">
                                   {ord.invoiceNumber || `INV-2026-${ord.orderId.slice(-5)}`}
                                 </div>
-                                <div className="text-[10px] text-gray-400">{ord.orderId}</div>
+                                <div className="text-[10px] text-zinc-500 dark:text-zinc-400">{ord.orderId}</div>
                               </td>
                               <td className="py-3.5 px-4">
-                                <div className="font-bold text-gray-200 truncate max-w-[220px]">
+                                <div className="font-bold text-zinc-700 dark:text-zinc-200 truncate max-w-[220px]">
                                   {ord.bookTitle}
                                 </div>
-                                <div className="text-[10px] font-technical text-gray-400">
+                                <div className="text-[10px] font-technical text-zinc-500 dark:text-zinc-400">
                                   {Number(ord.specs?.copies || 1000).toLocaleString('en-US')} copies
                                 </div>
                               </td>
                               <td className="py-3.5 px-4 font-technical">
-                                <span className="px-2 py-0.5 rounded bg-[#0a0b0d] border border-[#2d323b] text-[10px] text-gray-200">
+                                <span className="px-2 py-0.5 rounded bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-300 dark:border-[#2d323b] text-[10px] text-zinc-700 dark:text-zinc-200">
                                   {ord.reconciliationCode || `PPOS-${ord.orderId}`}
                                 </span>
                               </td>
-                              <td className="py-3.5 px-4 font-technical font-black text-white">
+                              <td className="py-3.5 px-4 font-technical font-black text-zinc-900 dark:text-zinc-100">
                                 €{Number(ord.totalPriceEur || ord.offer_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                               </td>
                               <td className="py-3.5 px-4">
                                 <span
                                   className={`inline-flex items-center px-2 py-0.5 rounded text-[9px] font-technical font-black uppercase border ${
                                     isPaid
-                                      ? 'bg-[#10b981]/15 text-[#10b981] border-[#10b981]/30'
-                                      : 'bg-amber-500/15 text-amber-300 border-amber-500/40'
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60'
+                                      : 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/40'
                                   }`}
                                 >
                                   {ord.paymentStatus}
@@ -1951,7 +1935,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                                         checkoutSessionData?.bankTransferInstructions
                                       )
                                     }
-                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#0a0b0d] hover:bg-[#dc2626] text-gray-200 hover:text-white border border-[#2d323b] text-[10px] font-technical font-bold uppercase transition-colors"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-50 dark:bg-[#0a0b0d] hover:bg-[#dc2626] text-zinc-700 dark:text-zinc-200 hover:text-white border border-zinc-300 dark:border-[#2d323b] text-[10px] font-technical font-bold uppercase transition-colors"
                                   >
                                     <DocumentArrowDownIcon className="w-3.5 h-3.5" />
                                     <span>PDF INVOICE</span>
@@ -1959,14 +1943,14 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => handleDownloadEInvoiceXml(ord.orderId, 'FACTURAE_3_2_2')}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#0a0b0d] hover:border-[#10b981] text-gray-200 hover:text-[#10b981] border border-[#2d323b] text-[10px] font-technical font-bold uppercase transition-colors"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-50 dark:bg-[#0a0b0d] hover:border-[#10b981] text-zinc-700 dark:text-zinc-200 hover:text-[#10b981] border border-zinc-300 dark:border-[#2d323b] text-[10px] font-technical font-bold uppercase transition-colors"
                                   >
                                     <span>XML FACTURAE 3.2.2</span>
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => handleDownloadEInvoiceXml(ord.orderId, 'XRECHNUNG_3_0')}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#0a0b0d] hover:border-[#10b981] text-gray-200 hover:text-[#10b981] border border-[#2d323b] text-[10px] font-technical font-bold uppercase transition-colors"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-50 dark:bg-[#0a0b0d] hover:border-[#10b981] text-zinc-700 dark:text-zinc-200 hover:text-[#10b981] border border-zinc-300 dark:border-[#2d323b] text-[10px] font-technical font-bold uppercase transition-colors"
                                   >
                                     <span>XML XRECHNUNG 3.0</span>
                                   </button>
@@ -1983,22 +1967,21 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                 {/* Embedded Dual Checkout Gateway for Selected Order */}
                 {selectedOrderForPayment && (
                   <div
-                    className="rounded-2xl border p-5 sm:p-6 space-y-5"
-                    style={{ backgroundColor: '#14161a', borderColor: '#1f2228' }}
+                    className="rounded-2xl border border-zinc-200 dark:border-zinc-200 dark:border-[#1f2228] bg-white dark:bg-[#12141a] shadow-sm dark:shadow-none p-5 sm:p-6 space-y-5"
                   >
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-[#1f2228]">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-zinc-200 dark:border-[#1f2228]">
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-[10px] font-technical font-black uppercase tracking-widest text-[#dc2626]">
                             B2B SETTLEMENT TERMINAL // SELECTED ORDER: {selectedOrderForPayment.orderId}
                           </span>
-                          <span className="px-2 py-0.5 rounded text-[9px] font-technical font-bold bg-[#0a0b0d] border border-[#2d323b] text-gray-300">
+                          <span className="px-2 py-0.5 rounded text-[9px] font-technical font-bold bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-300 dark:border-[#2d323b] text-zinc-700 dark:text-zinc-300">
                             {selectedOrderForPayment.commercialModality === 'MODALITY_B_DIRECT_COMMISSION'
                               ? 'Modality B (Direct Printhouse Settlement)'
                               : 'Modality A (Central PrintPrice Escrow MoR)'}
                           </span>
                         </div>
-                        <h4 className="text-sm font-bold text-white mt-1">
+                        <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 mt-1">
                           {selectedOrderForPayment.bookTitle} —{' '}
                           <span className="text-[#10b981]">
                             €{Number(selectedOrderForPayment.totalPriceEur || selectedOrderForPayment.offer_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
@@ -2007,14 +1990,14 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                       </div>
 
                       {/* Payment Method Sub-Tabs */}
-                      <div className="flex items-center bg-[#0a0b0d] p-1 rounded-xl border border-[#1f2228]">
+                      <div className="flex items-center bg-zinc-50 dark:bg-[#0a0b0d] p-1 rounded-xl border border-zinc-200 dark:border-[#1f2228]">
                         <button
                           type="button"
                           onClick={() => setPaymentSubTab('STRIPE_CARD_SEPA')}
                           className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-technical font-black uppercase tracking-wider transition-all ${
                             paymentSubTab === 'STRIPE_CARD_SEPA'
                               ? 'bg-[#dc2626] text-white'
-                              : 'text-gray-400 hover:text-white'
+                              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
                           }`}
                         >
                           <CreditCardIcon className="w-3.5 h-3.5" />
@@ -2029,7 +2012,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                           className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-technical font-black uppercase tracking-wider transition-all ${
                             paymentSubTab === 'BANK_TRANSFER_B2B'
                               ? 'bg-[#dc2626] text-white'
-                              : 'text-gray-400 hover:text-white'
+                              : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
                           }`}
                         >
                           <BuildingLibraryIcon className="w-3.5 h-3.5" />
@@ -2042,11 +2025,10 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                     {paymentSubTab === 'STRIPE_CARD_SEPA' && (
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div
-                          className="p-5 rounded-xl border space-y-4"
-                          style={{ backgroundColor: '#0a0b0d', borderColor: '#1f2228' }}
+                          className="p-5 rounded-xl border border-zinc-200 dark:border-zinc-200 dark:border-[#1f2228] bg-zinc-50/80 dark:bg-zinc-50 dark:bg-[#0a0b0d] space-y-4"
                         >
                           <div className="flex items-center justify-between flex-wrap gap-2">
-                            <span className="text-[10px] font-technical font-black uppercase tracking-wider text-gray-300">
+                            <span className="text-[10px] font-technical font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
                               Stripe Payment Element (PCI-DSS Level 1)
                             </span>
                             <div className="flex gap-2">
@@ -2055,8 +2037,8 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                                 onClick={() => setStripeMethodType('CARD')}
                                 className={`px-2.5 py-1 rounded text-[10px] font-technical font-bold border ${
                                   stripeMethodType === 'CARD'
-                                    ? 'border-[#dc2626] bg-[#dc2626]/15 text-white'
-                                    : 'border-[#1f2228] text-gray-400'
+                                    ? 'border-[#dc2626] bg-red-50 text-red-700 dark:bg-[#dc2626]/15 dark:text-white'
+                                    : 'border-zinc-200 dark:border-[#1f2228] text-zinc-500 dark:text-zinc-400'
                                 }`}
                               >
                                 Corporate Card
@@ -2066,8 +2048,8 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                                 onClick={() => setStripeMethodType('SEPA_DEBIT')}
                                 className={`px-2.5 py-1 rounded text-[10px] font-technical font-bold border ${
                                   stripeMethodType === 'SEPA_DEBIT'
-                                    ? 'border-[#dc2626] bg-[#dc2626]/15 text-white'
-                                    : 'border-[#1f2228] text-gray-400'
+                                    ? 'border-[#dc2626] bg-red-50 text-red-700 dark:bg-[#dc2626]/15 dark:text-white'
+                                    : 'border-zinc-200 dark:border-[#1f2228] text-zinc-500 dark:text-zinc-400'
                                 }`}
                               >
                                 SEPA B2B Direct Debit
@@ -2078,37 +2060,37 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                           {stripeMethodType === 'CARD' ? (
                             <div className="space-y-3">
                               <div>
-                                <label className="block text-[10px] font-technical uppercase text-gray-400 mb-1">
+                                <label className="block text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400 mb-1">
                                   Corporate Cardholder Name
                                 </label>
                                 <input
                                   type="text"
                                   value={cardHolderName}
                                   onChange={(e) => setCardHolderName(e.target.value)}
-                                  className="w-full px-3 py-2 rounded-lg bg-[#14161a] border border-[#2d323b] text-xs text-white font-technical focus:outline-none focus:border-[#dc2626]"
+                                  className="w-full px-3 py-2 rounded-lg bg-white dark:bg-[#14161a] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-900 dark:text-zinc-100 font-technical focus:outline-none focus:border-[#dc2626]"
                                 />
                               </div>
                               <div className="grid grid-cols-3 gap-3">
                                 <div className="col-span-2">
-                                  <label className="block text-[10px] font-technical uppercase text-gray-400 mb-1">
+                                  <label className="block text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400 mb-1">
                                     Card Number (Stripe Tokenized)
                                   </label>
                                   <input
                                     type="text"
                                     readOnly
                                     value="•••• •••• •••• 4242 (Visa Corporate B2B)"
-                                    className="w-full px-3 py-2 rounded-lg bg-[#14161a] border border-[#2d323b] text-xs text-emerald-400 font-technical"
+                                    className="w-full px-3 py-2 rounded-lg bg-white dark:bg-[#14161a] border border-zinc-300 dark:border-[#2d323b] text-xs text-emerald-400 font-technical"
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-[10px] font-technical uppercase text-gray-400 mb-1">
+                                  <label className="block text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400 mb-1">
                                     CVC / Exp
                                   </label>
                                   <input
                                     type="text"
                                     readOnly
                                     value="08/29 • 884"
-                                    className="w-full px-3 py-2 rounded-lg bg-[#14161a] border border-[#2d323b] text-xs text-gray-300 font-technical"
+                                    className="w-full px-3 py-2 rounded-lg bg-white dark:bg-[#14161a] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-700 dark:text-zinc-300 font-technical"
                                   />
                                 </div>
                               </div>
@@ -2116,19 +2098,19 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                           ) : (
                             <div className="space-y-3">
                               <div>
-                                <label className="block text-[10px] font-technical uppercase text-gray-400 mb-1">
+                                <label className="block text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400 mb-1">
                                   Publisher IBAN Account (SEPA Core / B2B Mandate)
                                 </label>
                                 <input
                                   type="text"
                                   value={sepaIbanInput}
                                   onChange={(e) => setSepaIbanInput(e.target.value)}
-                                  className="w-full px-3 py-2 rounded-lg bg-[#14161a] border border-[#2d323b] text-xs text-white font-technical focus:outline-none focus:border-[#dc2626]"
+                                  className="w-full px-3 py-2 rounded-lg bg-white dark:bg-[#14161a] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-900 dark:text-zinc-100 font-technical focus:outline-none focus:border-[#dc2626]"
                                 />
                               </div>
-                              <p className="text-[10px] text-gray-400 leading-relaxed">
+                              <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
                                 By confirming the SEPA B2B mandate, you authorize PrintPrice OS Financial Clearing to debit the account under reconciliation reference{' '}
-                                <span className="text-white font-technical">{selectedOrderForPayment.reconciliationCode}</span>.
+                                <span className="text-zinc-900 dark:text-zinc-100 font-technical">{selectedOrderForPayment.reconciliationCode}</span>.
                               </p>
                             </div>
                           )}
@@ -2153,34 +2135,33 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
 
                         {/* Right Info Box */}
                         <div
-                          className="p-5 rounded-xl border flex flex-col justify-between"
-                          style={{ backgroundColor: '#0a0b0d', borderColor: '#1f2228' }}
+                          className="p-5 rounded-xl border border-zinc-200 dark:border-zinc-200 dark:border-[#1f2228] bg-zinc-50/80 dark:bg-zinc-50 dark:bg-[#0a0b0d] flex flex-col justify-between"
                         >
                           <div className="space-y-3">
                             <div className="text-[10px] font-technical font-black uppercase tracking-wider text-[#10b981]">
                               PRINTPRICE OS INDUSTRIAL ESCROW PROTECTION
                             </div>
-                            <p className="text-xs text-gray-300 leading-relaxed">
+                            <p className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
                               Settled funds are held in the PrintPrice Escrow ledger until CTP plate verification and signed CMR delivery note confirmation at the destination dock.
                             </p>
-                            <div className="p-3 rounded-lg bg-[#14161a] border border-[#1f2228] space-y-1 text-[11px] font-technical">
+                            <div className="p-3 rounded-lg bg-white dark:bg-[#14161a] border border-zinc-200 dark:border-[#1f2228] space-y-1 text-[11px] font-technical">
                               <div className="flex justify-between">
-                                <span className="text-gray-400">Order Reference:</span>
-                                <span className="text-white font-bold">{selectedOrderForPayment.orderId}</span>
+                                <span className="text-zinc-500 dark:text-zinc-400">Order Reference:</span>
+                                <span className="text-zinc-900 dark:text-zinc-100 font-bold">{selectedOrderForPayment.orderId}</span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="text-gray-400">Reconciliation Code:</span>
+                                <span className="text-zinc-500 dark:text-zinc-400">Reconciliation Code:</span>
                                 <span className="text-[#10b981] font-bold">{selectedOrderForPayment.reconciliationCode}</span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="text-gray-400">Assigned Plant:</span>
-                                <span className="text-white">{selectedOrderForPayment.offer_print_house}</span>
+                                <span className="text-zinc-500 dark:text-zinc-400">Assigned Plant:</span>
+                                <span className="text-zinc-900 dark:text-zinc-100">{selectedOrderForPayment.offer_print_house}</span>
                               </div>
                             </div>
                           </div>
 
-                          <div className="pt-4 border-t border-[#1f2228] flex items-center justify-between">
-                            <span className="text-[10px] font-technical text-gray-400">
+                          <div className="pt-4 border-t border-zinc-200 dark:border-[#1f2228] flex items-center justify-between">
+                            <span className="text-[10px] font-technical text-zinc-500 dark:text-zinc-400">
                               Need treasury pre-approval?
                             </span>
                             <button
@@ -2206,21 +2187,20 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                     {paymentSubTab === 'BANK_TRANSFER_B2B' && (
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div
-                          className="p-5 rounded-xl border space-y-4"
-                          style={{ backgroundColor: '#0a0b0d', borderColor: '#1f2228' }}
+                          className="p-5 rounded-xl border border-zinc-200 dark:border-zinc-200 dark:border-[#1f2228] bg-zinc-50/80 dark:bg-zinc-50 dark:bg-[#0a0b0d] space-y-4"
                         >
                           <div className="flex items-center justify-between">
                             <span className="text-[10px] font-technical font-black uppercase tracking-wider text-[#10b981]">
                               B2B SEPA WIRE TRANSFER INSTRUCTIONS
                             </span>
-                            <span className="px-2 py-0.5 rounded text-[9px] font-technical bg-[#14161a] border border-[#2d323b] text-gray-300">
+                            <span className="px-2 py-0.5 rounded text-[9px] font-technical bg-white dark:bg-[#14161a] border border-zinc-300 dark:border-[#2d323b] text-zinc-700 dark:text-zinc-300">
                               SEPA Instant / SWIFT
                             </span>
                           </div>
 
                           <div className="space-y-2.5 text-xs font-technical">
-                            <div className="p-3 rounded-lg bg-[#14161a] border border-[#2d323b]">
-                              <span className="block text-[9px] uppercase text-gray-400">
+                            <div className="p-3 rounded-lg bg-white dark:bg-[#14161a] border border-zinc-300 dark:border-[#2d323b]">
+                              <span className="block text-[9px] uppercase text-zinc-500 dark:text-zinc-400">
                                 Mandatory Reconciliation Reference (Wire Concept)
                               </span>
                               <span className="text-sm font-black text-[#dc2626] tracking-wider">
@@ -2230,23 +2210,23 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                              <div className="p-3 rounded-lg bg-[#14161a] border border-[#1f2228]">
-                                <span className="block text-[9px] uppercase text-gray-400">Beneficiary</span>
-                                <span className="text-white font-bold">
+                              <div className="p-3 rounded-lg bg-white dark:bg-[#14161a] border border-zinc-200 dark:border-[#1f2228]">
+                                <span className="block text-[9px] uppercase text-zinc-500 dark:text-zinc-400">Beneficiary</span>
+                                <span className="text-zinc-900 dark:text-zinc-100 font-bold">
                                   {checkoutSessionData?.bankTransferInstructions?.beneficiary ||
                                     'PrintPrice OS Financial Clearing S.L. (Escrow MoR)'}
                                 </span>
                               </div>
-                              <div className="p-3 rounded-lg bg-[#14161a] border border-[#1f2228]">
-                                <span className="block text-[9px] uppercase text-gray-400">BIC / SWIFT</span>
-                                <span className="text-white font-bold">
+                              <div className="p-3 rounded-lg bg-white dark:bg-[#14161a] border border-zinc-200 dark:border-[#1f2228]">
+                                <span className="block text-[9px] uppercase text-zinc-500 dark:text-zinc-400">BIC / SWIFT</span>
+                                <span className="text-zinc-900 dark:text-zinc-100 font-bold">
                                   {checkoutSessionData?.bankTransferInstructions?.bic || 'CAIXESBBXXX'}
                                 </span>
                               </div>
                             </div>
 
-                            <div className="p-3 rounded-lg bg-[#14161a] border border-[#1f2228]">
-                              <span className="block text-[9px] uppercase text-gray-400">
+                            <div className="p-3 rounded-lg bg-white dark:bg-[#14161a] border border-zinc-200 dark:border-[#1f2228]">
+                              <span className="block text-[9px] uppercase text-zinc-500 dark:text-zinc-400">
                                 Destination IBAN ({selectedOrderForPayment.commercialModality === 'MODALITY_B_DIRECT_COMMISSION' ? 'Direct Printhouse Account' : 'Central PrintPrice Escrow Account'})
                               </span>
                               <span className="text-sm font-bold text-[#10b981] tracking-wider">
@@ -2265,7 +2245,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                                 checkoutSessionData?.bankTransferInstructions
                               )
                             }
-                            className="w-full py-3 rounded-xl border border-[#dc2626] bg-[#dc2626]/15 hover:bg-[#dc2626] text-white text-xs font-technical font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all"
+                            className="w-full py-3 rounded-xl border border-[#dc2626] bg-[#dc2626]/15 hover:bg-[#dc2626] text-zinc-900 dark:text-zinc-100 text-xs font-technical font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all"
                           >
                             <DocumentArrowDownIcon className="w-4 h-4" />
                             <span>PDF INVOICE / PROFORMA WIRE INSTRUCTIONS</span>
@@ -2275,22 +2255,21 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                         {/* Upload Wire Transfer Proof Form */}
                         <form
                           onSubmit={handleUploadWireTransferProof}
-                          className="p-5 rounded-xl border space-y-4 flex flex-col justify-between"
-                          style={{ backgroundColor: '#0a0b0d', borderColor: '#1f2228' }}
+                          className="p-5 rounded-xl border border-zinc-200 dark:border-zinc-200 dark:border-[#1f2228] bg-zinc-50/80 dark:bg-zinc-50 dark:bg-[#0a0b0d] space-y-4 flex flex-col justify-between"
                         >
                           <div className="space-y-3">
                             <div className="flex items-center gap-2">
                               <ArrowUpTrayIcon className="w-4 h-4 text-[#dc2626]" />
-                              <span className="text-[10px] font-technical font-black uppercase tracking-wider text-white">
+                              <span className="text-[10px] font-technical font-black uppercase tracking-wider text-zinc-900 dark:text-zinc-100">
                                 UPLOAD WIRE PROOF (FAST-TRACK PRODUCTION)
                               </span>
                             </div>
-                            <p className="text-xs text-gray-400">
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400">
                               Attach the PDF/SWIFT wire receipt issued by your bank to immediately unlock paper allocation and CTP plate imaging without waiting for 24h SEPA clearing.
                             </p>
 
                             <div>
-                              <label className="block text-[10px] font-technical uppercase text-gray-400 mb-1">
+                              <label className="block text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400 mb-1">
                                 Bank Wire Receipt File (PDF / PNG)
                               </label>
                               <input
@@ -2300,12 +2279,12 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                                   const f = e.target.files?.[0];
                                   if (f) setWireProofFileName(f.name);
                                 }}
-                                className="w-full text-xs text-gray-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-technical file:font-bold file:uppercase file:bg-[#14161a] file:text-white hover:file:bg-[#dc2626] cursor-pointer"
+                                className="w-full text-xs text-zinc-700 dark:text-zinc-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-technical file:font-bold file:uppercase file:bg-zinc-200 dark:file:bg-[#14161a] file:text-zinc-900 dark:file:text-white hover:file:bg-[#dc2626] hover:file:text-white cursor-pointer"
                               />
                             </div>
 
                             <div>
-                              <label className="block text-[10px] font-technical uppercase text-gray-400 mb-1">
+                              <label className="block text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400 mb-1">
                                 Bank Transaction Reference / ID (Optional)
                               </label>
                               <input
@@ -2313,7 +2292,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                                 placeholder={`e.g. ${selectedOrderForPayment.reconciliationCode}`}
                                 value={wireBankReference}
                                 onChange={(e) => setWireBankReference(e.target.value)}
-                                className="w-full px-3 py-2 rounded-lg bg-[#14161a] border border-[#2d323b] text-xs text-white font-technical focus:outline-none focus:border-[#dc2626]"
+                                className="w-full px-3 py-2 rounded-lg bg-white dark:bg-[#14161a] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-900 dark:text-zinc-100 font-technical focus:outline-none focus:border-[#dc2626]"
                               />
                             </div>
                           </div>
@@ -2345,14 +2324,14 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                     <h3 className="text-xs font-technical font-black uppercase tracking-[0.2em] text-[#dc2626]">
                       03 // LIVE SHIPMENT TRACKING &amp; SIGNED PROOF OF DELIVERY (POD / CMR)
                     </h3>
-                    <p className="text-xs text-gray-400 mt-1">
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                       Industrial 5-stage tracking from Preflight through palletized EPAL dispatch with digitally verified delivery note.
                     </p>
                   </div>
 
                   {/* Order Selector for Tracking */}
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-technical uppercase text-gray-400">Shipment Order:</span>
+                    <span className="text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400">Shipment Order:</span>
                     <select
                       value={selectedOrderForTracking || ''}
                       onChange={(e) => {
@@ -2360,7 +2339,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                         setSelectedOrderForTracking(nextId);
                         navigateTabWithUrl('LIVE_LOGISTICS', nextId);
                       }}
-                      className="px-3 py-2 rounded-xl bg-[#14161a] border border-[#2d323b] text-xs font-technical text-white focus:outline-none focus:border-[#dc2626]"
+                      className="px-3 py-2 rounded-xl bg-white dark:bg-[#14161a] border border-zinc-300 dark:border-[#2d323b] text-xs font-technical text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-[#dc2626]"
                     >
                       {orders.map((o) => (
                         <option key={o.orderId} value={o.orderId}>
@@ -2372,21 +2351,20 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                 </div>
 
                 {loadingTracking || !trackingData ? (
-                  <div className="py-12 text-center text-xs font-technical text-gray-400">
+                  <div className="py-12 text-center text-xs font-technical text-zinc-500 dark:text-zinc-400">
                     Synchronizing press floor and carrier telemetry...
                   </div>
                 ) : (
                   <>
                     {/* 5-Stage Production & Logistics Timeline */}
                     <div
-                      className="p-6 rounded-2xl border space-y-6"
-                      style={{ backgroundColor: '#14161a', borderColor: '#1f2228' }}
+                      className="p-6 rounded-2xl border border-zinc-200 dark:border-zinc-200 dark:border-[#1f2228] bg-white dark:bg-[#12141a] shadow-sm dark:shadow-none space-y-6"
                     >
                       <div className="flex items-center justify-between flex-wrap gap-2">
-                        <span className="text-[10px] font-technical font-black uppercase tracking-wider text-gray-300">
+                        <span className="text-[10px] font-technical font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
                           Production &amp; Dispatch Timeline — {trackingData.bookTitle}
                         </span>
-                        <span className="px-2.5 py-0.5 rounded text-[10px] font-technical font-black uppercase bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/30">
+                        <span className="px-2.5 py-0.5 rounded text-[10px] font-technical font-black uppercase bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60">
                           Status: {trackingData.overallStatus}
                         </span>
                       </div>
@@ -2417,10 +2395,10 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                               key={stage.stageKey}
                               className={`p-4 rounded-xl border transition-all flex flex-col justify-between ${
                                 inProgress
-                                  ? 'bg-[#0f1115] border-[#dc2626] shadow-[0_0_18px_rgba(220,38,38,0.18)]'
+                                  ? 'bg-white dark:bg-[#0f1115] border-[#dc2626] shadow-sm dark:shadow-[0_0_18px_rgba(220,38,38,0.18)]'
                                   : completed
-                                  ? 'bg-[#0f1115] border-[#10b981]/50'
-                                  : 'bg-[#0f1115] border-zinc-800'
+                                  ? 'bg-white dark:bg-[#0f1115] border-emerald-500/50 shadow-sm dark:shadow-none'
+                                  : 'bg-white dark:bg-[#0f1115] border-zinc-200 dark:border-zinc-800 shadow-sm dark:shadow-none'
                               }`}
                             >
                               <div>
@@ -2440,10 +2418,10 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                                   <span
                                     className={`px-1.5 py-0.5 rounded text-[8px] font-technical font-bold uppercase tracking-wider border ${
                                       completed
-                                        ? 'bg-[#10b981]/10 text-[#10b981] border-[#10b981]/30'
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60'
                                         : inProgress
-                                        ? 'bg-[#ef4444]/15 text-[#ef4444] border-[#ef4444]/40 animate-pulse'
-                                        : 'bg-zinc-900 text-zinc-500 border-zinc-800'
+                                        ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800/60 animate-pulse'
+                                        : 'bg-zinc-100 text-zinc-500 border-zinc-200 dark:bg-zinc-900 dark:text-zinc-500 dark:border-zinc-800'
                                     }`}
                                   >
                                     {completed ? 'VERIFIED' : inProgress ? 'ACTIVE' : 'SCHEDULED'}
@@ -2454,23 +2432,23 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                                 <div
                                   className={`my-3 py-2.5 px-3 rounded-lg border flex items-center justify-center ${
                                     inProgress
-                                      ? 'bg-[#14171d] border-[#ef4444]/35'
+                                      ? 'bg-red-50/40 dark:bg-[#14171d] border-red-200 dark:border-[#ef4444]/35'
                                       : completed
-                                      ? 'bg-[#12151b] border-[#ef4444]/25'
-                                      : 'bg-[#0b0d11] border-zinc-800/80'
+                                      ? 'bg-zinc-50 dark:bg-[#12151b] border-red-200/70 dark:border-[#ef4444]/25'
+                                      : 'bg-zinc-50/70 dark:bg-[#0b0d11] border-zinc-200 dark:border-zinc-800/80'
                                   }`}
                                 >
                                   {renderStageTimelineSvg(stage.stepNumber, svgStatus, 'w-12 h-12 shrink-0')}
                                 </div>
 
-                                <div className="text-xs font-bold text-white mt-1.5">
+                                <div className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-1.5">
                                   {stage.labelEn || canonicalStageTitle}
                                 </div>
-                                <p className="text-[11px] text-gray-400 mt-1 leading-snug">
+                                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 leading-snug">
                                   {stage.description}
                                 </p>
                               </div>
-                              <div className="mt-3 pt-2 border-t border-white/10 flex items-center justify-between text-[9px] font-technical text-gray-400">
+                              <div className="mt-3 pt-2 border-t border-zinc-200 dark:border-white/10 flex items-center justify-between text-[9px] font-technical text-zinc-500 dark:text-zinc-400">
                                 <span>
                                   {stage.timestamp
                                     ? new Date(stage.timestamp).toISOString().slice(0, 16).replace('T', ' ')
@@ -2489,25 +2467,24 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                     {/* Carrier Telemetry + Signed POD / CMR Card */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       <div
-                        className="p-5 rounded-2xl border space-y-4"
-                        style={{ backgroundColor: '#14161a', borderColor: '#1f2228' }}
+                        className="p-5 rounded-2xl border border-zinc-200 dark:border-zinc-200 dark:border-[#1f2228] bg-white dark:bg-[#12141a] shadow-sm dark:shadow-none space-y-4"
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-technical font-black uppercase tracking-wider text-[#dc2626]">
                             FREIGHT TELEMETRY &amp; EPAL PALLETIZATION
                           </span>
-                          <span className="text-[10px] font-technical text-gray-400">
+                          <span className="text-[10px] font-technical text-zinc-500 dark:text-zinc-400">
                             {trackingData.telemetry.shipmentId}
                           </span>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3 text-xs font-technical">
-                          <div className="p-3 rounded-xl bg-[#0a0b0d] border border-[#1f2228]">
-                            <span className="block text-[9px] uppercase text-gray-400">Freight Carrier</span>
-                            <span className="text-white font-bold">{trackingData.telemetry.carrierName}</span>
+                          <div className="p-3 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-200 dark:border-[#1f2228]">
+                            <span className="block text-[9px] uppercase text-zinc-500 dark:text-zinc-400">Freight Carrier</span>
+                            <span className="text-zinc-900 dark:text-zinc-100 font-bold">{trackingData.telemetry.carrierName}</span>
                           </div>
-                          <div className="p-3 rounded-xl bg-[#0a0b0d] border border-[#1f2228]">
-                            <span className="block text-[9px] uppercase text-gray-400">Tracking Number</span>
+                          <div className="p-3 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-200 dark:border-[#1f2228]">
+                            <span className="block text-[9px] uppercase text-zinc-500 dark:text-zinc-400">Tracking Number</span>
                             <a
                               href={trackingData.telemetry.trackingUrl}
                               target="_blank"
@@ -2518,13 +2495,13 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                               <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
                             </a>
                           </div>
-                          <div className="p-3 rounded-xl bg-[#0a0b0d] border border-[#1f2228]">
-                            <span className="block text-[9px] uppercase text-gray-400">GS1 SSCC-18 Code</span>
-                            <span className="text-gray-200">{trackingData.telemetry.sscc18}</span>
+                          <div className="p-3 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-200 dark:border-[#1f2228]">
+                            <span className="block text-[9px] uppercase text-zinc-500 dark:text-zinc-400">GS1 SSCC-18 Code</span>
+                            <span className="text-zinc-700 dark:text-zinc-200">{trackingData.telemetry.sscc18}</span>
                           </div>
-                          <div className="p-3 rounded-xl bg-[#0a0b0d] border border-[#1f2228]">
-                            <span className="block text-[9px] uppercase text-gray-400">Load Configuration</span>
-                            <span className="text-white">
+                          <div className="p-3 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-200 dark:border-[#1f2228]">
+                            <span className="block text-[9px] uppercase text-zinc-500 dark:text-zinc-400">Load Configuration</span>
+                            <span className="text-zinc-900 dark:text-zinc-100">
                               {trackingData.telemetry.palletCount}x {trackingData.telemetry.palletType} ({trackingData.telemetry.totalWeightKg} kg)
                             </span>
                           </div>
@@ -2533,35 +2510,34 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
 
                       {/* Signed Proof of Delivery (POD / CMR) Viewer Card */}
                       <div
-                        className="p-5 rounded-2xl border flex flex-col justify-between space-y-4"
-                        style={{ backgroundColor: '#14161a', borderColor: '#1f2228' }}
+                        className="p-5 rounded-2xl border border-zinc-200 dark:border-zinc-200 dark:border-[#1f2228] bg-white dark:bg-[#12141a] shadow-sm dark:shadow-none flex flex-col justify-between space-y-4"
                       >
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
                             <span className="text-[10px] font-technical font-black uppercase tracking-wider text-[#10b981]">
                               SIGNED PROOF OF DELIVERY VIEWER (POD / CMR)
                             </span>
-                            <span className="px-2 py-0.5 rounded text-[9px] font-technical font-bold bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/30">
+                            <span className="px-2 py-0.5 rounded text-[9px] font-technical font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60">
                               {trackingData.pod.available ? 'DIGITAL SIGNATURE VERIFIED' : 'IN TRANSIT'}
                             </span>
                           </div>
 
-                          <div className="p-3.5 rounded-xl bg-[#0a0b0d] border border-[#1f2228] space-y-1.5 text-xs font-technical">
+                          <div className="p-3.5 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-200 dark:border-[#1f2228] space-y-1.5 text-xs font-technical">
                             <div className="flex justify-between">
-                              <span className="text-gray-400">CMR / POD Document:</span>
-                              <span className="text-white font-bold">{trackingData.pod.documentId} ({trackingData.pod.cmrReference})</span>
+                              <span className="text-zinc-500 dark:text-zinc-400">CMR / POD Document:</span>
+                              <span className="text-zinc-900 dark:text-zinc-100 font-bold">{trackingData.pod.documentId} ({trackingData.pod.cmrReference})</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-400">Dock Receiver:</span>
+                              <span className="text-zinc-500 dark:text-zinc-400">Dock Receiver:</span>
                               <span className="text-[#10b981] font-bold">{trackingData.pod.signedBy}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-400">Dock Stamp / Plate:</span>
-                              <span className="text-gray-200">{trackingData.pod.dockStampCode || 'DOCK-VERIFIED'} • {trackingData.pod.vehiclePlate || '4892-LKM'}</span>
+                              <span className="text-zinc-500 dark:text-zinc-400">Dock Stamp / Plate:</span>
+                              <span className="text-zinc-700 dark:text-zinc-200">{trackingData.pod.dockStampCode || 'DOCK-VERIFIED'} • {trackingData.pod.vehiclePlate || '4892-LKM'}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-400">eIDAS Hash:</span>
-                              <span className="text-gray-400 truncate max-w-[220px]">{trackingData.pod.digitalSignatureHash}</span>
+                              <span className="text-zinc-500 dark:text-zinc-400">eIDAS Hash:</span>
+                              <span className="text-zinc-500 dark:text-zinc-400 truncate max-w-[220px]">{trackingData.pod.digitalSignatureHash}</span>
                             </div>
                           </div>
                         </div>
@@ -2602,7 +2578,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                     <h3 className="text-xs font-technical font-black uppercase tracking-[0.2em] text-[#dc2626]">
                       04 // ADDRESS BOOK &amp; DOCK CONDITIONS (SHIPPING &amp; DOCKS)
                     </h3>
-                    <p className="text-xs text-gray-400 mt-1">
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                       Manage publisher warehouses and distribution hubs (Logista, Arnoia, Zeitfracht, VVA Arvato, Amazon FBA) with dock requirements.
                     </p>
                   </div>
@@ -2621,15 +2597,14 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                 {showNewAddressForm && (
                   <form
                     onSubmit={handleAddShippingAddress}
-                    className="p-5 rounded-2xl border space-y-4"
-                    style={{ backgroundColor: '#14161a', borderColor: '#dc2626' }}
+                    className="p-5 rounded-2xl border border-[#dc2626] bg-white dark:bg-[#12141a] shadow-sm dark:shadow-none space-y-4"
                   >
                     <div className="text-xs font-technical font-black uppercase text-[#dc2626]">
                       New B2B Delivery Location / Distribution Hub
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-[10px] font-technical uppercase text-gray-400 mb-1">
+                        <label className="block text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400 mb-1">
                           LOCATION ALIAS
                         </label>
                         <input
@@ -2638,11 +2613,11 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                           placeholder="e.g. Logista Hub / Central Warehouse"
                           value={newAddressDraft.label || ''}
                           onChange={(e) => setNewAddressDraft({ ...newAddressDraft, label: e.target.value })}
-                          className="w-full px-3 py-2 rounded-lg bg-[#0a0b0d] border border-[#2d323b] text-xs text-white"
+                          className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-900 dark:text-zinc-100"
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-technical uppercase text-gray-400 mb-1">
+                        <label className="block text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400 mb-1">
                           COMPANY / RECEIVING HUB
                         </label>
                         <input
@@ -2650,11 +2625,11 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                           required
                           value={newAddressDraft.companyName || ''}
                           onChange={(e) => setNewAddressDraft({ ...newAddressDraft, companyName: e.target.value })}
-                          className="w-full px-3 py-2 rounded-lg bg-[#0a0b0d] border border-[#2d323b] text-xs text-white"
+                          className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-900 dark:text-zinc-100"
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-technical uppercase text-gray-400 mb-1">
+                        <label className="block text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400 mb-1">
                           DOCK CONTACT
                         </label>
                         <input
@@ -2662,11 +2637,11 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                           required
                           value={newAddressDraft.contactName || ''}
                           onChange={(e) => setNewAddressDraft({ ...newAddressDraft, contactName: e.target.value })}
-                          className="w-full px-3 py-2 rounded-lg bg-[#0a0b0d] border border-[#2d323b] text-xs text-white"
+                          className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-900 dark:text-zinc-100"
                         />
                       </div>
                       <div className="sm:col-span-2">
-                        <label className="block text-[10px] font-technical uppercase text-gray-400 mb-1">
+                        <label className="block text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400 mb-1">
                           STREET ADDRESS / INDUSTRIAL PARK
                         </label>
                         <input
@@ -2674,38 +2649,38 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                           required
                           value={newAddressDraft.streetAddress || ''}
                           onChange={(e) => setNewAddressDraft({ ...newAddressDraft, streetAddress: e.target.value })}
-                          className="w-full px-3 py-2 rounded-lg bg-[#0a0b0d] border border-[#2d323b] text-xs text-white"
+                          className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-900 dark:text-zinc-100"
                         />
                       </div>
                       <div className="grid grid-cols-3 gap-2">
                         <div>
-                          <label className="block text-[10px] font-technical uppercase text-gray-400 mb-1">POSTAL CODE</label>
+                          <label className="block text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400 mb-1">POSTAL CODE</label>
                           <input
                             type="text"
                             required
                             value={newAddressDraft.postalCode || ''}
                             onChange={(e) => setNewAddressDraft({ ...newAddressDraft, postalCode: e.target.value })}
-                            className="w-full px-2.5 py-2 rounded-lg bg-[#0a0b0d] border border-[#2d323b] text-xs text-white"
+                            className="w-full px-2.5 py-2 rounded-lg bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-900 dark:text-zinc-100"
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-technical uppercase text-gray-400 mb-1">CITY</label>
+                          <label className="block text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400 mb-1">CITY</label>
                           <input
                             type="text"
                             required
                             value={newAddressDraft.city || ''}
                             onChange={(e) => setNewAddressDraft({ ...newAddressDraft, city: e.target.value })}
-                            className="w-full px-2.5 py-2 rounded-lg bg-[#0a0b0d] border border-[#2d323b] text-xs text-white"
+                            className="w-full px-2.5 py-2 rounded-lg bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-900 dark:text-zinc-100"
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-technical uppercase text-gray-400 mb-1">COUNTRY ISO</label>
+                          <label className="block text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400 mb-1">COUNTRY ISO</label>
                           <input
                             type="text"
                             maxLength={2}
                             value={newAddressDraft.countryCode || 'ES'}
                             onChange={(e) => setNewAddressDraft({ ...newAddressDraft, countryCode: e.target.value.toUpperCase() })}
-                            className="w-full px-2.5 py-2 rounded-lg bg-[#0a0b0d] border border-[#2d323b] text-xs text-white uppercase"
+                            className="w-full px-2.5 py-2 rounded-lg bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-900 dark:text-zinc-100 uppercase"
                           />
                         </div>
                       </div>
@@ -2713,7 +2688,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
 
                     {/* Logistics Checkboxes */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-                      <label className="flex items-center gap-2.5 p-3 rounded-xl bg-[#0a0b0d] border border-[#1f2228] cursor-pointer text-xs">
+                      <label className="flex items-center gap-2.5 p-3 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-200 dark:border-[#1f2228] cursor-pointer text-xs">
                         <input
                           type="checkbox"
                           checked={!!newAddressDraft.logisticsRequirements?.trailerAccess}
@@ -2730,7 +2705,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                         />
                         <span>Trailer Accessible Loading Dock (13.6m)</span>
                       </label>
-                      <label className="flex items-center gap-2.5 p-3 rounded-xl bg-[#0a0b0d] border border-[#1f2228] cursor-pointer text-xs">
+                      <label className="flex items-center gap-2.5 p-3 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-200 dark:border-[#1f2228] cursor-pointer text-xs">
                         <input
                           type="checkbox"
                           checked={!!newAddressDraft.logisticsRequirements?.requiresTailLift}
@@ -2747,7 +2722,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                         />
                         <span>Tail-lift Required</span>
                       </label>
-                      <label className="flex items-center gap-2.5 p-3 rounded-xl bg-[#0a0b0d] border border-[#1f2228] cursor-pointer text-xs">
+                      <label className="flex items-center gap-2.5 p-3 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-200 dark:border-[#1f2228] cursor-pointer text-xs">
                         <input
                           type="checkbox"
                           checked={!!newAddressDraft.logisticsRequirements?.requiresSlotBooking}
@@ -2770,7 +2745,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                       <button
                         type="button"
                         onClick={() => setShowNewAddressForm(false)}
-                        className="px-4 py-2 rounded-xl border border-[#2d323b] text-xs font-technical text-gray-400"
+                        className="px-4 py-2 rounded-xl border border-zinc-300 dark:border-[#2d323b] text-xs font-technical text-zinc-500 dark:text-zinc-400"
                       >
                         Cancel
                       </button>
@@ -2789,13 +2764,12 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                   {shippingAddresses.map((addr) => (
                     <div
                       key={addr.addressId}
-                      className="p-5 rounded-2xl border space-y-4 flex flex-col justify-between"
-                      style={{ backgroundColor: '#14161a', borderColor: addr.isDefault ? '#dc2626' : '#1f2228' }}
+                      className={`p-5 rounded-2xl border space-y-4 flex flex-col justify-between bg-white dark:bg-[#12141a] shadow-sm dark:shadow-none ${addr.isDefault ? 'border-[#dc2626]' : 'border-zinc-200 dark:border-zinc-200 dark:border-[#1f2228]'}`}
                     >
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-white">{addr.label}</span>
+                            <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">{addr.label}</span>
                             {addr.isDefault && (
                               <span className="px-2 py-0.5 rounded text-[9px] font-technical font-black uppercase bg-[#dc2626]/20 text-[#ef4444] border border-[#dc2626]/40">
                                 Default Hub
@@ -2805,14 +2779,14 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                           <button
                             type="button"
                             onClick={() => handleDeleteAddress(addr.addressId)}
-                            className="text-gray-500 hover:text-[#dc2626] p-1"
+                            className="text-zinc-500 dark:text-zinc-500 hover:text-[#dc2626] p-1"
                             title="Delete address"
                           >
                             <TrashIcon className="w-4 h-4" />
                           </button>
                         </div>
 
-                        <div className="text-xs text-gray-300 font-technical">
+                        <div className="text-xs text-zinc-700 dark:text-zinc-300 font-technical">
                           <div className="font-bold">{addr.companyName}</div>
                           <div>{addr.streetAddress}</div>
                           <div>
@@ -2822,12 +2796,12 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                       </div>
 
                       {/* Interactive Logistics Checkboxes */}
-                      <div className="space-y-2 pt-3 border-t border-[#1f2228]">
-                        <div className="text-[10px] font-technical uppercase text-gray-400">
+                      <div className="space-y-2 pt-3 border-t border-zinc-200 dark:border-[#1f2228]">
+                        <div className="text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400">
                           Operational Dock Conditions (Click to toggle):
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] font-technical">
-                          <label className="flex items-center gap-2 p-2 rounded-lg bg-[#0a0b0d] border border-[#1f2228] cursor-pointer">
+                          <label className="flex items-center gap-2 p-2 rounded-lg bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-200 dark:border-[#1f2228] cursor-pointer">
                             <input
                               type="checkbox"
                               checked={!!addr.logisticsRequirements?.trailerAccess}
@@ -2836,7 +2810,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                             />
                             <span>Trailer Accessible Loading Dock (13.6m)</span>
                           </label>
-                          <label className="flex items-center gap-2 p-2 rounded-lg bg-[#0a0b0d] border border-[#1f2228] cursor-pointer">
+                          <label className="flex items-center gap-2 p-2 rounded-lg bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-200 dark:border-[#1f2228] cursor-pointer">
                             <input
                               type="checkbox"
                               checked={!!addr.logisticsRequirements?.requiresTailLift}
@@ -2845,7 +2819,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                             />
                             <span>Tail-lift Required</span>
                           </label>
-                          <label className="flex items-center gap-2 p-2 rounded-lg bg-[#0a0b0d] border border-[#1f2228] cursor-pointer">
+                          <label className="flex items-center gap-2 p-2 rounded-lg bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-200 dark:border-[#1f2228] cursor-pointer">
                             <input
                               type="checkbox"
                               checked={!!addr.logisticsRequirements?.requiresSlotBooking}
@@ -2871,7 +2845,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                   <h3 className="text-xs font-technical font-black uppercase tracking-[0.2em] text-[#dc2626]">
                     05 // FISCAL PROFILE &amp; ELECTRONIC INVOICING (VIES / EN 16931)
                   </h3>
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                     Configure legal entity, VAT ID (VIES validation), and e-invoicing routing codes (DIR3 for Facturae / Leitweg-ID for XRechnung).
                   </p>
                 </div>
@@ -2881,12 +2855,11 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                     e.preventDefault();
                     handleSaveCustomerProfile(shippingAddresses, fiscalProfile);
                   }}
-                  className="p-6 rounded-2xl border space-y-5"
-                  style={{ backgroundColor: '#14161a', borderColor: '#1f2228' }}
+                  className="p-6 rounded-2xl border border-zinc-200 dark:border-zinc-200 dark:border-[#1f2228] bg-white dark:bg-[#12141a] shadow-sm dark:shadow-none space-y-5"
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
-                      <label className="block text-[10px] font-technical font-bold uppercase text-gray-400 mb-1.5">
+                      <label className="block text-[10px] font-technical font-bold uppercase text-zinc-500 dark:text-zinc-400 mb-1.5">
                         LEGAL ENTITY NAME
                       </label>
                       <input
@@ -2896,20 +2869,20 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                         onChange={(e) =>
                           setFiscalProfile({ ...fiscalProfile, legalEntityName: e.target.value })
                         }
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#0a0b0d] border border-[#2d323b] text-xs text-white font-technical focus:outline-none focus:border-[#dc2626]"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-900 dark:text-zinc-100 font-technical focus:outline-none focus:border-[#dc2626]"
                       />
                     </div>
 
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
-                        <label className="text-[10px] font-technical font-bold uppercase text-gray-400">
+                        <label className="text-[10px] font-technical font-bold uppercase text-zinc-500 dark:text-zinc-400">
                           VAT / TAX ID (VIES)
                         </label>
                         <span
                           className={`px-2 py-0.5 rounded text-[9px] font-technical font-black uppercase ${
                             vatValidation.valid
-                              ? 'bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/30'
-                              : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60'
+                              : 'bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30'
                           }`}
                         >
                           {vatValidation.message}
@@ -2922,12 +2895,12 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                         onChange={(e) =>
                           setFiscalProfile({ ...fiscalProfile, taxIdVat: e.target.value.toUpperCase() })
                         }
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#0a0b0d] border border-[#2d323b] text-xs text-white font-technical focus:outline-none focus:border-[#dc2626]"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-900 dark:text-zinc-100 font-technical focus:outline-none focus:border-[#dc2626]"
                       />
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-[10px] font-technical font-bold uppercase text-gray-400 mb-1.5">
+                      <label className="block text-[10px] font-technical font-bold uppercase text-zinc-500 dark:text-zinc-400 mb-1.5">
                         FULL FISCAL ADDRESS
                       </label>
                       <input
@@ -2937,13 +2910,13 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                         onChange={(e) =>
                           setFiscalProfile({ ...fiscalProfile, fiscalStreet: e.target.value })
                         }
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#0a0b0d] border border-[#2d323b] text-xs text-white font-technical"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-900 dark:text-zinc-100 font-technical"
                       />
                     </div>
 
                     <div className="grid grid-cols-3 gap-3">
                       <div>
-                        <label className="block text-[10px] font-technical uppercase text-gray-400 mb-1">
+                        <label className="block text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400 mb-1">
                           POSTAL CODE
                         </label>
                         <input
@@ -2952,11 +2925,11 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                           onChange={(e) =>
                             setFiscalProfile({ ...fiscalProfile, fiscalPostalCode: e.target.value })
                           }
-                          className="w-full px-3 py-2.5 rounded-xl bg-[#0a0b0d] border border-[#2d323b] text-xs text-white font-technical"
+                          className="w-full px-3 py-2.5 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-900 dark:text-zinc-100 font-technical"
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-technical uppercase text-gray-400 mb-1">
+                        <label className="block text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400 mb-1">
                           CITY
                         </label>
                         <input
@@ -2965,11 +2938,11 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                           onChange={(e) =>
                             setFiscalProfile({ ...fiscalProfile, fiscalCity: e.target.value })
                           }
-                          className="w-full px-3 py-2.5 rounded-xl bg-[#0a0b0d] border border-[#2d323b] text-xs text-white font-technical"
+                          className="w-full px-3 py-2.5 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-900 dark:text-zinc-100 font-technical"
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-technical uppercase text-gray-400 mb-1">
+                        <label className="block text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400 mb-1">
                           COUNTRY ISO
                         </label>
                         <input
@@ -2982,13 +2955,13 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                               fiscalCountryCode: e.target.value.toUpperCase(),
                             })
                           }
-                          className="w-full px-3 py-2.5 rounded-xl bg-[#0a0b0d] border border-[#2d323b] text-xs text-white font-technical uppercase"
+                          className="w-full px-3 py-2.5 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-900 dark:text-zinc-100 font-technical uppercase"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-technical uppercase text-gray-400 mb-1">
+                      <label className="block text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400 mb-1">
                         ACCOUNTING BILLING EMAIL
                       </label>
                       <input
@@ -2997,13 +2970,13 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                         onChange={(e) =>
                           setFiscalProfile({ ...fiscalProfile, billingEmail: e.target.value })
                         }
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#0a0b0d] border border-[#2d323b] text-xs text-white font-technical"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-900 dark:text-zinc-100 font-technical"
                       />
                     </div>
 
                     {/* Normative EN 16931 Public/B2B Routing Codes */}
                     <div>
-                      <label className="block text-[10px] font-technical uppercase text-gray-400 mb-1">
+                      <label className="block text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400 mb-1">
                         DIR3 CODE (OPTIONAL)
                       </label>
                       <input
@@ -3013,12 +2986,12 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                         onChange={(e) =>
                           setFiscalProfile({ ...fiscalProfile, dir3Code: e.target.value })
                         }
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#0a0b0d] border border-[#2d323b] text-xs text-white font-technical"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-900 dark:text-zinc-100 font-technical"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-technical uppercase text-gray-400 mb-1">
+                      <label className="block text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400 mb-1">
                         LEITWEG-ID / PEPPOL ID (OPTIONAL)
                       </label>
                       <input
@@ -3028,15 +3001,15 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                         onChange={(e) =>
                           setFiscalProfile({ ...fiscalProfile, leitwegId: e.target.value })
                         }
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#0a0b0d] border border-[#2d323b] text-xs text-white font-technical"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-900 dark:text-zinc-100 font-technical"
                       />
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-[#1f2228] flex items-center justify-between flex-wrap gap-3">
-                    <div className="text-[11px] font-technical text-gray-400">
+                  <div className="pt-4 border-t border-zinc-200 dark:border-[#1f2228] flex items-center justify-between flex-wrap gap-3">
+                    <div className="text-[11px] font-technical text-zinc-500 dark:text-zinc-400">
                       Default XML Standard:{' '}
-                      <span className="text-white font-bold">{fiscalProfile.preferredEInvoiceFormat}</span>
+                      <span className="text-zinc-900 dark:text-zinc-100 font-bold">{fiscalProfile.preferredEInvoiceFormat}</span>
                     </div>
                     <button
                       type="submit"
@@ -3058,29 +3031,27 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
          =================================================================== */}
       {reprintTargetOrder && reprintPreview && (
         <div
-          className="fixed inset-0 z-[80] flex items-center justify-center p-4 backdrop-blur-sm"
-          style={{ backgroundColor: 'rgba(0,0,0,0.78)' }}
+          className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-zinc-900/60 dark:bg-black/80 backdrop-blur-sm"
         >
           <div
-            className="w-full max-w-2xl rounded-2xl border p-6 space-y-5 shadow-2xl max-h-[92vh] overflow-y-auto"
-            style={{ backgroundColor: '#14161a', borderColor: '#dc2626' }}
+            className="w-full max-w-2xl rounded-2xl border border-[#dc2626] bg-white dark:bg-[#12141a] p-6 space-y-5 shadow-2xl max-h-[92vh] overflow-y-auto"
           >
-            <div className="flex items-start justify-between border-b border-[#1f2228] pb-4">
+            <div className="flex items-start justify-between border-b border-zinc-200 dark:border-[#1f2228] pb-4">
               <div>
                 <span className="text-[10px] font-technical font-black uppercase tracking-widest text-[#dc2626]">
                   RE-ORDER / REPRINT CONFIGURATION // BPE REAL-TIME PRICING
                 </span>
-                <h3 className="text-base font-black text-white mt-1">
+                <h3 className="text-base font-black text-zinc-900 dark:text-zinc-100 mt-1">
                   {reprintTargetOrder.bookTitle}
                 </h3>
-                <p className="text-xs font-technical text-gray-400">
+                <p className="text-xs font-technical text-zinc-500 dark:text-zinc-400">
                   Source Order: {reprintTargetOrder.orderId} • {reprintTargetOrder.specsSummary}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setReprintTargetOrder(null)}
-                className="text-gray-400 hover:text-white"
+                className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-900 dark:text-zinc-100"
               >
                 <XMarkIcon className="w-5 h-5" />
               </button>
@@ -3088,7 +3059,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
 
             {/* 1. Print Run Purpose Selector (3 Canonical Options) */}
             <div className="space-y-2">
-              <label className="block text-[10px] font-technical font-black uppercase tracking-wider text-gray-300">
+              <label className="block text-[10px] font-technical font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
                 1. Select Print Run Purpose
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -3097,14 +3068,14 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                   onClick={() => handleSelectReprintPurpose('STRAIGHT_REPRINT')}
                   className={`p-3 rounded-xl border text-left transition-all ${
                     reprintPurpose === 'STRAIGHT_REPRINT'
-                      ? 'border-[#dc2626] bg-[#dc2626]/15 text-white'
-                      : 'border-[#2d323b] bg-[#0a0b0d] text-gray-300 hover:border-gray-500'
+                      ? 'border-[#dc2626] bg-red-50 text-red-700 dark:bg-[#dc2626]/15 dark:text-white'
+                      : 'border-zinc-300 dark:border-[#2d323b] bg-zinc-50 dark:bg-[#0a0b0d] text-zinc-700 dark:text-zinc-300 hover:border-gray-500'
                   }`}
                 >
-                  <div className="text-[11px] font-technical font-black uppercase text-white">
+                  <div className="text-[11px] font-technical font-black uppercase text-zinc-900 dark:text-zinc-100">
                     Straight Reprint / Re-run
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-1 leading-snug">
+                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1 leading-snug">
                     Identical content &amp; specs. Reuses validated PDFs with zero preflight delay.
                   </p>
                 </button>
@@ -3114,14 +3085,14 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                   onClick={() => handleSelectReprintPurpose('NEW_EDITION_REVISED_FILES')}
                   className={`p-3 rounded-xl border text-left transition-all ${
                     reprintPurpose === 'NEW_EDITION_REVISED_FILES'
-                      ? 'border-[#dc2626] bg-[#dc2626]/15 text-white'
-                      : 'border-[#2d323b] bg-[#0a0b0d] text-gray-300 hover:border-gray-500'
+                      ? 'border-[#dc2626] bg-red-50 text-red-700 dark:bg-[#dc2626]/15 dark:text-white'
+                      : 'border-zinc-300 dark:border-[#2d323b] bg-zinc-50 dark:bg-[#0a0b0d] text-zinc-700 dark:text-zinc-300 hover:border-gray-500'
                   }`}
                 >
-                  <div className="text-[11px] font-technical font-black uppercase text-white">
+                  <div className="text-[11px] font-technical font-black uppercase text-zinc-900 dark:text-zinc-100">
                     New Edition (2nd / 3rd / Revised)
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-1 leading-snug">
+                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1 leading-snug">
                     Update ISBN, adjust page count, or upload revised PDFs for fast preflight.
                   </p>
                 </button>
@@ -3131,14 +3102,14 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                   onClick={() => handleSelectReprintPurpose('VOLUME_EXTENSION')}
                   className={`p-3 rounded-xl border text-left transition-all ${
                     reprintPurpose === 'VOLUME_EXTENSION'
-                      ? 'border-[#dc2626] bg-[#dc2626]/15 text-white'
-                      : 'border-[#2d323b] bg-[#0a0b0d] text-gray-300 hover:border-gray-500'
+                      ? 'border-[#dc2626] bg-red-50 text-red-700 dark:bg-[#dc2626]/15 dark:text-white'
+                      : 'border-zinc-300 dark:border-[#2d323b] bg-zinc-50 dark:bg-[#0a0b0d] text-zinc-700 dark:text-zinc-300 hover:border-gray-500'
                   }`}
                 >
-                  <div className="text-[11px] font-technical font-black uppercase text-white">
+                  <div className="text-[11px] font-technical font-black uppercase text-zinc-900 dark:text-zinc-100">
                     Volume Extension
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-1 leading-snug">
+                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1 leading-snug">
                     Scale up print run volume under active industrial contract rates.
                   </p>
                 </button>
@@ -3147,7 +3118,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
 
             {/* 2. Production Assets Toggle: Reuse Validated PDFs vs Upload Modified PDFs */}
             <div className="space-y-2">
-              <label className="block text-[10px] font-technical font-black uppercase tracking-wider text-gray-300">
+              <label className="block text-[10px] font-technical font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
                 2. Production PDF Assets Mode
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -3156,16 +3127,16 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                   onClick={() => setReprintUseApprovedFiles(true)}
                   className={`p-3 rounded-xl border text-left flex items-start gap-2.5 transition-all ${
                     reprintUseApprovedFiles
-                      ? 'border-[#10b981] bg-[#10b981]/10 text-white'
-                      : 'border-[#2d323b] bg-[#0a0b0d] text-gray-400'
+                      ? 'border-[#10b981] bg-emerald-50 text-emerald-800 dark:bg-[#10b981]/10 dark:text-white'
+                      : 'border-zinc-300 dark:border-[#2d323b] bg-zinc-50 dark:bg-[#0a0b0d] text-zinc-500 dark:text-zinc-400'
                   }`}
                 >
-                  <CheckCircleIcon className={`w-4 h-4 shrink-0 mt-0.5 ${reprintUseApprovedFiles ? 'text-[#10b981]' : 'text-gray-500'}`} />
+                  <CheckCircleIcon className={`w-4 h-4 shrink-0 mt-0.5 ${reprintUseApprovedFiles ? 'text-[#10b981]' : 'text-zinc-500 dark:text-zinc-500'}`} />
                   <div>
-                    <div className="text-[11px] font-technical font-bold text-white">
+                    <div className="text-[11px] font-technical font-bold text-zinc-900 dark:text-zinc-100">
                       Reuse validated production PDFs (No Preflight fee)
                     </div>
-                    <div className="text-[10px] text-gray-400 mt-0.5">
+                    <div className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-0.5">
                       Bypasses preflight queue using SHA-256 locked CTP files.
                     </div>
                   </div>
@@ -3176,16 +3147,16 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                   onClick={() => setReprintUseApprovedFiles(false)}
                   className={`p-3 rounded-xl border text-left flex items-start gap-2.5 transition-all ${
                     !reprintUseApprovedFiles
-                      ? 'border-amber-500 bg-amber-500/10 text-white'
-                      : 'border-[#2d323b] bg-[#0a0b0d] text-gray-400'
+                      ? 'border-amber-500 bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-white'
+                      : 'border-zinc-300 dark:border-[#2d323b] bg-zinc-50 dark:bg-[#0a0b0d] text-zinc-500 dark:text-zinc-400'
                   }`}
                 >
-                  <ArrowUpTrayIcon className={`w-4 h-4 shrink-0 mt-0.5 ${!reprintUseApprovedFiles ? 'text-amber-400' : 'text-gray-500'}`} />
+                  <ArrowUpTrayIcon className={`w-4 h-4 shrink-0 mt-0.5 ${!reprintUseApprovedFiles ? 'text-amber-400' : 'text-zinc-500 dark:text-zinc-500'}`} />
                   <div>
-                    <div className="text-[11px] font-technical font-bold text-white">
+                    <div className="text-[11px] font-technical font-bold text-zinc-900 dark:text-zinc-100">
                       Upload new modified PDF files
                     </div>
-                    <div className="text-[10px] text-gray-400 mt-0.5">
+                    <div className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-0.5">
                       Opens asset intake after creation (+€45 Preflight verification).
                     </div>
                   </div>
@@ -3196,32 +3167,32 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
             {/* 3. Edition Metadata & Revised Specs (if New Edition) */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className={reprintPurpose === 'NEW_EDITION_REVISED_FILES' ? 'sm:col-span-1' : 'sm:col-span-3'}>
-                <label className="block text-[10px] font-technical uppercase text-gray-400 mb-1">
+                <label className="block text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400 mb-1">
                   Work Title / Edition Label
                 </label>
                 <input
                   type="text"
                   value={reprintTitle}
                   onChange={(e) => setReprintTitle(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#0a0b0d] border border-[#2d323b] text-xs text-white font-technical"
+                  className="w-full px-3.5 py-2 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-900 dark:text-zinc-100 font-technical"
                 />
               </div>
 
               {reprintPurpose === 'NEW_EDITION_REVISED_FILES' && (
                 <>
                   <div>
-                    <label className="block text-[10px] font-technical uppercase text-gray-400 mb-1">
+                    <label className="block text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400 mb-1">
                       Updated ISBN-13
                     </label>
                     <input
                       type="text"
                       value={reprintIsbn}
                       onChange={(e) => setReprintIsbn(e.target.value)}
-                      className="w-full px-3.5 py-2 rounded-xl bg-[#0a0b0d] border border-[#2d323b] text-xs text-white font-technical"
+                      className="w-full px-3.5 py-2 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-900 dark:text-zinc-100 font-technical"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-technical uppercase text-gray-400 mb-1">
+                    <label className="block text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400 mb-1">
                       Interior Pages
                     </label>
                     <input
@@ -3231,7 +3202,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                       step={4}
                       value={reprintPages}
                       onChange={(e) => setReprintPages(Math.max(16, Number(e.target.value) || 192))}
-                      className="w-full px-3.5 py-2 rounded-xl bg-[#0a0b0d] border border-[#2d323b] text-xs text-white font-technical"
+                      className="w-full px-3.5 py-2 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-900 dark:text-zinc-100 font-technical"
                     />
                   </div>
                 </>
@@ -3240,7 +3211,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
 
             {/* 4. Print Run Quantity Selector */}
             <div>
-              <label className="block text-[10px] font-technical uppercase text-gray-400 mb-2">
+              <label className="block text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400 mb-2">
                 Select Print Run Quantity (Copies) — Real-Time Additive BPE Recalculation
               </label>
               <div className="grid grid-cols-5 gap-2 mb-3">
@@ -3252,7 +3223,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                     className={`py-2 rounded-xl font-technical text-xs font-black border transition-all ${
                       reprintCopies === q
                         ? 'bg-[#dc2626] text-white border-[#dc2626]'
-                        : 'bg-[#0a0b0d] text-gray-300 border-[#2d323b] hover:border-gray-500'
+                        : 'bg-zinc-50 dark:bg-[#0a0b0d] text-zinc-700 dark:text-zinc-300 border-zinc-300 dark:border-[#2d323b] hover:border-gray-500'
                     }`}
                   >
                     {q.toLocaleString('en-US')}
@@ -3266,23 +3237,23 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                 step={50}
                 value={reprintCopies}
                 onChange={(e) => setReprintCopies(Math.max(50, Number(e.target.value) || 100))}
-                className="w-full px-3.5 py-2 rounded-xl bg-[#0a0b0d] border border-[#2d323b] text-xs text-white font-technical"
+                className="w-full px-3.5 py-2 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-300 dark:border-[#2d323b] text-xs text-zinc-900 dark:text-zinc-100 font-technical"
               />
             </div>
 
             {/* Live Recalculated Price Summary */}
-            <div className="p-4 rounded-xl bg-[#0a0b0d] border border-[#1f2228] flex items-center justify-between">
+            <div className="p-4 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-200 dark:border-[#1f2228] flex items-center justify-between">
               <div>
-                <span className="block text-[10px] font-technical uppercase text-gray-400">
+                <span className="block text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400">
                   Active Plant Rate ({reprintTargetOrder.offer_print_house})
                 </span>
-                <span className="text-xs font-technical text-gray-300">
-                  Unit Cost: <strong className="text-white">€{reprintPreview.unitPriceEur.toFixed(2)} / copy</strong>
+                <span className="text-xs font-technical text-zinc-700 dark:text-zinc-300">
+                  Unit Cost: <strong className="text-zinc-900 dark:text-zinc-100">€{reprintPreview.unitPriceEur.toFixed(2)} / copy</strong>
                   {reprintPreview.preflightFeeEur > 0 ? ' (incl. €45 Preflight)' : ' (Preflight fee waived)'}
                 </span>
               </div>
               <div className="text-right">
-                <span className="block text-[10px] font-technical uppercase text-gray-400">
+                <span className="block text-[10px] font-technical uppercase text-zinc-500 dark:text-zinc-400">
                   New Print Run Total ({reprintCopies.toLocaleString('en-US')} copies)
                 </span>
                 <span className="text-lg font-technical font-black text-[#10b981]">
@@ -3308,7 +3279,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                     setReprintTargetOrder(null);
                     onClose();
                   }}
-                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-[#2d323b] bg-[#0a0b0d] hover:border-white text-gray-300 hover:text-white text-[10px] font-technical font-bold uppercase tracking-wider"
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-zinc-300 dark:border-[#2d323b] bg-zinc-50 dark:bg-[#0a0b0d] hover:border-zinc-900 dark:hover:border-white text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-900 dark:text-zinc-100 text-[10px] font-technical font-bold uppercase tracking-wider"
                 >
                   Open in Configurator
                 </button>
@@ -3335,54 +3306,52 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
          =================================================================== */}
       {showPodViewerModal && trackingData && (
         <div
-          className="fixed inset-0 z-[80] flex items-center justify-center p-4 backdrop-blur-sm"
-          style={{ backgroundColor: 'rgba(0,0,0,0.8)' }}
+          className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-zinc-900/60 dark:bg-black/80 backdrop-blur-sm"
         >
           <div
-            className="w-full max-w-lg rounded-2xl border p-6 space-y-4 shadow-2xl"
-            style={{ backgroundColor: '#14161a', borderColor: '#10b981' }}
+            className="w-full max-w-lg rounded-2xl border border-[#10b981] bg-white dark:bg-[#12141a] p-6 space-y-4 shadow-2xl"
           >
-            <div className="flex items-center justify-between border-b border-[#1f2228] pb-3">
+            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-[#1f2228] pb-3">
               <div>
                 <span className="text-[10px] font-technical font-black uppercase text-[#10b981]">
                   DELIVERY CERTIFICATE / SIGNED PROOF OF DELIVERY (CMR)
                 </span>
-                <h4 className="text-sm font-bold text-white mt-0.5">
+                <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 mt-0.5">
                   {trackingData.pod.documentId} — Order {trackingData.orderId}
                 </h4>
               </div>
               <button
                 type="button"
                 onClick={() => setShowPodViewerModal(false)}
-                className="text-gray-400 hover:text-white"
+                className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-900 dark:text-zinc-100"
               >
                 <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-4 rounded-xl bg-[#0a0b0d] border border-[#1f2228] space-y-2.5 text-xs font-technical">
+            <div className="p-4 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-200 dark:border-[#1f2228] space-y-2.5 text-xs font-technical">
               <div className="flex justify-between">
-                <span className="text-gray-400">Delivered Work:</span>
-                <span className="text-white font-bold">{trackingData.bookTitle}</span>
+                <span className="text-zinc-500 dark:text-zinc-400">Delivered Work:</span>
+                <span className="text-zinc-900 dark:text-zinc-100 font-bold">{trackingData.bookTitle}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-400">Freight Carrier:</span>
-                <span className="text-white">{trackingData.telemetry.carrierName}</span>
+                <span className="text-zinc-500 dark:text-zinc-400">Freight Carrier:</span>
+                <span className="text-zinc-900 dark:text-zinc-100">{trackingData.telemetry.carrierName}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-400">Pallet SSCC-18:</span>
-                <span className="text-gray-200">{trackingData.telemetry.sscc18}</span>
+                <span className="text-zinc-500 dark:text-zinc-400">Pallet SSCC-18:</span>
+                <span className="text-zinc-700 dark:text-zinc-200">{trackingData.telemetry.sscc18}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-400">Signed By (Destination Dock):</span>
+                <span className="text-zinc-500 dark:text-zinc-400">Signed By (Destination Dock):</span>
                 <span className="text-[#10b981] font-bold">{trackingData.pod.signedBy}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-400">Receiving Dock Stamp:</span>
-                <span className="text-white">{trackingData.pod.dockStampCode || 'DOCK-STAMP-OK'}</span>
+                <span className="text-zinc-500 dark:text-zinc-400">Receiving Dock Stamp:</span>
+                <span className="text-zinc-900 dark:text-zinc-100">{trackingData.pod.dockStampCode || 'DOCK-STAMP-OK'}</span>
               </div>
-              <div className="pt-2 border-t border-[#1f2228]">
-                <span className="block text-[9px] uppercase text-gray-500">Cryptographic Digital Signature (eIDAS)</span>
+              <div className="pt-2 border-t border-zinc-200 dark:border-[#1f2228]">
+                <span className="block text-[9px] uppercase text-zinc-500 dark:text-zinc-500">Cryptographic Digital Signature (eIDAS)</span>
                 <span className="text-[10px] text-emerald-400 break-all">
                   {trackingData.pod.digitalSignatureHash}
                 </span>
@@ -3393,7 +3362,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
               <button
                 type="button"
                 onClick={() => setShowPodViewerModal(false)}
-                className="px-4 py-2 rounded-xl border border-[#2d323b] text-xs font-technical text-gray-300"
+                className="px-4 py-2 rounded-xl border border-zinc-300 dark:border-[#2d323b] text-xs font-technical text-zinc-700 dark:text-zinc-300"
               >
                 Close
               </button>

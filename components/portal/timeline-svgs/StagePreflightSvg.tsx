@@ -15,7 +15,7 @@ export const StagePreflightSvg: React.FC<TimelineSvgProps> = ({
   status = 'SCHEDULED',
 }) => {
   const isLit = status === 'COMPLETED' || status === 'ACTIVE';
-  const strokeColor = isLit ? '#ef4444' : 'rgba(239, 68, 68, 0.42)';
+  const strokeColor = isLit ? '#dc2626' : 'rgba(220, 38, 38, 0.45)';
   const accentFill = isLit ? 'rgba(239, 68, 68, 0.10)' : 'rgba(239, 68, 68, 0.03)';
 
   return (
@@ -83,7 +83,7 @@ export const StagePreflightSvg: React.FC<TimelineSvgProps> = ({
         cx="42"
         cy="41"
         r="10"
-        fill="#0f1115"
+        className="fill-white dark:fill-[#0f1115]"
         stroke={strokeColor}
         strokeWidth="2"
       />

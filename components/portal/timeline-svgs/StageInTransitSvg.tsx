@@ -11,7 +11,7 @@ export const StageInTransitSvg: React.FC<TimelineSvgProps> = ({
   status = 'SCHEDULED',
 }) => {
   const isLit = status === 'COMPLETED' || status === 'ACTIVE';
-  const strokeColor = isLit ? '#ef4444' : 'rgba(239, 68, 68, 0.42)';
+  const strokeColor = isLit ? '#dc2626' : 'rgba(220, 38, 38, 0.45)';
   const accentFill = isLit ? 'rgba(239, 68, 68, 0.10)' : 'rgba(239, 68, 68, 0.03)';
 
   return (
@@ -72,11 +72,11 @@ export const StageInTransitSvg: React.FC<TimelineSvgProps> = ({
       />
 
       {/* Chassis & Dual Rear Axle + Tractor Axle Wheels */}
-      <circle cx="14" cy="46" r="4.5" fill="#0f1115" stroke={strokeColor} strokeWidth="1.9" />
+      <circle cx="14" cy="46" r="4.5" className="fill-white dark:fill-[#0f1115]" stroke={strokeColor} strokeWidth="1.9" />
       <circle cx="14" cy="46" r="1.5" fill={strokeColor} />
-      <circle cx="25" cy="46" r="4.5" fill="#0f1115" stroke={strokeColor} strokeWidth="1.9" />
+      <circle cx="25" cy="46" r="4.5" className="fill-white dark:fill-[#0f1115]" stroke={strokeColor} strokeWidth="1.9" />
       <circle cx="25" cy="46" r="1.5" fill={strokeColor} />
-      <circle cx="49" cy="46" r="4.5" fill="#0f1115" stroke={strokeColor} strokeWidth="1.9" />
+      <circle cx="49" cy="46" r="4.5" className="fill-white dark:fill-[#0f1115]" stroke={strokeColor} strokeWidth="1.9" />
       <circle cx="49" cy="46" r="1.5" fill={strokeColor} />
 
       {/* Highway / Dock Leveler Telemetry Track Line */}

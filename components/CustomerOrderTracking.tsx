@@ -150,7 +150,7 @@ export const CustomerOrderTracking: React.FC<CustomerOrderTrackingProps> = ({ or
     <div className="fixed inset-0 z-[60] bg-corporate-primary/95 backdrop-blur-xl flex items-center justify-center p-4 md:p-8">
       <div className="bg-corporate-secondary border border-corporate-border w-full max-w-4xl h-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
         {/* Header */}
-        <div className="bg-black/40 border-b border-corporate-border p-6 flex items-center justify-between">
+        <div className="bg-zinc-100 dark:bg-black/40 border-b border-corporate-border p-6 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-3 mb-1">
               <span className="text-[0.6rem] font-technical font-black tracking-monolith text-corporate-muted uppercase">
@@ -184,7 +184,7 @@ export const CustomerOrderTracking: React.FC<CustomerOrderTrackingProps> = ({ or
                     <h2 className="text-2xl font-black text-corporate-text tracking-tight">{tracking.headline}</h2>
                     <span className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded ${
                       tracking.customer_status === 'SHIPPED' ? 'bg-corporate-accent text-white' : 
-                      tracking.customer_status === 'ACTION_REQUIRED' ? 'bg-red-500 text-white' : 'bg-white/10 text-corporate-muted'
+                      tracking.customer_status === 'ACTION_REQUIRED' ? 'bg-red-500 text-white' : 'bg-zinc-200 dark:bg-white/10 text-corporate-muted'
                     }`}>
                       {tracking.customer_status}
                     </span>
@@ -210,7 +210,7 @@ export const CustomerOrderTracking: React.FC<CustomerOrderTrackingProps> = ({ or
                   {tracking.timeline.map((step, idx) => (
                     <div key={step.key} className="relative flex gap-6">
                       {idx !== tracking.timeline.length - 1 && (
-                        <div className={`absolute left-2.5 top-5 w-[1px] h-full ${step.status === 'DONE' ? 'bg-corporate-accent' : 'bg-white/10'}`} />
+                        <div className={`absolute left-2.5 top-5 w-[1px] h-full ${step.status === 'DONE' ? 'bg-corporate-accent' : 'bg-zinc-200 dark:bg-white/10'}`} />
                       )}
                       <div className="relative z-10 bg-corporate-secondary">
                         {getTimelineIcon(step.key, step.status)}
@@ -283,7 +283,7 @@ export const CustomerOrderTracking: React.FC<CustomerOrderTrackingProps> = ({ or
                         <TruckIcon className="w-3 h-3 text-corporate-accent" />
                         <span className="text-[10px] font-black text-corporate-text uppercase">{tracking.shipping.carrier}</span>
                       </div>
-                      <div className="bg-black/40 p-2 rounded text-[10px] font-technical text-corporate-accent select-all cursor-copy">
+                      <div className="bg-zinc-100 dark:bg-black/40 p-2 rounded text-[10px] font-technical text-corporate-accent select-all cursor-copy">
                         {tracking.shipping.tracking_number}
                       </div>
                     </div>
@@ -305,7 +305,7 @@ export const CustomerOrderTracking: React.FC<CustomerOrderTrackingProps> = ({ or
         </div>
 
         {/* Footer */}
-        <div className="bg-black/20 border-t border-corporate-border p-4 flex justify-center">
+        <div className="bg-zinc-100 dark:bg-black/20 border-t border-corporate-border p-4 flex justify-center">
            <p className="text-[8px] font-technical text-corporate-muted uppercase tracking-[0.2em]">
              Forensic Production Tracking System v5.3 • Internal Link Encrypted
            </p>

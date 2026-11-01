@@ -253,7 +253,7 @@ const App: React.FC = () => {
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== 'undefined') {
       try {
-        const stored = localStorage.getItem('ppos-theme') || localStorage.getItem('theme');
+        const stored = localStorage.getItem('ppos_theme') || localStorage.getItem('ppos-theme') || localStorage.getItem('theme');
         if (stored === 'light' || stored === 'dark') {
           return stored === 'dark';
         }
@@ -270,12 +270,14 @@ const App: React.FC = () => {
       document.documentElement.classList.add('dark');
       try {
         localStorage.setItem('theme', 'dark');
+        localStorage.setItem('ppos_theme', 'dark');
         localStorage.setItem('ppos-theme', 'dark');
       } catch {}
     } else {
       document.documentElement.classList.remove('dark');
       try {
         localStorage.setItem('theme', 'light');
+        localStorage.setItem('ppos_theme', 'light');
         localStorage.setItem('ppos-theme', 'light');
       } catch {}
     }

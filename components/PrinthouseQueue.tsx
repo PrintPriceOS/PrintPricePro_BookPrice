@@ -72,7 +72,7 @@ export const PrinthouseQueue: React.FC = () => {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'QUEUED': return <Clock className="w-4 h-4 text-slate-500" />;
+      case 'QUEUED': return <Clock className="w-4 h-4 text-slate-500 dark:text-zinc-400" />;
       case 'REVIEWING': return <Search className="w-4 h-4 text-amber-500" />;
       case 'ACCEPTED': return <CheckCircle className="w-4 h-4 text-green-500" />;
       case 'REJECTED': return <XCircle className="w-4 h-4 text-red-500" />;
@@ -87,7 +87,7 @@ export const PrinthouseQueue: React.FC = () => {
   const getStatusBadgeClass = (status: string) => {
     const base = "px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ";
     switch (status) {
-      case 'QUEUED': return base + "bg-slate-100 text-slate-800";
+      case 'QUEUED': return base + "bg-slate-100 text-slate-800 dark:text-zinc-100";
       case 'REVIEWING': return base + "bg-amber-100 text-amber-800";
       case 'ACCEPTED': return base + "bg-green-100 text-green-800";
       case 'REJECTED': return base + "bg-red-100 text-red-800";
@@ -100,21 +100,21 @@ export const PrinthouseQueue: React.FC = () => {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
-      <div className="p-6 border-b border-slate-100 bg-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="bg-white dark:bg-[#12141a] rounded-xl shadow-lg border border-slate-200 dark:border-zinc-800 overflow-hidden">
+      <div className="p-6 border-b border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-[#0a0b0d] flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+          <h2 className="text-xl font-bold text-slate-800 dark:text-zinc-100 flex items-center gap-2">
             <Package className="text-corporate-accent" />
             Printhouse Production Queue
           </h2>
-          <p className="text-sm text-slate-500">Manage manufacturing lifecycle for marketplace orders.</p>
+          <p className="text-sm text-slate-500 dark:text-zinc-400">Manage manufacturing lifecycle for marketplace orders.</p>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="relative">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <select 
-              className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-corporate-accent outline-none appearance-none"
+              className="pl-9 pr-4 py-2 bg-white dark:bg-[#12141a] border border-slate-200 dark:border-zinc-800 dark:border-zinc-800 rounded-lg text-sm font-medium focus:ring-2 focus:ring-corporate-accent outline-none appearance-none"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
@@ -131,7 +131,7 @@ export const PrinthouseQueue: React.FC = () => {
           </div>
           <button 
             onClick={fetchQueue}
-            className="p-2 text-slate-500 hover:text-corporate-accent hover:bg-corporate-accent/10 rounded-lg transition-colors"
+            className="p-2 text-slate-500 dark:text-zinc-400 hover:text-corporate-accent hover:bg-corporate-accent/10 rounded-lg transition-colors"
             title="Refresh Queue"
           >
             <Clock className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
@@ -142,17 +142,17 @@ export const PrinthouseQueue: React.FC = () => {
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-slate-50/50 text-slate-500 text-xs font-semibold uppercase tracking-wider">
-              <th className="px-6 py-4 border-b border-slate-100">Reference</th>
-              <th className="px-6 py-4 border-b border-slate-100">Customer</th>
-              <th className="px-6 py-4 border-b border-slate-100">Job Specs</th>
-              <th className="px-6 py-4 border-b border-slate-100">Preflight / Pay</th>
-              <th className="px-6 py-4 border-b border-slate-100">Status</th>
-              <th className="px-6 py-4 border-b border-slate-100">Created</th>
-              <th className="px-6 py-4 border-b border-slate-100 text-right">Actions</th>
+            <tr className="bg-slate-50 dark:bg-[#0a0b0d]/50 dark:bg-zinc-900/60 text-slate-500 dark:text-zinc-400 text-xs font-semibold uppercase tracking-wider">
+              <th className="px-6 py-4 border-b border-slate-100 dark:border-zinc-800">Reference</th>
+              <th className="px-6 py-4 border-b border-slate-100 dark:border-zinc-800">Customer</th>
+              <th className="px-6 py-4 border-b border-slate-100 dark:border-zinc-800">Job Specs</th>
+              <th className="px-6 py-4 border-b border-slate-100 dark:border-zinc-800">Preflight / Pay</th>
+              <th className="px-6 py-4 border-b border-slate-100 dark:border-zinc-800">Status</th>
+              <th className="px-6 py-4 border-b border-slate-100 dark:border-zinc-800">Created</th>
+              <th className="px-6 py-4 border-b border-slate-100 dark:border-zinc-800 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-zinc-800">
             {loading && jobs.length === 0 ? (
               Array(3).fill(0).map((_, i) => (
                 <tr key={i} className="animate-pulse">
@@ -172,10 +172,10 @@ export const PrinthouseQueue: React.FC = () => {
               </tr>
             ) : (
               jobs.map(job => (
-                <tr key={job.package_id} className="hover:bg-slate-50/80 transition-colors group">
+                <tr key={job.package_id} className="hover:bg-slate-50 dark:bg-[#0a0b0d]/80 transition-colors group">
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
-                      <span className="text-sm font-bold text-slate-800">{job.public_ref}</span>
+                      <span className="text-sm font-bold text-slate-800 dark:text-zinc-100">{job.public_ref}</span>
                       <span className="text-[10px] text-slate-400 font-technical">{job.package_id}</span>
                       {job.control_plane_order_ref && (
                         <span className="text-[10px] text-corporate-accent font-medium">CP: {job.control_plane_order_ref}</span>
@@ -184,13 +184,13 @@ export const PrinthouseQueue: React.FC = () => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
-                      <span className="text-sm font-medium text-slate-700">{job.customer_summary?.name || 'Anonymous'}</span>
+                      <span className="text-sm font-medium text-slate-700 dark:text-zinc-200">{job.customer_summary?.name || 'Anonymous'}</span>
                       <span className="text-xs text-slate-400">{job.customer_summary?.email}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-1">
-                      <span className="text-xs text-slate-600 font-medium">
+                      <span className="text-xs text-slate-600 dark:text-zinc-300 font-medium">
                         {job.production_specs_summary?.copies} copies • {job.production_specs_summary?.interior_pages}p
                       </span>
                       <span className="text-[10px] text-slate-400 uppercase">
@@ -207,11 +207,11 @@ export const PrinthouseQueue: React.FC = () => {
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-1.5">
                         <div className={`w-2 h-2 rounded-full ${job.preflight_status === 'PASSED' ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                        <span className="text-[10px] font-bold text-slate-600">PREFLIGHT: {job.preflight_status}</span>
+                        <span className="text-[10px] font-bold text-slate-600 dark:text-zinc-300">PREFLIGHT: {job.preflight_status}</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <div className={`w-2 h-2 rounded-full ${job.payment_status === 'PAID' ? 'bg-green-500' : 'bg-corporate-accent'}`}></div>
-                        <span className="text-[10px] font-bold text-slate-600">PAY: {job.payment_status}</span>
+                        <span className="text-[10px] font-bold text-slate-600 dark:text-zinc-300">PAY: {job.payment_status}</span>
                       </div>
                     </div>
                   </td>
@@ -221,7 +221,7 @@ export const PrinthouseQueue: React.FC = () => {
                       {job.production_queue_status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-xs text-slate-500">
+                  <td className="px-6 py-4 text-xs text-slate-500 dark:text-zinc-400">
                     {new Date(job.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 text-right">
@@ -240,7 +240,7 @@ export const PrinthouseQueue: React.FC = () => {
         </table>
       </div>
 
-      <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+      <div className="p-4 border-t border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-[#0a0b0d] flex items-center justify-between">
         <p className="text-xs text-slate-400">
           Showing {jobs.length} industrial production jobs. {statusFilter ? `Filtered by ${statusFilter}.` : ''}
         </p>

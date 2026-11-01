@@ -15,7 +15,7 @@
   <script>
     (function () {
       try {
-        var saved = localStorage.getItem('ppos-theme') || localStorage.getItem('theme');
+        var saved = localStorage.getItem('ppos_theme') || localStorage.getItem('ppos-theme') || localStorage.getItem('theme');
         var theme = (saved === 'light' || saved === 'dark') ? saved : 'dark';
         if (theme === 'dark') {
           document.documentElement.classList.add('dark');

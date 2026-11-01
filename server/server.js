@@ -5946,6 +5946,21 @@ app.post('/api/admin/cleanup/abandoned-order-intents', adminOnly, async (req, re
     res.json({ ok: true, cancelled });
 });
 
-app.listen(PORT, () => {
-    console.log(`v5.2 Adversarial Node Server running on port ${PORT}`);
+// Mount Phase 15B B2B User Account Hub & Self-Service Portal BFF Routes
+const { registerCustomerHubBffRoutes } = require('./customerHubBffRoutes');
+registerCustomerHubBffRoutes(app, {
+    CONTROL_PLANE_BASE_URL,
+    CONTROL_PLANE_API_KEY,
+    resolveRequestIdentity,
+    buildSpineControlPlaneHeaders,
+    controlPlaneAuthHeaders,
+    upload
 });
+
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`v5.2 Adversarial Node Server running on port ${PORT}`);
+    });
+}
+
+module.exports = app;

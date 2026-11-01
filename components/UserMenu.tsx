@@ -10,8 +10,13 @@ import {
   ArrowPathIcon,
   ShieldCheckIcon,
   ClipboardDocumentListIcon,
+  CreditCardIcon,
+  TruckIcon,
+  MapPinIcon,
+  BuildingOffice2Icon,
 } from '@heroicons/react/24/outline';
 import UserOrders from './UserOrders';
+import { PORTAL_TAB_ROUTES, PortalTabId } from './CustomerPortalModal';
 
 // ---------------------------------------------------------------------------
 // PPOSLogo (local copy — same SVG as Header)
@@ -53,7 +58,7 @@ const MenuButton: React.FC<{
     <span className={`shrink-0 transition-colors ${danger ? 'text-corporate-accent' : 'text-corporate-muted group-hover:text-corporate-text'}`}>
       {icon}
     </span>
-    <span className={`text-[0.8rem] font-technical font-bold uppercase tracking-tight ${
+    <span className={`text-[0.75rem] font-technical font-bold uppercase tracking-tight ${
       danger ? 'text-corporate-accent' : 'text-corporate-text-secondary group-hover:text-corporate-text'
     }`}>
       {label}
@@ -348,11 +353,13 @@ interface UserMenuProps {
   user: AuthUser | null;
   onOpenModal: () => void;
   onLogout: () => void;
+  onNavigatePortal?: (tab: PortalTabId) => void;
 }
 
-const UserMenu: React.FC<UserMenuProps> = ({ user, onOpenModal, onLogout }) => {
+const UserMenu: React.FC<UserMenuProps> = ({ user, onOpenModal, onLogout, onNavigatePortal }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showOrders, setShowOrders] = useState(false);
+  const [portalTab, setPortalTab] = useState<PortalTabId>('ORDERS_REPRINTS');
 
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -413,6 +420,22 @@ const UserMenu: React.FC<UserMenuProps> = ({ user, onOpenModal, onLogout }) => {
     onLogout();
   }, [onLogout]);
 
+  const openHubTab = (tab: PortalTabId) => {
+    setPortalTab(tab);
+    setIsOpen(false);
+    if (onNavigatePortal) {
+      onNavigatePortal(tab);
+      return;
+    }
+    if (typeof window !== 'undefined') {
+      const nextUrl = PORTAL_TAB_ROUTES[tab] || '/portal/orders';
+      window.history.pushState({ portalTab: tab }, '', nextUrl);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+      return;
+    }
+    setShowOrders(true);
+  };
+
   return (
     <>
       <div
@@ -449,15 +472,15 @@ const UserMenu: React.FC<UserMenuProps> = ({ user, onOpenModal, onLogout }) => {
             id="user-dropdown-menu"
             role="menu"
             aria-labelledby="user-menu-button"
-            className="absolute right-0 mt-2 w-56 rounded-2xl overflow-hidden bg-corporate-primary border border-corporate-border shadow-2xl z-[100]"
+            className="absolute right-0 mt-2 w-64 rounded-2xl overflow-hidden bg-corporate-primary border border-corporate-border shadow-2xl z-[100]"
           >
             {/* Header info */}
             <div className="px-4 py-3 border-b border-corporate-border bg-corporate-elevated/50">
-              <div className="text-[0.6rem] font-technical font-black text-corporate-muted uppercase tracking-monolith">
-                Account
+              <div className="text-[0.6rem] font-technical font-black text-corporate-accent uppercase tracking-monolith">
+                USER ACCOUNT HUB // B2B PUBLISHER PORTAL
               </div>
               <div className="mt-1 text-[0.75rem] font-technical text-corporate-text-secondary italic truncate">
-                {user ? (user.name || user.email) : 'Not signed in'}
+                {user ? (user.name || user.email) : 'Publisher Portal Guest'}
               </div>
               {user && (
                 <div className="mt-0.5 text-[0.65rem] font-technical text-corporate-muted truncate">
@@ -466,7 +489,7 @@ const UserMenu: React.FC<UserMenuProps> = ({ user, onOpenModal, onLogout }) => {
               )}
             </div>
 
-            {/* Actions for all users */}
+            {/* 5 Canonical B2B Hub Modules */}
             <div className="p-2 flex flex-col gap-0.5">
               {!user && (
                 <MenuButton
@@ -477,8 +500,28 @@ const UserMenu: React.FC<UserMenuProps> = ({ user, onOpenModal, onLogout }) => {
               )}
               <MenuButton
                 icon={<ClipboardDocumentListIcon className="w-4 h-4" />}
-                label="My Orders"
-                onClick={() => { setIsOpen(false); setShowOrders(true); }}
+                label="MY ORDERS & REPRINTS"
+                onClick={() => openHubTab('ORDERS_REPRINTS')}
+              />
+              <MenuButton
+                icon={<CreditCardIcon className="w-4 h-4" />}
+                label="INVOICES & PAYMENTS"
+                onClick={() => openHubTab('INVOICES_PAYMENTS')}
+              />
+              <MenuButton
+                icon={<TruckIcon className="w-4 h-4" />}
+                label="LIVE LOGISTICS & POD"
+                onClick={() => openHubTab('LIVE_LOGISTICS')}
+              />
+              <MenuButton
+                icon={<MapPinIcon className="w-4 h-4" />}
+                label="SHIPPING & DOCKS"
+                onClick={() => openHubTab('SHIPPING_LOGISTICS')}
+              />
+              <MenuButton
+                icon={<BuildingOffice2Icon className="w-4 h-4" />}
+                label="FISCAL & BILLING DATA"
+                onClick={() => openHubTab('FISCAL_BILLING')}
               />
             </div>
 
@@ -500,6 +543,9 @@ const UserMenu: React.FC<UserMenuProps> = ({ user, onOpenModal, onLogout }) => {
       {showOrders && (
         <UserOrders
           userId={user?.user_id}
+          userEmail={user?.email}
+          userName={user?.name}
+          initialTab={portalTab}
           onClose={() => setShowOrders(false)}
         />
       )}

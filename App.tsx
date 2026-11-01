@@ -64,7 +64,8 @@ import {
 import { t } from './i18n/en';
 import OrderIntentDetails from './components/OrderIntentDetails';
 import { PrinthouseQueue } from './components/PrinthouseQueue';
-import UserOrders from './components/UserOrders';
+import CustomerPortalPage from './src/pages/portal/CustomerPortalPage';
+import { resolvePortalRouteFromPathname, PORTAL_TAB_ROUTES, type PortalTabId } from './components/CustomerPortalModal';
 import { CustomerRemediationPage } from './components/CustomerRemediationPage';
 import { QuoteRevisionReview } from './components/QuoteRevisionReview';
 
@@ -307,6 +308,42 @@ const App: React.FC = () => {
   const [orderSuccess, setOrderSuccess] = useState<string | null>(null);
   const [selectedIntentId, setSelectedIntentId] = useState<string | null>(null);
   const [showMyOrders, setShowMyOrders] = useState(false);
+  const [portalRoute, setPortalRoute] = useState(() =>
+    typeof window !== 'undefined'
+      ? resolvePortalRouteFromPathname(window.location.pathname)
+      : { isPortalRoute: false, tab: 'orders' as PortalTabId }
+  );
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const parsed = resolvePortalRouteFromPathname(window.location.pathname);
+      setPortalRoute(parsed);
+      setShowMyOrders(parsed.isPortalRoute);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const handleOpenPortalRoute = useCallback((tab: PortalTabId = 'orders') => {
+    const path = PORTAL_TAB_ROUTES[tab] || '/portal/orders';
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, '', path);
+    }
+    setPortalRoute({ isPortalRoute: true, tab });
+    setShowMyOrders(true);
+    setIsCartOpen(false);
+  }, []);
+
+  const handleClosePortalRoute = useCallback(() => {
+    setShowMyOrders(false);
+    setPortalRoute({ isPortalRoute: false, tab: 'orders' });
+    if (
+      window.location.pathname.startsWith('/portal') ||
+      window.location.pathname.startsWith('/order/')
+    ) {
+      window.history.pushState({}, '', '/');
+    }
+  }, []);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const toastIdRef = useRef(0);
@@ -1361,7 +1398,7 @@ const App: React.FC = () => {
         cartCount={cart.length}
         onCartClick={() => setIsCartOpen(prev => !prev)}
         onMyOrdersClick={() => {
-          setShowMyOrders(true);
+          handleOpenPortalRoute('orders');
           setIsCartOpen(false);
         }}
         isDark={isDark}
@@ -1369,10 +1406,35 @@ const App: React.FC = () => {
         user={user}
         onOpenAuthModal={() => setAuthModalOpen(true)}
         onLogout={handleLogout}
+        onNavigatePortal={(tab) => handleOpenPortalRoute(tab)}
         currentView={currentView}
         onViewChange={ENABLE_PUBLIC_CONSOLE ? setCurrentView : undefined}
       />
 
+      {showMyOrders || portalRoute.isPortalRoute ? (
+        <CustomerPortalPage
+          userId={user?.user_id}
+          userEmail={user?.email}
+          userName={user?.name}
+          initialTab={portalRoute.tab}
+          initialOrderId={portalRoute.orderId}
+          initialAssetIntakeOrderId={portalRoute.assetIntakeOrderId}
+          onBackToConfigurator={handleClosePortalRoute}
+          onLoadSpecsToCalculator={(reprintSpecs, bookTitle) => {
+            setBookPricePayload((prev) => ({
+              ...prev,
+              ...(reprintSpecs as any),
+            }));
+            setPayloadVersion((v) => v + 1);
+            handleClosePortalRoute();
+            addToast({
+              variant: 'info',
+              title: 'Specifications Loaded',
+              body: `Loaded specifications for "${bookTitle || 'Reprint Edition'}" into the configurator.`,
+            });
+          }}
+        />
+      ) : (
       <main className="flex-1 w-full mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6 md:py-8 max-w-[1400px] pb-24 lg:pb-12">
         {remediationMatch ? (
           <CustomerRemediationPage
@@ -1559,6 +1621,7 @@ const App: React.FC = () => {
           </div>
         )}
       </main>
+      )}
 
       {/* Cart slide-over */}
       <CartPanel
@@ -1601,12 +1664,7 @@ const App: React.FC = () => {
 
       <Toast toasts={toasts} onDismiss={dismissToast} />
 
-      {showMyOrders && (
-        <UserOrders 
-          userId={user?.user_id} 
-          onClose={() => setShowMyOrders(false)} 
-        />
-      )}
+
     </div>
   );
 };

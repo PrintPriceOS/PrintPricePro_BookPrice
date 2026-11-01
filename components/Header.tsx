@@ -8,6 +8,7 @@ import {
 } from '@heroicons/react/24/outline';
 import UserMenu from './UserMenu';
 import type { AuthUser } from './UserMenu';
+import type { PortalTabId } from './CustomerPortalModal';
 
 const PPOSLogo = ({ className = 'h-7 w-7 sm:h-9 sm:w-9' }: { className?: string }) => (
   <svg
@@ -29,6 +30,7 @@ interface HeaderProps {
   cartCount: number;
   onCartClick: () => void;
   onMyOrdersClick: () => void;
+  onNavigatePortal?: (tab: PortalTabId) => void;
   isDark: boolean;
   onThemeToggle: () => void;
   user: AuthUser | null;
@@ -42,6 +44,7 @@ const Header: React.FC<HeaderProps> = ({
   cartCount,
   onCartClick,
   onMyOrdersClick,
+  onNavigatePortal,
   isDark,
   onThemeToggle,
   user,
@@ -174,7 +177,12 @@ const Header: React.FC<HeaderProps> = ({
           <div className="h-5 w-px bg-corporate-border mx-0.5 hidden sm:block" />
 
           {/* User menu */}
-          <UserMenu user={user} onOpenModal={onOpenAuthModal} onLogout={onLogout} />
+          <UserMenu
+            user={user}
+            onOpenModal={onOpenAuthModal}
+            onLogout={onLogout}
+            onNavigatePortal={onNavigatePortal}
+          />
         </div>
       </div>
     </header>

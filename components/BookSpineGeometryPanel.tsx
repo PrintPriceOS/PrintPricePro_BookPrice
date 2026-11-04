@@ -850,7 +850,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
             <ExclamationTriangleIcon className="w-4 h-4 text-corporate-accent shrink-0 mt-0.5" />
             <div className="space-y-1 min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <p className="text-xs font-technical font-black uppercase tracking-wider text-corporate-text truncate">
+                <p className="text-xs font-technical font-black uppercase tracking-wider text-corporate-text">
                   Certified Paper Thickness (Caliper) Required
                 </p>
                 <span className="px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-[9px] font-technical font-bold text-amber-400 uppercase shrink-0">

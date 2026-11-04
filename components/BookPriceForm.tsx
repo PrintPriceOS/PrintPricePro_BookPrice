@@ -251,22 +251,28 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
         {/* GROUP 1: BOOK SPECIFICATIONS (Geometry, Pages, Quantity) */}
         {/* ======================================================== */}
         <div className="space-y-6">
-          <div className="flex items-center gap-4 sm:gap-6">
-            <span className="w-2 h-2 rounded-full bg-corporate-accent shrink-0" />
-            <h3 className="text-[11px] font-sans font-black text-corporate-text uppercase tracking-wider sm:tracking-monolith">
-              1. Book Specifications & Format
-            </h3>
-            <div className="h-px w-full bg-corporate-border" />
+          <div className="flex items-center justify-between gap-4 sm:gap-6">
+            <div className="flex items-center gap-3">
+              <span className="w-2 h-2 rounded-full bg-corporate-accent shrink-0" />
+              <h3 className="text-[11px] font-sans font-black text-corporate-text uppercase tracking-wider sm:tracking-monolith">
+                1. Book Specifications &amp; Format
+              </h3>
+            </div>
+            <span className="text-[9px] font-technical uppercase font-bold text-zinc-500 bg-zinc-800/60 px-2 py-0.5 rounded border border-zinc-700">
+              Sample Defaults · Adjust for your project
+            </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-x-10 gap-y-8">
             {/* Copies */}
             <div className="flex flex-col">
-              <label className="flex items-center gap-2 font-sans font-bold text-corporate-text-secondary mb-3 uppercase tracking-technical text-[10px]">
+              <label htmlFor="field-copies" className="flex items-center gap-2 font-sans font-bold text-corporate-text-secondary mb-3 uppercase tracking-technical text-[10px]">
                 <UserGroupIcon className="w-4 h-4 text-corporate-accent" />
                 {t('copies_label')}
               </label>
               <input
+                id="field-copies"
+                aria-label="Quantity of book copies"
                 type="number"
                 name="copies"
                 min={1}
@@ -281,11 +287,13 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
 
             {/* Book Size */}
             <div className="flex flex-col">
-              <label className="flex items-center gap-2 font-sans font-bold text-corporate-text-secondary mb-3 uppercase tracking-technical text-[10px]">
+              <label htmlFor="field-book-size" className="flex items-center gap-2 font-sans font-bold text-corporate-text-secondary mb-3 uppercase tracking-technical text-[10px]">
                 <Square3Stack3DIcon className="w-4 h-4 text-corporate-accent" />
                 {t('book_size_label')}
               </label>
               <select
+                id="field-book-size"
+                aria-label="Book trim size"
                 name="book_size"
                 value={payload.book_size}
                 onChange={handleChange}
@@ -304,11 +312,13 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
 
             {/* Orientation */}
             <div className="flex flex-col">
-              <label className="flex items-center gap-2 font-sans font-bold text-corporate-text-secondary mb-3 uppercase tracking-technical text-[10px]">
+              <label htmlFor="field-orientation" className="flex items-center gap-2 font-sans font-bold text-corporate-text-secondary mb-3 uppercase tracking-technical text-[10px]">
                 <ArrowsPointingOutIcon className="w-4 h-4 text-corporate-accent" />
                 {t('orientation_label')}
               </label>
               <select
+                id="field-orientation"
+                aria-label="Book page orientation"
                 name="orientation"
                 value={payload.orientation}
                 onChange={handleChange}
@@ -335,11 +345,13 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
               </span>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex flex-col">
-                  <label className="font-sans font-bold text-corporate-muted mb-2 uppercase tracking-technical text-[10px]">
+                  <label htmlFor="field-custom-width" className="font-sans font-bold text-corporate-muted mb-2 uppercase tracking-technical text-[10px]">
                     Width (mm)
                   </label>
                   <div className="relative">
                     <input
+                      id="field-custom-width"
+                      aria-label="Custom width in millimeters"
                       type="number"
                       name="custom_width"
                       min={payload.orientation === 'portrait' ? 100 : 120}
@@ -357,11 +369,13 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
                 </div>
 
                 <div className="flex flex-col">
-                  <label className="font-sans font-bold text-corporate-muted mb-2 uppercase tracking-technical text-[10px]">
+                  <label htmlFor="field-custom-height" className="font-sans font-bold text-corporate-muted mb-2 uppercase tracking-technical text-[10px]">
                     Height (mm)
                   </label>
                   <div className="relative">
                     <input
+                      id="field-custom-height"
+                      aria-label="Custom height in millimeters"
                       type="number"
                       name="custom_height"
                       min={120}
@@ -400,12 +414,14 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
           {/* Pagination */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8 pt-2">
             <div className="flex flex-col">
-              <label className="flex items-center gap-2 font-sans font-bold text-corporate-text-secondary mb-3 uppercase tracking-technical text-[10px]">
+              <label htmlFor="field-interior-pages" className="flex items-center gap-2 font-sans font-bold text-corporate-text-secondary mb-3 uppercase tracking-technical text-[10px]">
                 <DocumentTextIcon className="w-4 h-4 text-corporate-accent" />
                 {t('interior_pages_label')}
               </label>
               <div className="relative">
                 <input
+                  id="field-interior-pages"
+                  aria-label="Number of interior pages"
                   type="number"
                   name="interior_pages"
                   min={0}
@@ -891,11 +907,13 @@ const BookPriceForm: React.FC<BookPriceFormProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8 items-center">
             <div className="flex flex-col">
-              <label className="flex items-center gap-2 font-sans font-bold text-corporate-text-secondary mb-3 uppercase tracking-technical text-[10px]">
+              <label htmlFor="field-delivery-country" className="flex items-center gap-2 font-sans font-bold text-corporate-text-secondary mb-3 uppercase tracking-technical text-[10px]">
                 <GlobeEuropeAfricaIcon className="w-4 h-4 text-corporate-accent" />
                 {t('delivery_country_label')}
               </label>
               <select
+                id="field-delivery-country"
+                aria-label="Destination country for book delivery"
                 name="delivery_country"
                 value={payload.delivery_country}
                 onChange={handleChange}

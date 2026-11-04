@@ -2730,8 +2730,29 @@ async function resolveSpineBffTenantContext(req, res) {
 
 app.get('/api/budget/spine/profiles', async (req, res) => {
     try {
-        const ctx = await resolveSpineBffTenantContext(req, res);
-        if (!ctx) return;
+        let ctx = null;
+        const identity = resolveRequestIdentity(req);
+        if (identity.authError === 'INVALID_TOKEN') {
+            return res.status(401).json({
+                ok: false,
+                error: {
+                    code: 'UNAUTHORIZED',
+                    message: 'Invalid, expired, or manipulated authentication token.'
+                }
+            });
+        }
+        if (identity.tenantId) {
+            ctx = await resolveSpineBffTenantContext(req, res);
+            if (!ctx) return;
+        }
+
+        // Allow guest / public configurator sessions to view canonical spine profiles
+        const effectiveHeaders = ctx ? ctx.headers : buildSpineControlPlaneHeaders({
+            tenantId: 'ppos-production',
+            printhouseId: null,
+            userId: 'guest-session',
+            sessionId: identity.sessionId || 'guest-session'
+        });
 
         const params = new URLSearchParams();
         if (req.query.includeExperimental) {
@@ -2739,7 +2760,7 @@ app.get('/api/budget/spine/profiles', async (req, res) => {
         }
         const qs = params.toString();
         const cpUrl = `${CONTROL_PLANE_BASE_URL}/api/v1/spine/profiles${qs ? `?${qs}` : ''}`;
-        const response = await axios.get(cpUrl, { headers: ctx.headers, timeout: 8000 });
+        const response = await axios.get(cpUrl, { headers: effectiveHeaders, timeout: 8000 });
         return res.status(response.status || 200).json(response.data);
     } catch (err) {
         if (isControlPlaneSpineUnavailableError(err)) {

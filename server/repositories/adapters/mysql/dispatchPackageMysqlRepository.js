@@ -106,8 +106,9 @@ module.exports = {
         sql += ` ORDER BY created_at DESC`;
         
         if (filters.limit) {
-            sql += ` LIMIT ? OFFSET ?`;
-            params.push(parseInt(filters.limit), parseInt(filters.offset || 0));
+            const lim = parseInt(filters.limit, 10) || 50;
+            const off = parseInt(filters.offset || 0, 10) || 0;
+            sql += ` LIMIT ${lim} OFFSET ${off}`;
         }
 
         const rows = await query(sql, params);

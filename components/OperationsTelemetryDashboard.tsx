@@ -94,6 +94,7 @@ export interface OperationalTelemetryData {
 interface OperationsTelemetryDashboardProps {
   userEmail?: string;
   userId?: string | number;
+  userRole?: string | null;
   onSelectOrderForTracking?: (orderId: string) => void;
 }
 
@@ -148,6 +149,7 @@ export interface StorageBackupStatusData {
 export const OperationsTelemetryDashboard: React.FC<OperationsTelemetryDashboardProps> = ({
   userEmail,
   userId,
+  userRole = null,
   onSelectOrderForTracking,
 }) => {
   const [telemetry, setTelemetry] = useState<OperationalTelemetryData | null>(null);
@@ -286,7 +288,7 @@ export const OperationsTelemetryDashboard: React.FC<OperationsTelemetryDashboard
         <div className="p-5 rounded-2xl border border-zinc-200 dark:border-[#1f2228] bg-white dark:bg-[#12141a] space-y-2 shadow-sm dark:shadow-none">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-technical font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
-              01 // ESCROW CUSTODIADO
+              01 // ESCROW CUSTODIED
             </span>
             <BanknotesIcon className="w-5 h-5 text-[#10b981]" />
           </div>
@@ -305,7 +307,7 @@ export const OperationsTelemetryDashboard: React.FC<OperationsTelemetryDashboard
         <div className="p-5 rounded-2xl border border-zinc-200 dark:border-[#1f2228] bg-white dark:bg-[#12141a] space-y-2 shadow-sm dark:shadow-none">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-technical font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
-              02 // PEDIDOS ACTIVOS PLANTA
+              02 // ACTIVE PRESS FLOOR ORDERS
             </span>
             <CubeIcon className="w-5 h-5 text-[#dc2626]" />
           </div>
@@ -325,7 +327,7 @@ export const OperationsTelemetryDashboard: React.FC<OperationsTelemetryDashboard
         <div className="p-5 rounded-2xl border border-zinc-200 dark:border-[#1f2228] bg-white dark:bg-[#12141a] space-y-2 shadow-sm dark:shadow-none">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-technical font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
-              03 // RATIO ÉXITO PREFLIGHT
+              03 // PREFLIGHT SUCCESS RATE
             </span>
             <DocumentCheckIcon className="w-5 h-5 text-emerald-500" />
           </div>
@@ -344,7 +346,7 @@ export const OperationsTelemetryDashboard: React.FC<OperationsTelemetryDashboard
         <div className="p-5 rounded-2xl border border-zinc-200 dark:border-[#1f2228] bg-white dark:bg-[#12141a] space-y-2 shadow-sm dark:shadow-none">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-technical font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
-              04 // STORAGE &amp; I/O DISCO
+              04 // STORAGE &amp; I/O DISK
             </span>
             <ServerStackIcon className="w-5 h-5 text-amber-500" />
           </div>
@@ -457,7 +459,7 @@ export const OperationsTelemetryDashboard: React.FC<OperationsTelemetryDashboard
                 PRE-PRESS QUALITY ASSURANCE // INCIDENT MATRIX
               </span>
               <h3 className="text-sm font-black text-zinc-900 dark:text-zinc-100 mt-0.5">
-                Desglose de Alertas Técnicas de Preflight (DPI, TAC &gt; 300%, Sangrado, Fuentes y Lomo)
+                Preflight Technical Alerts Breakdown (DPI, TAC &gt; 300%, Bleed, Fonts &amp; Spine)
               </h3>
             </div>
             <CpuChipIcon className="w-5 h-5 text-[#dc2626]" />
@@ -532,7 +534,7 @@ export const OperationsTelemetryDashboard: React.FC<OperationsTelemetryDashboard
                   ESCROW &amp; MOR FINANCIAL LEDGER
                 </span>
                 <h3 className="text-sm font-black text-zinc-900 dark:text-zinc-100 mt-0.5">
-                  Consolidación por Estado de Fondos (EUR)
+                  Funds Ledger Consolidation by Status (EUR)
                 </h3>
               </div>
               <ShieldCheckIcon className="w-5 h-5 text-[#10b981]" />
@@ -591,7 +593,7 @@ export const OperationsTelemetryDashboard: React.FC<OperationsTelemetryDashboard
                   STORAGE &amp; BINARY I/O TELEMETRY
                 </span>
                 <h3 className="text-sm font-black text-zinc-900 dark:text-zinc-100 mt-0.5">
-                  Activos Binarios por Rol (`storage/marketplace_orders/`)
+                  Binary Storage Assets by Role (`storage/marketplace_orders/`)
                 </h3>
               </div>
               <ServerStackIcon className="w-5 h-5 text-amber-500" />
@@ -635,12 +637,13 @@ export const OperationsTelemetryDashboard: React.FC<OperationsTelemetryDashboard
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="block text-[10px] font-black uppercase tracking-widest text-[#10b981]">
-                      COLD ARCHIVE &amp; MYSQL SNAPSHOTS (OPCIÓN 2)
+                      COLD ARCHIVE &amp; MYSQL SNAPSHOTS
                     </span>
                     <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
                       Cold Policy: &gt;{backupStatus.policy.retentionColdDays}d • Max Snapshots: {backupStatus.policy.backupRetentionCount}
                     </span>
                   </div>
+                  {userRole === 'ORG_ADMIN' && (
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
@@ -659,6 +662,7 @@ export const OperationsTelemetryDashboard: React.FC<OperationsTelemetryDashboard
                       {runningBackupAction === 'BACKUP' ? 'Dumping...' : 'Snapshot DB'}
                     </button>
                   </div>
+                )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-2.5">

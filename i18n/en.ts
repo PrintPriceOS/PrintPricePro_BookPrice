@@ -99,8 +99,8 @@ const en = {
   // New UI Labels
   book_specifications_label: "Book specifications",
   system_error_label: "System Error",
-  calculating_node_offers: "Calculating node_offers...",
-  status_waiting_input: "status: waiting_for_input",
+  calculating_node_offers: "Calculating offers...",
+  status_waiting_input: "Status: Awaiting Input",
 
   // Chat
   project_summary_title: "Project Summary",

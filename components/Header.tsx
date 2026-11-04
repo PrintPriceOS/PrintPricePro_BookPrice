@@ -81,14 +81,18 @@ const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* Ecosystem Status Pill (Matches Control Plane Topbar.tsx) */}
+          {/* Single, Clear Session & Ecosystem Status Pill */}
           <div
-            className="hidden xl:flex items-center gap-2 px-3 py-1 rounded-full badge-success border text-[10px] font-technical font-bold uppercase tracking-wider shrink-0"
-            title="Connected to PrintPrice OS Control Plane & Book Price Engine (BPE)"
+            className={`hidden xl:flex items-center gap-2 px-3 py-1 rounded-full border text-[10px] font-technical font-bold uppercase tracking-wider shrink-0 ${
+              user
+                ? 'badge-success text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
+                : 'text-zinc-400 border-zinc-700 bg-zinc-800/60'
+            }`}
+            title={user ? `Signed in as ${user.email} (${user.role || 'USER'})` : 'Public Configurator Session (Sign in to view orders & manage assets)'}
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+            <span className={`w-1.5 h-1.5 rounded-full ${user ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-500'}`} />
             <ShieldCheckIcon className="w-3.5 h-3.5" />
-            <span>Control Plane &amp; BPE Active</span>
+            <span>{user ? `Signed In: ${user.email}` : 'Guest Session · Sign In Available'}</span>
           </div>
 
           {/* View Switcher (Only if enabled) */}

@@ -68,10 +68,12 @@ const CartPanel: React.FC<CartPanelProps> = ({
 
       {/* Slide-over panel */}
       <div
-        className={`fixed top-0 right-0 z-50 h-full w-full max-w-lg bg-corporate-secondary border-l border-corporate-border flex flex-col transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'
+        className={`fixed top-0 right-0 z-50 h-full w-full max-w-lg bg-corporate-secondary border-l border-corporate-border flex flex-col transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0 pointer-events-auto' : 'translate-x-full pointer-events-none'
           }`}
         role="dialog"
-        aria-modal="true"
+        aria-modal={isOpen ? 'true' : 'false'}
+        aria-hidden={!isOpen}
+        {...(!isOpen ? { inert: '' } : {})}
         aria-label="Shopping cart"
       >
         {/* Header */}

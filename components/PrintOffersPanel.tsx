@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { BookPriceResponse, BookPriceOffer } from '../types';
 import { t } from '../i18n/en';
+import { formatStatusLabel } from '../lib/statusFormatters';
 
 interface PrintOffersPanelProps {
   offers: BookPriceResponse | null;
@@ -28,7 +29,7 @@ const PrintOffersPanel: React.FC<PrintOffersPanelProps> = ({
       <div className="bg-corporate-secondary p-6 sm:p-8 rounded-2xl border border-corporate-border shadow-sm flex items-center gap-4 min-w-0">
         <div className="w-4 h-4 rounded-sm bg-corporate-accent animate-pulse shrink-0" />
         <p className="text-xs font-technical font-black tracking-monolith text-corporate-text-secondary uppercase truncate">
-          Calculating node_offers…
+          Calculating Offers…
         </p>
       </div>
     );
@@ -50,9 +51,9 @@ const PrintOffersPanel: React.FC<PrintOffersPanelProps> = ({
       <div className="bg-corporate-secondary p-6 sm:p-10 rounded-2xl border border-corporate-border shadow-sm relative overflow-hidden min-w-0">
         <div className="flex items-center gap-2 mb-3">
           <span className="w-2 h-2 rounded-full bg-corporate-muted/50" />
-          <p className="text-[0.65rem] font-technical font-black tracking-monolith text-corporate-muted uppercase">
-            status: waiting_for_input
-          </p>
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-technical font-black uppercase tracking-wider bg-corporate-primary border border-corporate-border text-corporate-muted">
+            Status: {formatStatusLabel('WAITING_FOR_INPUT')}
+          </span>
         </div>
         <p className="text-xs text-corporate-text-secondary leading-relaxed uppercase tracking-wider">
           {t('enter_specs_or_upload_pdf')}
@@ -85,7 +86,7 @@ const PrintOffersPanel: React.FC<PrintOffersPanelProps> = ({
           Best Print Offers (BPE Engine)
         </h2>
         <span className="text-[9px] font-technical font-bold uppercase tracking-wider text-corporate-muted">
-          {visibleOffers.length} Node Quotes
+          {visibleOffers.length} Offers Available
         </span>
       </div>
 
@@ -110,29 +111,25 @@ const PrintOffersPanel: React.FC<PrintOffersPanelProps> = ({
             >
               <div className="absolute top-0 left-0 h-1 bg-corporate-accent w-0 group-hover:w-full transition-all duration-500" />
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 relative z-10 min-w-0">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 mb-2">
-                    <p className="text-xs font-sans font-black text-corporate-text uppercase tracking-monolith">
-                      {offer.printer_name ||
-                        offer.print_house_name ||
-                        offer.printer_id ||
-                        offer.print_house ||
-                        'Print House'}
-                    </p>
+                <div className="space-y-2 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 min-w-0">
+                    <h3 className="font-sans font-bold text-base sm:text-lg text-corporate-text truncate">
+                      {offer.print_house}
+                    </h3>
                     {isRecommended && (
-                      <span className="bg-corporate-accent/10 text-corporate-accent text-[9px] font-technical font-black px-2 py-0.5 rounded-full border border-corporate-accent/30 tracking-wider uppercase">
-                        RECOMMENDED BY BPE
+                      <span className="badge-corporate-accent text-[9px] font-technical uppercase font-bold tracking-wider px-2 py-0.5 rounded-full shrink-0">
+                        Recommended
                       </span>
                     )}
-                    {isBestPrice && (
-                      <span className="badge-success border text-[9px] font-technical font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                        BEST TARIFF
+                    {isBestPrice && !isRecommended && (
+                      <span className="badge-success text-[9px] font-technical uppercase font-bold tracking-wider px-2 py-0.5 rounded-full shrink-0">
+                        Best Price
                       </span>
                     )}
                   </div>
                   {offer.checkout_allowed === false && (
                     <p className="text-[10px] font-technical text-corporate-accent uppercase tracking-wider mb-2">
-                      {offer.message || offer.status || 'Precision quote required'}
+                      {offer.message || formatStatusLabel(offer.status) || 'Precision quote required'}
                     </p>
                   )}
                   {offer.estimated_delivery_time && (
@@ -161,7 +158,7 @@ const PrintOffersPanel: React.FC<PrintOffersPanelProps> = ({
                   )}
                   {isSelected && (
                     <p className="text-[10px] text-corporate-accent font-technical font-black uppercase tracking-monolith mt-1">
-                      SELECTED BY YOU
+                      Selected in Configuration
                     </p>
                   )}
                 </div>
@@ -175,7 +172,7 @@ const PrintOffersPanel: React.FC<PrintOffersPanelProps> = ({
                     onClick={() => handleToggleBreakdown(offer.id)}
                     className="text-[11px] font-technical font-bold text-corporate-accent uppercase tracking-monolith flex items-center gap-2 hover:text-corporate-text transition-colors"
                   >
-                    {isOpen ? 'Close system_breakdown [-]' : 'View system_breakdown [+]'}
+                    {isOpen ? 'Close Cost Breakdown [-]' : 'View Cost Breakdown [+]'}
                   </button>
                   {isOpen && (
                     <ul className="mt-3.5 space-y-2.5 bg-corporate-secondary/60 p-3 sm:p-4 rounded-xl border border-corporate-border">
@@ -214,7 +211,7 @@ const PrintOffersPanel: React.FC<PrintOffersPanelProps> = ({
                     }`}
                 >
                   {isSelected
-                    ? '[✓] SELECTED_FOR_CART'
+                    ? '[✓] Selected for Cart'
                     : offer.checkout_allowed === false
                     ? '[!] Precision Quote Required'
                     : selectedOfferId

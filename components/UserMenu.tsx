@@ -455,6 +455,7 @@ const UserMenu: React.FC<UserMenuProps> = ({ user, onOpenModal, onLogout, onNavi
           aria-expanded={isOpen}
           aria-haspopup="true"
           aria-controls="user-dropdown-menu"
+          aria-label={user ? `User account menu for ${user.email}` : 'User account and sign-in menu'}
           id="user-menu-button"
           className="flex items-center gap-2 px-3 py-2 rounded-xl border border-corporate-border hover:border-corporate-accent/40 hover:bg-corporate-elevated transition-all group focus:outline-none focus:ring-1 focus:ring-corporate-accent/50"
         >

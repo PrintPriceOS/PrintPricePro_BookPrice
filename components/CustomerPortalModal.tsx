@@ -75,28 +75,28 @@ const B2B_ROLE_METADATA: Record<
   }
 > = {
   ORG_ADMIN: {
-    label: 'ORG_ADMIN — Director Editorial / Admin',
+    label: 'ORG_ADMIN — Editorial Director / Admin',
     shortBadge: 'ORG_ADMIN (Total)',
-    description: 'Control total de cuenta fiscal, miembros RBAC, aprobaciones de imprenta y pagos Escrow.',
-    permissionsSummary: '✓ Subir PDFs · ✓ Firmar 3D Soft-Proof · ✓ Ejecutar Pagos · ✓ Gestionar Equipo',
+    description: 'Full administrative governance over billing profile, RBAC members, print approvals, and Escrow disbursements.',
+    permissionsSummary: '✓ PDF Upload · ✓ 3D Soft-Proof Sign-Off · ✓ Execute Payments · ✓ Manage Team',
   },
   PRODUCTION_MANAGER: {
-    label: 'PRODUCTION_MANAGER — Jefe de Producción',
+    label: 'PRODUCTION_MANAGER — Head of Production',
     shortBadge: 'PRODUCTION_MANAGER',
-    description: 'Crea pedidos, sube artes finales y firma el Imprimátur Digital 3D para liberación de planchas CTP.',
-    permissionsSummary: '✓ Subir PDFs · ✓ Firmar 3D Soft-Proof · ✕ Pagos Restringidos · ✕ Sin Gestión RBAC',
+    description: 'Creates orders, uploads final print assets, and signs off 3D Digital Imprimatur for CTP plate imaging.',
+    permissionsSummary: '✓ PDF Upload · ✓ 3D Soft-Proof Sign-Off · ✕ Payments Restricted · ✕ No Team RBAC Admin',
   },
   FINANCE_APPROVER: {
-    label: 'FINANCE_APPROVER — Tesorería & Contabilidad',
+    label: 'FINANCE_APPROVER — Treasury & Controller',
     shortBadge: 'FINANCE_APPROVER',
-    description: 'Autoriza pagos Stripe/SEPA, sube justificantes SWIFT/B2B y descarga facturas EN 16931 (Facturae/XRechnung).',
-    permissionsSummary: '✕ Sin Subida PDF · ✕ Sin Firma 3D · ✓ Ejecutar Pagos & Facturas · ✕ Sin Gestión RBAC',
+    description: 'Authorizes Stripe/SEPA wires, uploads SWIFT proofs, and downloads EN 16931 e-invoices (Facturae/XRechnung).',
+    permissionsSummary: '✕ No PDF Upload · ✕ No 3D Sign-Off · ✓ Execute Payments & Invoices · ✕ No Team RBAC Admin',
   },
   PREPRESS_DESIGNER: {
-    label: 'PREPRESS_DESIGNER — Maquetador / Arte Final',
+    label: 'PREPRESS_DESIGNER — Pre-Press & Layout Artist',
     shortBadge: 'PREPRESS_DESIGNER',
-    description: 'Sube archivos PDF/X-4 (interior y cubierta) y revisa reportes Preflight e inspección 3D sin firma ni pagos.',
-    permissionsSummary: '✓ Subir PDFs & Preflight · ✕ Sin Firma 3D · ✕ Sin Pagos · ✕ Sin Gestión RBAC',
+    description: 'Uploads PDF/X-4 files (interior & cover) and reviews Preflight reports & 3D inspection without sign-off or payments.',
+    permissionsSummary: '✓ Upload PDFs & Preflight · ✕ No 3D Sign-Off · ✕ No Payments · ✕ No Team RBAC Admin',
   },
 };
 
@@ -275,6 +275,7 @@ export interface CustomerPortalModalProps {
   userId?: string | number;
   userEmail?: string;
   userName?: string;
+  userRole?: string | null;
   initialTab?: PortalTabId;
   initialOrderId?: string | null;
   initialAssetIntakeOrderId?: string | null;
@@ -365,10 +366,21 @@ function computeClientReprintPreview(
   return { unitPriceEur, totalPriceEur, preflightFeeEur };
 }
 
+export function isFiscalProfileComplete(fiscal: FiscalProfileData | null | undefined): boolean {
+  if (!fiscal) return false;
+  const name = String(fiscal.legalEntityName || '').trim();
+  const vat = String(fiscal.taxIdVat || '').trim();
+  const street = String(fiscal.fiscalStreet || '').trim();
+  return Boolean(name.length > 0 && vat.length >= 4 && street.length > 0);
+}
+
 function validateEuVatClient(vatInput: string) {
   const clean = String(vatInput || '').replace(/[\s.-]/g, '').toUpperCase();
-  if (!clean || clean.length < 4) {
-    return { valid: false, normalized: clean, message: 'Required format: EU Prefix + VAT ID (e.g. ESB87654321)' };
+  if (!clean) {
+    return { valid: false, normalized: '', status: 'PENDING_COMPLETION', message: 'Pending completion (e.g., ESA12345678)' };
+  }
+  if (clean.length < 4) {
+    return { valid: false, normalized: clean, status: 'INVALID_FORMAT', message: 'Required format: EU Prefix + VAT ID (e.g. ESA12345678)' };
   }
   const patterns: Record<string, RegExp> = {
     ES: /^ES[A-Z0-9]\d{7}[A-Z0-9]$/,
@@ -380,6 +392,7 @@ function validateEuVatClient(vatInput: string) {
     BE: /^BE0\d{9}$/,
     AT: /^ATU\d{8}$/,
     PL: /^PL\d{10}$/,
+    LV: /^LV\d{11}$/,
   };
   const prefix = clean.slice(0, 2);
   const regex = patterns[prefix] || /^[A-Z]{2}[A-Z0-9]{6,12}$/;
@@ -387,6 +400,7 @@ function validateEuVatClient(vatInput: string) {
   return {
     valid,
     normalized: clean,
+    status: valid ? 'VIES_VALIDATED' : 'INVALID_SYNTAX',
     message: valid ? `VIES Format Validated (${prefix})` : `Review EU VAT syntax for prefix ${prefix}`,
   };
 }
@@ -415,22 +429,56 @@ function sanitizePdfAscii(input: string | number | undefined | null): string {
 // ---------------------------------------------------------------------------
 // Proforma / Commercial Invoice PDF Generator (Clean UTF-8 / ASCII Sanitized)
 // ---------------------------------------------------------------------------
-export function downloadProformaInvoicePdf(order: CustomerOrderItem, fiscal: FiscalProfileData | null, bankDetails?: any) {
+export async function downloadProformaInvoicePdf(order: CustomerOrderItem, fiscal: FiscalProfileData | null, bankDetails?: any) {
   const isPaid = order.paymentStatus === 'PAID';
-  const docTitle = isPaid ? 'COMMERCIAL TAX INVOICE (EN 16931)' : 'PROFORMA INVOICE & WIRE INSTRUCTIONS';
-  const refCode = order.reconciliationCode || `PPOS-${order.orderId}`;
-  const iban = bankDetails?.iban || (order.commercialModality === 'MODALITY_B_DIRECT_COMMISSION'
-    ? 'DE44 5001 0517 5407 3249 31'
-    : 'ES91 2100 0418 4502 0005 1332');
-  const bic = bankDetails?.bic || (order.commercialModality === 'MODALITY_B_DIRECT_COMMISSION'
-    ? 'INGDDEFFXXX'
-    : 'CAIXESBBXXX');
-  const beneficiary = bankDetails?.beneficiary || (order.commercialModality === 'MODALITY_B_DIRECT_COMMISSION'
-    ? `${order.offer_print_house || 'Industrial Print Partner'} Direct Treasury`
-    : 'PrintPrice OS Financial Clearing S.L. (Escrow MoR)');
+  const orderId = order.orderId;
 
-  const netAmount = Number(order.totalPriceEur || order.offer_price || 0);
-  const vatRate = 0.04; // Books super-reduced VAT 4%
+  // Attempt to fetch high-end vector PDF streamed from backend
+  try {
+    const res = await fetch(`/api/customer/orders/${encodeURIComponent(orderId)}/proforma.pdf`, {
+      credentials: 'include'
+    });
+    if (res.ok) {
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${isPaid ? 'Invoice' : 'Proforma'}_${order.orderId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      return;
+    }
+  } catch (_) {}
+
+  // High-End Vector PDF fallback with Corporate Latvian Issuer & Compliance
+  const refCode = order.reconciliationCode || `PPOS-${order.orderId}`;
+  const invoiceNumber = order.invoiceNumber || `PRO-2026-${order.orderId.slice(-6).toUpperCase()}`;
+  const issueDate = new Date(order.created_at || Date.now()).toISOString().slice(0, 10);
+  const dueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  const hasFiscalData = Boolean(fiscal?.legalEntityName?.trim() && fiscal?.taxIdVat?.trim());
+  const buyerName = hasFiscalData ? String(fiscal?.legalEntityName).trim() : '[TAX DETAILS PENDING COMPLETION - DRAFT ESTIMATE ONLY]';
+  const buyerVat = hasFiscalData ? String(fiscal?.taxIdVat).trim().toUpperCase() : 'PENDING VAT DECLARATION';
+  const buyerAddress = hasFiscalData
+    ? `${fiscal?.fiscalStreet || ''}, ${fiscal?.fiscalPostalCode || ''} ${fiscal?.fiscalCity || ''} (${fiscal?.fiscalCountryCode || 'EU'})`.trim()
+    : 'Address not recorded';
+  const buyerEmail = fiscal?.billingEmail || 'billing@customer.eu';
+
+  const beneficiary = 'PrintPrice Pro — Print Price Pro SIA';
+
+  const rawPrice = order.totalPriceEur ||
+    order.offer_price ||
+    order.totalAmount ||
+    order.price ||
+    order.manufacturingPrice ||
+    (order.specs && (order.specs.totalPriceEur || order.specs.price)) ||
+    0;
+  const parsedPrice = Number(rawPrice);
+  const netAmount = parsedPrice > 0 ? parsedPrice : 1850.00;
+  const isReverseCharge = hasFiscalData && !buyerVat.startsWith('ES') && !buyerVat.startsWith('LV') && buyerVat.length > 5;
+  const vatRate = isReverseCharge ? 0.0 : 0.04;
   const vatAmount = Number((netAmount * vatRate).toFixed(2));
   const grossAmount = Number((netAmount + vatAmount).toFixed(2));
 
@@ -439,50 +487,60 @@ export function downloadProformaInvoicePdf(order: CustomerOrderItem, fiscal: Fis
     .replace(/Obra/gi, 'Editorial Edition');
 
   const lines = [
-    `PrintPrice OS - B2B Publishing & Industrial Print Clearing`,
-    `${docTitle}`,
-    `-------------------------------------------------------------------------`,
-    `Document No:      ${order.invoiceNumber || `INV-2026-${order.orderId.slice(-5)}`}`,
-    `Order Reference:  ${order.orderId}`,
-    `Reconciliation:   ${refCode}`,
-    `Date Issued:      ${new Date(order.created_at || Date.now()).toISOString().slice(0, 10)}`,
-    `Payment Status:   ${order.paymentStatus}`,
-    `-------------------------------------------------------------------------`,
-    `BILL TO (BUYER):`,
-    `Entity:           ${fiscal?.legalEntityName || 'Critical Publishing Group S.L.'}`,
-    `EU VAT / TAX ID:  ${fiscal?.taxIdVat || 'ESB87654321'}`,
-    `Address:          ${fiscal?.fiscalStreet || '120 Alcala Street, 4th Floor'}, ${fiscal?.fiscalPostalCode || '28009'} ${fiscal?.fiscalCity || 'Madrid'} (${fiscal?.fiscalCountryCode || 'ES'})`,
-    `DIR3 / Leitweg:   ${fiscal?.dir3Code || 'N/A'} / ${fiscal?.leitwegId || 'N/A'}`,
-    `-------------------------------------------------------------------------`,
-    `PRODUCTION SPECIFICATION:`,
-    `Book Title:       ${cleanBookTitle}`,
-    `ISBN:             ${order.isbn || 'N/A'}`,
-    `Specs Summary:    ${order.specsSummary}`,
-    `Print Run:        ${Number(order.specs?.copies || 1000).toLocaleString('en-US')} copies`,
-    `Assigned Plant:   ${order.offer_print_house}`,
-    `-------------------------------------------------------------------------`,
-    `FINANCIAL BREAKDOWN (EUR):`,
-    `Net Industrial Manufacturing & EPAL Logistics:   EUR ${netAmount.toFixed(2)}`,
-    `Applicable Book VAT (4.00% EN 16931):            EUR ${vatAmount.toFixed(2)}`,
-    `TOTAL GROSS PAYABLE:                             EUR ${grossAmount.toFixed(2)}`,
-    `-------------------------------------------------------------------------`,
-    `B2B SEPA WIRE TRANSFER INSTRUCTIONS:`,
-    `Beneficiary:      ${beneficiary}`,
-    `IBAN:             ${iban}`,
-    `BIC / SWIFT:      ${bic}`,
-    `MANDATORY CONCEPT:${refCode}`,
-    `-------------------------------------------------------------------------`,
-    `Normative Compliance: EN 16931-1:2017 / Facturae 3.2.2 / XRechnung 3.0`,
+    `PrintPrice Pro · Industrial Book Print & Materials Clearinghouse`,
+    isPaid ? 'COMMERCIAL TAX INVOICE // EN 16931-1:2017' : 'PROFORMA INVOICE // PRE-PAYMENT ADVICE',
+    `-----------------------------------------------------------------------------------------`,
+    `DOCUMENT NO:      ${invoiceNumber}                      STATUS: ${isPaid ? 'PAID / RELEASED' : 'PENDING SEPA WIRE / ESCROW'}`,
+    `ORDER REFERENCE:  ${order.orderId}                      RECONCILIATION: ${refCode}`,
+    `ISSUE DATE:       ${issueDate}                      PAYMENT DUE:    ${dueDate}`,
+    `-----------------------------------------------------------------------------------------`,
+    `ISSUER / CLEARINGHOUSE OPERATOR:`,
+    `  Entity:         PrintPrice Pro — Print Price Pro SIA`,
+    `  Registration:   40203631570                           EU VAT: LV40203631570`,
+    `  Address:        Bruninieku iela 60-8, Riga, LV-1009, Latvia`,
+    `  Jurisdiction:   Riga, Republic of Latvia (EU)         Treasury: accounting@printprice.pro`,
+    `-----------------------------------------------------------------------------------------`,
+    `BILL TO / BUYER:`,
+    `  Entity:         ${buyerName}`,
+    `  EU VAT/Tax ID:  ${buyerVat}`,
+    `  Address:        ${buyerAddress}`,
+    `  Billing Email:  ${buyerEmail}`,
+    `-----------------------------------------------------------------------------------------`,
+    `TECHNICAL PRODUCTION SPECIFICATION:`,
+    `  Book Title:     ${cleanBookTitle}`,
+    `  ISBN Reference: ${order.isbn || 'N/A'}`,
+    `  Specs Summary:  ${order.specsSummary || 'Standard Parametric Specification'}`,
+    `  Print Run:      ${Number(order.specs?.copies || 1000).toLocaleString('en-US')} Copies`,
+    `  Assigned Plant: ${order.offer_print_house || 'European Industrial Print Partner (ISO 12647-2 Facility)'}`,
+    `-----------------------------------------------------------------------------------------`,
+    `FINANCIAL CLEARING BREAKDOWN (EUR):`,
+    `  Net Industrial Manufacturing & EPAL Logistics:        EUR ${netAmount.toFixed(2)}`,
+    isReverseCharge
+      ? `  EU VAT 0.00% (Reverse Charge - Art. 138/196 Directive): EUR 0.00`
+      : `  Applicable Book VAT (4.00% Reduced Rate - EN 16931):  EUR ${vatAmount.toFixed(2)}`,
+    `  TOTAL GROSS PAYABLE (INCL. ESCROW CUSTODY):           EUR ${grossAmount.toFixed(2)}`,
+    `-----------------------------------------------------------------------------------------`,
+    `B2B SEPA WIRE TRANSFER & ESCROW SETTLEMENT INSTRUCTIONS:`,
+    `  Beneficiary:    PrintPrice Pro — Print Price Pro SIA`,
+    `  Status:         SEPA WIRE INSTRUCTIONS: ESCROW ACCOUNT ASSIGNMENT IN PROGRESS`,
+    `  Allocation:     Dedicated client escrow IBAN will be allocated upon final order confirmation.`,
+    `  Portal Link:    https://budget.printprice.pro/portal/orders`,
+    `  MANDATORY CODE: ${refCode}`,
+    `  SECURITY NOTE:  Funds custodied in Escrow until signed POD delivery confirmation.`,
+    `-----------------------------------------------------------------------------------------`,
+    `PrintPrice Pro — Print Price Pro SIA · Bruninieku iela 60-8, Riga, LV-1009, Latvia`,
+    `Reg. No: 40203631570 · VAT: LV40203631570 · EN 16931-1:2017 · Facturae 3.2.2 · XRechnung 3.0`,
+    `Legal: https://printprice.pro/terms · https://printprice.pro/privacy`
   ];
 
   const escaped = lines.map((l) => sanitizePdfAscii(l));
-  let y = 780;
-  const ops = ['BT', '/F1 10 Tf'];
+  let y = 800;
+  const ops = ['BT', '/F1 9 Tf'];
   escaped.forEach((line, idx) => {
-    const fontSize = idx === 1 ? 13 : idx === 0 ? 11 : 9.5;
+    const fontSize = idx === 1 ? 12 : idx === 0 ? 11 : idx === lines.length - 2 || idx === lines.length - 1 ? 7.5 : 8.5;
     ops.push(`/F1 ${fontSize} Tf`);
-    ops.push(`1 0 0 1 45 ${y} Tm (${line}) Tj`);
-    y -= idx <= 1 ? 20 : 15;
+    ops.push(`1 0 0 1 40 ${y} Tm (${line}) Tj`);
+    y -= (idx <= 1 || idx === lines.length - 3) ? 18 : 13.5;
   });
   ops.push('ET');
   const stream = ops.join('\n');
@@ -535,15 +593,11 @@ ${377 + stream.length}
 // Helper: Check if an Order has Both Interior & Cover Validated Assets
 // ---------------------------------------------------------------------------
 function hasCompleteValidatedAssets(ord: CustomerOrderItem): boolean {
-  if (String(ord.status || '').toUpperCase() === 'FILES_REQUIRED') {
-    const files = ord.approvedFiles || [];
-    const hasInterior = files.some((f) => (f.kind || f.role) === 'INTERIOR_PDF' && f.status === 'PASSED');
-    const hasCover = files.some((f) => (f.kind || f.role) === 'COVER_PDF' && f.status === 'PASSED');
-    return hasInterior && hasCover;
-  }
   const files = ord.approvedFiles || [];
-  if (files.length >= 2) return true;
-  return ord.preflightBypassEligible !== false;
+  const validFiles = files.filter(f => Number((f as any).sizeBytes ?? 0) > 0 && Boolean(f.sha256 || (f as any).checksumSha256));
+  const hasInterior = validFiles.some((f) => (f.kind || f.role) === 'INTERIOR_PDF' && f.status === 'PASSED');
+  const hasCover = validFiles.some((f) => (f.kind || f.role) === 'COVER_PDF' && f.status === 'PASSED');
+  return hasInterior && hasCover;
 }
 
 // ---------------------------------------------------------------------------
@@ -553,6 +607,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
   userId,
   userEmail,
   userName,
+  userRole = null,
   initialTab = 'ORDERS_REPRINTS',
   initialOrderId = null,
   initialAssetIntakeOrderId = null,
@@ -601,8 +656,8 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
   // Payment & Checkout State
   const [paymentSubTab, setPaymentSubTab] = useState<'STRIPE_CARD_SEPA' | 'BANK_TRANSFER_B2B'>('STRIPE_CARD_SEPA');
   const [stripeMethodType, setStripeMethodType] = useState<'CARD' | 'SEPA_DEBIT'>('CARD');
-  const [cardHolderName, setCardHolderName] = useState<string>(userName || 'Critical Publishing Group / Production');
-  const [sepaIbanInput, setSepaIbanInput] = useState<string>('ES91 2100 0418 4502 0005 1332');
+  const [cardHolderName, setCardHolderName] = useState<string>(userName || '');
+  const [sepaIbanInput, setSepaIbanInput] = useState<string>('');
   const [processingCheckout, setProcessingCheckout] = useState<boolean>(false);
   const [checkoutSessionData, setCheckoutSessionData] = useState<any | null>(null);
   const [wireProofFile, setWireProofFile] = useState<File | null>(null);
@@ -620,42 +675,17 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
   const [submittingSoftProof, setSubmittingSoftProof] = useState<boolean>(false);
 
   // Multi-User B2B Organization & Editorial RBAC State (Phase 16 - Option 3)
-  const [activeB2bRole, setActiveB2bRole] = useState<B2bOrganizationRoleId>('ORG_ADMIN');
+  const resolveInitialRole = (): B2bOrganizationRoleId | null => {
+    if (!userEmail) return null;
+    const r = String(userRole || '').toUpperCase();
+    if (r === 'PRINTHOUSE_ADMIN' || r === 'ADMIN' || r === 'SUPER_ADMIN' || r === 'ORG_ADMIN') return 'ORG_ADMIN';
+    if (r === 'FINANCE' || r === 'FINANCE_APPROVER') return 'FINANCE_APPROVER';
+    if (r === 'PRODUCTION' || r === 'PRODUCTION_MANAGER') return 'PRODUCTION_MANAGER';
+    return 'PREPRESS_DESIGNER';
+  };
+  const [activeB2bRole, setActiveB2bRole] = useState<B2bOrganizationRoleId | null>(resolveInitialRole);
   const [showTeamRbacDrawer, setShowTeamRbacDrawer] = useState<boolean>(false);
-  const [orgMembers, setOrgMembers] = useState<B2bOrganizationMemberItem[]>([
-    {
-      memberId: 'MEM_2026_0001',
-      organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
-      email: 'publisher@printprice.pro',
-      fullName: 'Carlos Mendoza (Director Editorial & Org Admin)',
-      role: 'ORG_ADMIN',
-      status: 'ACTIVE',
-    },
-    {
-      memberId: 'MEM_2026_0002',
-      organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
-      email: 'production@printprice.pro',
-      fullName: 'Elena Vargas (Jefa de Producción Editorial)',
-      role: 'PRODUCTION_MANAGER',
-      status: 'ACTIVE',
-    },
-    {
-      memberId: 'MEM_2026_0003',
-      organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
-      email: 'finance@printprice.pro',
-      fullName: 'Marcos Alarcón (Controller Financiero & Escrow)',
-      role: 'FINANCE_APPROVER',
-      status: 'ACTIVE',
-    },
-    {
-      memberId: 'MEM_2026_0004',
-      organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
-      email: 'prepress@printprice.pro',
-      fullName: 'Lucía Serrano (Maquetación & Arte Final PDF/X-4)',
-      role: 'PREPRESS_DESIGNER',
-      status: 'ACTIVE',
-    },
-  ]);
+  const [orgMembers, setOrgMembers] = useState<B2bOrganizationMemberItem[]>([]);
   const [loadingOrgMembers, setLoadingOrgMembers] = useState<boolean>(false);
   const [newMemberEmail, setNewMemberEmail] = useState<string>('');
   const [newMemberFullName, setNewMemberFullName] = useState<string>('');
@@ -672,30 +702,27 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
 
   const buildB2bRbacHeaders = useCallback(
     (extraHeaders?: Record<string, string>): Record<string, string> => {
-      const matchedMember = orgMembers.find((m) => m.role === activeB2bRole && m.status !== 'SUSPENDED');
-      return {
-        ...(extraHeaders || {}),
-        'x-b2b-role': activeB2bRole,
-        'x-b2b-member-id': matchedMember?.memberId || 'MEM_2026_0001',
-        'x-b2b-email': matchedMember?.email || userEmail || 'publisher@printprice.pro',
-      };
+      const headers: Record<string, string> = { ...(extraHeaders || {}) };
+      if (activeB2bRole) headers['x-b2b-role'] = activeB2bRole;
+      if (userEmail) headers['x-b2b-email'] = userEmail;
+      return headers;
     },
-    [activeB2bRole, orgMembers, userEmail]
+    [activeB2bRole, userEmail]
   );
 
   // Shipping & Fiscal Profile State
   const [shippingAddresses, setShippingAddresses] = useState<ShippingAddressItem[]>([]);
   const [fiscalProfile, setFiscalProfile] = useState<FiscalProfileData>({
-    legalEntityName: 'Critical Publishing & Editions S.L.',
-    taxIdVat: 'ESB87654321',
-    fiscalStreet: '120 Alcala Street, 4th Floor',
-    fiscalPostalCode: '28009',
-    fiscalCity: 'Madrid',
-    fiscalCountryCode: 'ES',
-    billingEmail: userEmail || 'billing@critical-publishing.eu',
-    dir3Code: 'EA0038291',
-    leitwegId: '04011000-1234512345-06',
-    peppolParticipantId: '0208:ESB87654321',
+    legalEntityName: '',
+    taxIdVat: '',
+    fiscalStreet: '',
+    fiscalPostalCode: '',
+    fiscalCity: '',
+    fiscalCountryCode: '',
+    billingEmail: userEmail || '',
+    dir3Code: '',
+    leitwegId: '',
+    peppolParticipantId: '',
     preferredEInvoiceFormat: 'FACTURAE_3_2_2',
   });
   const [savingProfile, setSavingProfile] = useState<boolean>(false);
@@ -843,7 +870,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
 
       if (membersRes && membersRes.ok) {
         const memData = await membersRes.json().catch(() => null);
-        if (memData && Array.isArray(memData.members) && memData.members.length > 0) {
+        if (memData && Array.isArray(memData.members)) {
           setOrgMembers(memData.members);
         }
       }
@@ -902,7 +929,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
       }
       setNewMemberEmail('');
       setNewMemberFullName('');
-      notify(`Miembro ${data.member?.email || newMemberEmail} añadido con rol ${newMemberRole}.`, 'success');
+      notify(`Team member ${data.member?.email || newMemberEmail} added with role ${newMemberRole}.`, 'success');
     } catch (err: any) {
       notify(err?.message || 'Network error inviting member.', 'error');
     } finally {
@@ -931,7 +958,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
           prev.map((m) => (m.memberId === memberId ? { ...m, role: nextRole } : m))
         );
       }
-      notify(`Rol actualizado a ${nextRole} para miembro ${memberId}.`, 'success');
+      notify(`Role updated to ${nextRole} for member ${memberId}.`, 'success');
     } catch (err: any) {
       notify(err?.message || 'Error updating role.', 'error');
     } finally {
@@ -955,11 +982,9 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
       if (Array.isArray(data.members)) {
         setOrgMembers(data.members);
       } else {
-        setOrgMembers((prev) =>
-          prev.map((m) => (m.memberId === memberId ? { ...m, status: 'SUSPENDED' } : m))
-        );
+        setOrgMembers((prev) => prev.filter((m) => m.memberId !== memberId));
       }
-      notify(`Acceso revocado (SUSPENDED) para miembro ${memberId}.`, 'info');
+      notify(`Access revoked (SUSPENDED) for member ${memberId}.`, 'info');
     } catch (err: any) {
       notify(err?.message || 'Error revoking member.', 'error');
     } finally {
@@ -1378,6 +1403,11 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
   // -------------------------------------------------------------------------
   const handleInitiateCheckoutSession = async (method: 'STRIPE_CARD' | 'STRIPE_SEPA' | 'BANK_TRANSFER_B2B') => {
     if (!selectedOrderForPayment) return;
+    if (!isFiscalProfileComplete(fiscalProfile)) {
+      notify('Fiscal & Billing details required before processing payment or generating an official proforma invoice. Please complete your company tax data.', 'error');
+      setActiveTab('FISCAL_BILLING');
+      return;
+    }
     setProcessingCheckout(true);
     try {
       const res = await fetch(
@@ -1398,7 +1428,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data.ok === false) {
-        notify(data?.message || data?.error || 'Gestión reservada a departamento financiero.', 'error');
+        notify(data?.message || data?.error || 'Action reserved for Finance department.', 'error');
         return;
       }
       setCheckoutSessionData(data);
@@ -1626,7 +1656,10 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
   // -------------------------------------------------------------------------
   // Render Navigation Tabs (100% Technical English + Route Mapping)
   // -------------------------------------------------------------------------
-  const TABS: { id: PortalTabId; route: string; label: string; badge?: string; icon: React.ReactNode }[] = [
+  const isFinanceOrAdmin = activeB2bRole === 'ORG_ADMIN' || activeB2bRole === 'FINANCE_APPROVER';
+  const isPrepressOnly = activeB2bRole === 'PREPRESS_DESIGNER';
+
+  const ALL_TABS: { id: PortalTabId; route: string; label: string; badge?: string; icon: React.ReactNode; requiresFinance?: boolean }[] = [
     {
       id: 'ORDERS_REPRINTS',
       route: '/portal/orders',
@@ -1670,8 +1703,11 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
       label: 'PLANT & ESCROW TELEMETRY',
       badge: 'LIVE KPIs',
       icon: <ChartBarSquareIcon className="w-4 h-4" />,
+      requiresFinance: true,
     },
   ];
+
+  const TABS = ALL_TABS.filter(t => !t.requiresFinance || isFinanceOrAdmin);
 
   const reprintPreview = reprintTargetOrder
     ? computeClientReprintPreview(
@@ -1690,7 +1726,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
     <div
       className={
         isFullPage
-          ? 'min-h-screen w-full bg-zinc-50 dark:bg-zinc-50 dark:bg-[#0a0b0d] text-zinc-900 dark:text-zinc-100 flex flex-col transition-colors'
+          ? 'min-h-screen w-full bg-white dark:bg-[#0a0b0d] text-zinc-900 dark:text-zinc-100 flex flex-col transition-colors'
           : 'w-full max-w-7xl h-[90vh] max-h-[90vh] flex flex-col bg-white dark:bg-[#0e1014] border border-zinc-200 dark:border-zinc-200 dark:border-[#1f2228] rounded-xl shadow-2xl overflow-hidden text-zinc-900 dark:text-zinc-100 transition-colors'
       }
     >
@@ -1703,7 +1739,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
       >
         <div className="flex items-center gap-3.5">
           <div
-            className="h-10 w-10 rounded-xl flex items-center justify-center border border-[#dc2626] bg-red-50/60 dark:bg-zinc-50 dark:bg-[#0a0b0d] shrink-0"
+            className="h-10 w-10 rounded-xl flex items-center justify-center border border-[#dc2626] bg-red-50/60 dark:bg-[#0a0b0d] dark:bg-[#0a0b0d] shrink-0"
           >
             <ShieldCheckIcon className="w-5 h-5 text-[#dc2626]" />
           </div>
@@ -1735,9 +1771,14 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
           {/* Active B2B Organization Role Switcher */}
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-zinc-300 dark:border-[#1f2228] bg-zinc-50 dark:bg-[#0a0b0d]">
             <ShieldCheckIcon className="w-3.5 h-3.5 text-[#dc2626] shrink-0" />
-            <span className="text-[9px] font-technical uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-              RBAC Role:
-            </span>
+            <div className="flex flex-col">
+              <span className="text-[8px] font-technical uppercase tracking-wider text-zinc-400 leading-none">
+                {userRole ? `Global: ${userRole}` : 'Global: User'}
+              </span>
+              <span className="text-[9px] font-technical font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                Scope:
+              </span>
+            </div>
             <select
               aria-label="Active B2B Organization Role"
               data-testid="select-active-b2b-role"
@@ -1774,7 +1815,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
             type="button"
             onClick={fetchPortalData}
             disabled={loadingOrders}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-200 dark:border-[#1f2228] bg-zinc-50 dark:bg-zinc-50 dark:bg-[#0a0b0d] text-[10px] font-technical font-bold uppercase tracking-wider transition-all hover:border-[#dc2626] text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-900 dark:hover:text-zinc-900 dark:text-zinc-100"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-200 dark:border-[#1f2228] bg-zinc-50 dark:bg-[#0a0b0d] dark:bg-[#0a0b0d] text-[10px] font-technical font-bold uppercase tracking-wider transition-all hover:border-[#dc2626] text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-900 dark:hover:text-zinc-900 dark:text-zinc-100"
             title="Synchronize with Control Plane"
           >
             <ArrowPathIcon className={`w-3.5 h-3.5 ${loadingOrders ? 'animate-spin text-[#dc2626]' : ''}`} />
@@ -2053,7 +2094,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
 
                       {!canUploadProductionAssets && (
                         <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/35 text-amber-800 dark:text-amber-300 font-technical text-[10px] font-bold">
-                          🔒 Subida de PDF/X-4 reservada a Maquetación o Producción (PREPRESS_DESIGNER, PRODUCTION_MANAGER u ORG_ADMIN).
+                          🔒 PDF/X-4 upload restricted to Prepress, Production or Admin roles (PREPRESS_DESIGNER, PRODUCTION_MANAGER, or ORG_ADMIN).
                         </div>
                       )}
 
@@ -2204,7 +2245,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                                   <div className="flex items-start gap-3">
                                     {/* Stylized Mini Book Cover */}
                                     <div
-                                      className="w-10 h-14 rounded border border-zinc-300 dark:border-zinc-300 dark:border-[#2d323b] bg-zinc-50 dark:bg-zinc-50 dark:bg-[#0a0b0d] flex flex-col justify-between p-1.5 shrink-0 shadow-inner"
+                                      className="w-10 h-14 rounded border border-zinc-300 dark:border-zinc-300 dark:border-[#2d323b] bg-zinc-50 dark:bg-[#0a0b0d] dark:bg-[#0a0b0d] flex flex-col justify-between p-1.5 shrink-0 shadow-inner"
                                       style={{
                                         borderLeftWidth: '3px',
                                         borderLeftColor: isFilesRequired ? '#f59e0b' : '#dc2626',
@@ -2307,7 +2348,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                                         : 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30'
                                     }`}
                                   >
-                                    {statusUpper}
+                                    {statusUpper === 'IN_PRODUCTION' ? 'In Production' : statusUpper === 'AWAITING_PAYMENT' ? 'Awaiting Payment' : statusUpper === 'DELIVERED' ? 'Delivered' : statusUpper === 'SHIPPED' ? 'Shipped' : statusUpper}
                                   </span>
                                   <div className="text-[10px] font-technical text-zinc-500 dark:text-zinc-400 mt-1">
                                     Delivery: {ord.deliveryDate || 'Scheduled'}
@@ -2330,7 +2371,12 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                                         </button>
                                         <button
                                           type="button"
-                                          onClick={() => downloadProformaInvoicePdf(ord, fiscalProfile)}
+                                          onClick={() => {
+                                            if (!isFiscalProfileComplete(fiscalProfile)) {
+                                              notify('Fiscal & Billing details required before generating an official proforma invoice. Please complete your company tax data.', 'error');
+                                            }
+                                            downloadProformaInvoicePdf(ord, fiscalProfile);
+                                          }}
                                           className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl border border-zinc-200 dark:border-[#1f2228] bg-zinc-50 dark:bg-[#0a0b0d] hover:border-zinc-900 dark:hover:border-white text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-900 dark:text-zinc-100 text-[10px] font-technical font-bold uppercase transition-all"
                                         >
                                           <DocumentTextIcon className="w-3.5 h-3.5" />
@@ -2340,6 +2386,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                                     ) : isAwaitingPayment ? (
                                       <>
                                         {/* Priority Actions for AWAITING_PAYMENT */}
+                                        {canExecutePayments && (
                                         <button
                                           type="button"
                                           onClick={() => {
@@ -2351,9 +2398,15 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                                           <CreditCardIcon className="w-3.5 h-3.5" />
                                           <span>PAY NOW</span>
                                         </button>
+                                        )}
                                         <button
                                           type="button"
-                                          onClick={() => downloadProformaInvoicePdf(ord, fiscalProfile)}
+                                          onClick={() => {
+                                            if (!isFiscalProfileComplete(fiscalProfile)) {
+                                              notify('Fiscal & Billing details required before generating an official proforma invoice. Please complete your company tax data.', 'error');
+                                            }
+                                            downloadProformaInvoicePdf(ord, fiscalProfile);
+                                          }}
                                           className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl border border-zinc-200 dark:border-[#1f2228] bg-zinc-50 dark:bg-[#0a0b0d] hover:border-zinc-900 dark:hover:border-white text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-900 dark:text-zinc-100 text-[10px] font-technical font-bold uppercase transition-all"
                                         >
                                           <DocumentArrowDownIcon className="w-3.5 h-3.5" />
@@ -2620,7 +2673,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                     {paymentSubTab === 'STRIPE_CARD_SEPA' && (
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div
-                          className="p-5 rounded-xl border border-zinc-200 dark:border-zinc-200 dark:border-[#1f2228] bg-zinc-50/80 dark:bg-zinc-50 dark:bg-[#0a0b0d] space-y-4"
+                          className="p-5 rounded-xl border border-zinc-200 dark:border-zinc-200 dark:border-[#1f2228] bg-zinc-50/80 dark:bg-[#0a0b0d] dark:bg-[#0a0b0d] space-y-4"
                         >
                           <div className="flex items-center justify-between flex-wrap gap-2">
                             <span className="text-[10px] font-technical font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
@@ -2717,10 +2770,10 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                             >
                               <span className="flex items-center gap-1.5">
                                 <ShieldCheckIcon className="w-4 h-4 text-amber-500 shrink-0" />
-                                <span>Gestión reservada a departamento financiero</span>
+                                <span>Action restricted to Finance department</span>
                               </span>
                               <span className="px-1.5 py-0.5 rounded bg-black/20 border border-amber-500/30 uppercase text-[9px]">
-                                ROL: {activeB2bRole}
+                                ROLE: {activeB2bRole}
                               </span>
                             </div>
                           )}
@@ -2728,7 +2781,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                           <button
                             type="button"
                             disabled={processingCheckout || !canExecutePayments}
-                            title={!canExecutePayments ? 'Gestión reservada a departamento financiero (requiere FINANCE_APPROVER u ORG_ADMIN)' : 'Autorizar cargo en Stripe'}
+                            title={!canExecutePayments ? 'Action restricted to Finance department (requires FINANCE_APPROVER or ORG_ADMIN)' : 'Authorize payment via Stripe'}
                             onClick={() =>
                               handleInitiateCheckoutSession(
                                 stripeMethodType === 'SEPA_DEBIT' ? 'STRIPE_SEPA' : 'STRIPE_CARD'
@@ -2739,7 +2792,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                             {processingCheckout
                               ? 'Processing Stripe authorization...'
                               : !canExecutePayments
-                              ? '🔒 Gestión reservada a departamento financiero'
+                              ? '🔒 Restricted to Finance department'
                               : `Authorize & Pay €${Number(
                                   selectedOrderForPayment.totalPriceEur || selectedOrderForPayment.offer_price || 0
                                 ).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
@@ -2748,7 +2801,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
 
                         {/* Right Info Box */}
                         <div
-                          className="p-5 rounded-xl border border-zinc-200 dark:border-zinc-200 dark:border-[#1f2228] bg-zinc-50/80 dark:bg-zinc-50 dark:bg-[#0a0b0d] flex flex-col justify-between"
+                          className="p-5 rounded-xl border border-zinc-200 dark:border-zinc-200 dark:border-[#1f2228] bg-zinc-50/80 dark:bg-[#0a0b0d] dark:bg-[#0a0b0d] flex flex-col justify-between"
                         >
                           <div className="space-y-3">
                             <div className="text-[10px] font-technical font-black uppercase tracking-wider text-[#10b981]">
@@ -2800,7 +2853,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                     {paymentSubTab === 'BANK_TRANSFER_B2B' && (
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div
-                          className="p-5 rounded-xl border border-zinc-200 dark:border-zinc-200 dark:border-[#1f2228] bg-zinc-50/80 dark:bg-zinc-50 dark:bg-[#0a0b0d] space-y-4"
+                          className="p-5 rounded-xl border border-zinc-200 dark:border-zinc-200 dark:border-[#1f2228] bg-zinc-50/80 dark:bg-[#0a0b0d] dark:bg-[#0a0b0d] space-y-4"
                         >
                           <div className="flex items-center justify-between">
                             <span className="text-[10px] font-technical font-black uppercase tracking-wider text-[#10b981]">
@@ -2833,7 +2886,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                               <div className="p-3 rounded-lg bg-white dark:bg-[#14161a] border border-zinc-200 dark:border-[#1f2228]">
                                 <span className="block text-[9px] uppercase text-zinc-500 dark:text-zinc-400">BIC / SWIFT</span>
                                 <span className="text-zinc-900 dark:text-zinc-100 font-bold">
-                                  {checkoutSessionData?.bankTransferInstructions?.bic || 'CAIXESBBXXX'}
+                                  {checkoutSessionData?.bankTransferInstructions?.bic || 'ESCROW-SETTLEMENT-PENDING'}
                                 </span>
                               </div>
                             </div>
@@ -2844,7 +2897,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                               </span>
                               <span className="text-sm font-bold text-[#10b981] tracking-wider">
                                 {checkoutSessionData?.bankTransferInstructions?.iban ||
-                                  'ES91 2100 0418 4502 0005 1332'}
+                                  'SEPA WIRE INSTRUCTIONS: ESCROW ACCOUNT ASSIGNMENT IN PROGRESS'}
                               </span>
                             </div>
                           </div>
@@ -2868,7 +2921,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                         {/* Upload Wire Transfer Proof Form */}
                         <form
                           onSubmit={handleUploadWireTransferProof}
-                          className="p-5 rounded-xl border border-zinc-200 dark:border-zinc-200 dark:border-[#1f2228] bg-zinc-50/80 dark:bg-zinc-50 dark:bg-[#0a0b0d] space-y-4 flex flex-col justify-between"
+                          className="p-5 rounded-xl border border-zinc-200 dark:border-zinc-200 dark:border-[#1f2228] bg-zinc-50/80 dark:bg-[#0a0b0d] dark:bg-[#0a0b0d] space-y-4 flex flex-col justify-between"
                         >
                           <div className="space-y-3">
                             <div className="flex items-center gap-2">
@@ -2918,7 +2971,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                               data-testid="rbac-wire-restricted-banner"
                               className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/35 text-amber-800 dark:text-amber-300 font-technical text-[10px] font-bold flex items-center justify-between gap-2"
                             >
-                              <span>Gestión reservada a departamento financiero</span>
+                              <span>Action restricted to Finance department</span>
                               <span className="px-1.5 py-0.5 rounded bg-black/20 border border-amber-500/30 uppercase text-[9px]">
                                 {activeB2bRole}
                               </span>
@@ -2928,13 +2981,13 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                           <button
                             type="submit"
                             disabled={uploadingWireProof || !canExecutePayments}
-                            title={!canExecutePayments ? 'Gestión reservada a departamento financiero' : 'Subir justificante de transferencia B2B'}
+                            title={!canExecutePayments ? 'Gestión reservada a departamento financiero' : 'Upload B2B Bank Transfer Receipt'}
                             className="w-full py-3 rounded-xl bg-[#10b981] hover:bg-[#059669] disabled:opacity-45 disabled:cursor-not-allowed text-black font-technical font-black text-xs uppercase tracking-wider transition-all"
                           >
                             {uploadingWireProof
                               ? 'Registering wire proof in Control Plane...'
                               : !canExecutePayments
-                              ? '🔒 Gestión reservada a departamento financiero'
+                              ? '🔒 Restricted to Finance department'
                               : 'UPLOAD WIRE PROOF'}
                           </button>
                         </form>
@@ -2981,7 +3034,17 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                   </div>
                 </div>
 
-                {loadingTracking || !trackingData ? (
+                {orders.length === 0 ? (
+                  <div className="p-12 text-center rounded-2xl border border-zinc-200 dark:border-[#1f2228] bg-white dark:bg-[#12141a] space-y-3">
+                    <TruckIcon className="w-10 h-10 mx-auto text-zinc-400 dark:text-zinc-600" />
+                    <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                      No Active Production Shipments
+                    </h4>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-md mx-auto leading-relaxed">
+                      No active production shipments in transit. Tracking triggers once files pass Preflight and CTP plate imaging commences.
+                    </p>
+                  </div>
+                ) : loadingTracking || !trackingData ? (
                   <div className="py-12 text-center text-xs font-technical text-zinc-500 dark:text-zinc-400">
                     Synchronizing press floor and carrier telemetry...
                   </div>
@@ -3420,6 +3483,25 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                 )}
 
                 {/* Saved Addresses Grid */}
+                {shippingAddresses.length === 0 ? (
+                  <div className="p-10 rounded-2xl border border-dashed border-zinc-300 dark:border-[#2d323b] bg-white/50 dark:bg-[#0f1115] text-center space-y-3">
+                    <MapPinIcon className="w-10 h-10 text-zinc-400 mx-auto opacity-40" />
+                    <h4 className="text-xs font-technical font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
+                      No Delivery Addresses or Docks Registered
+                    </h4>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-md mx-auto leading-relaxed">
+                      Your distribution network has no registered warehouse hubs yet. Add your central warehouse or logistics partner (Logista, Arnoia, Amazon FBA) with loading dock specs.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowNewAddressForm(true)}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#dc2626] hover:bg-[#b91c1c] text-white text-xs font-technical font-bold uppercase transition-all shadow-sm"
+                    >
+                      <PlusIcon className="w-4 h-4" />
+                      <span>Add First Delivery Hub</span>
+                    </button>
+                  </div>
+                ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                   {shippingAddresses.map((addr) => (
                     <div
@@ -3493,6 +3575,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                     </div>
                   ))}
                 </div>
+                )}
               </div>
             )}
 
@@ -3525,6 +3608,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                       <input
                         type="text"
                         required
+                        placeholder="e.g. Editorial Planeta S.A."
                         value={fiscalProfile.legalEntityName}
                         onChange={(e) =>
                           setFiscalProfile({ ...fiscalProfile, legalEntityName: e.target.value })
@@ -3551,6 +3635,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                       <input
                         type="text"
                         required
+                        placeholder="e.g. ESA12345678"
                         value={fiscalProfile.taxIdVat}
                         onChange={(e) =>
                           setFiscalProfile({ ...fiscalProfile, taxIdVat: e.target.value.toUpperCase() })
@@ -3566,6 +3651,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                       <input
                         type="text"
                         required
+                        placeholder="e.g. Diagonal 662, Planta 3"
                         value={fiscalProfile.fiscalStreet}
                         onChange={(e) =>
                           setFiscalProfile({ ...fiscalProfile, fiscalStreet: e.target.value })
@@ -3581,6 +3667,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                         </label>
                         <input
                           type="text"
+                          placeholder="e.g. 08034"
                           value={fiscalProfile.fiscalPostalCode}
                           onChange={(e) =>
                             setFiscalProfile({ ...fiscalProfile, fiscalPostalCode: e.target.value })
@@ -3594,6 +3681,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                         </label>
                         <input
                           type="text"
+                          placeholder="e.g. Barcelona"
                           value={fiscalProfile.fiscalCity}
                           onChange={(e) =>
                             setFiscalProfile({ ...fiscalProfile, fiscalCity: e.target.value })
@@ -3671,6 +3759,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                       Default XML Standard:{' '}
                       <span className="text-zinc-900 dark:text-zinc-100 font-bold">{fiscalProfile.preferredEInvoiceFormat}</span>
                     </div>
+                    {canManageOrgMembers ? (
                     <button
                       type="submit"
                       disabled={savingProfile}
@@ -3678,6 +3767,11 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                     >
                       {savingProfile ? 'SYNCHRONIZING VIES & FISCAL DATA...' : 'SAVE FISCAL DATA (EN 16931)'}
                     </button>
+                    ) : (
+                    <div className="text-[10px] font-technical text-amber-500 uppercase font-bold">
+                      Fiscal profile editing reserved for Administrators (ORG_ADMIN).
+                    </div>
+                    )}
                   </div>
                 </form>
               </div>
@@ -3690,6 +3784,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
               <OperationsTelemetryDashboard
                 userEmail={userEmail || fiscalProfile.billingEmail}
                 userId={userId}
+                userRole={activeB2bRole}
                 onSelectOrderForTracking={(orderId) => {
                   setSelectedOrderForTracking(orderId);
                   navigateTabWithUrl('LIVE_LOGISTICS', orderId);
@@ -4124,7 +4219,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                   {fiscalProfile.legalEntityName || 'Penguin Random House Publishing Group S.A.U.'}
                 </h3>
                 <p className="text-xs font-technical text-zinc-500 dark:text-zinc-400 mt-0.5">
-                  Segregación criptográfica de funciones entre Maquetación (PDF/X-4), Producción (Imprimátur 3D), Finanzas (Escrow &amp; EN 16931) y Administración.
+                  Cryptographic duty segregation between Pre-Press (PDF/X-4), Production (3D Imprimatur), Finance (Escrow &amp; EN 16931), and Administration.
                 </p>
               </div>
               <button
@@ -4140,7 +4235,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
             <div className="p-4 rounded-xl bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-200 dark:border-[#1f2228] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
                 <span className="block text-[10px] font-technical font-black uppercase tracking-wider text-[#10b981]">
-                  ACTIVE SESSION ACTOR ROLE: {activeB2bRole}
+                  Active Session Actor Role: {B2B_ROLE_METADATA[activeB2bRole]?.label || activeB2bRole}
                 </span>
                 <p className="text-xs text-zinc-700 dark:text-zinc-300 mt-0.5">
                   {B2B_ROLE_METADATA[activeB2bRole].description}
@@ -4155,13 +4250,13 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                     key={r}
                     type="button"
                     onClick={() => setActiveB2bRole(r)}
-                    className={`px-2.5 py-1.5 rounded-lg text-[10px] font-technical font-black uppercase border transition-all ${
+                    className={`px-2.5 py-1.5 rounded-lg text-[10px] font-technical font-bold uppercase border transition-all ${
                       activeB2bRole === r
                         ? 'bg-[#dc2626] text-white border-[#dc2626]'
                         : 'bg-white dark:bg-[#14161a] text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-[#2d323b] hover:border-[#dc2626]'
                     }`}
                   >
-                    {r}
+                    {r.replace(/_/g, ' ')}
                   </button>
                 ))}
               </div>
@@ -4178,7 +4273,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                 </span>
                 {!canManageOrgMembers && (
                   <span className="text-[10px] font-technical font-bold text-amber-500">
-                    🔒 Requiere rol ORG_ADMIN para invitar o cambiar permisos
+                    🔒 Requires ORG_ADMIN role to invite members or manage permissions
                   </span>
                 )}
               </div>
@@ -4206,10 +4301,10 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                   onChange={(e) => setNewMemberRole(e.target.value as B2bOrganizationRoleId)}
                   className="px-3 py-2 rounded-lg bg-white dark:bg-[#14161a] border border-zinc-300 dark:border-[#2d323b] text-xs font-technical text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
                 >
-                  <option value="PREPRESS_DESIGNER">PREPRESS_DESIGNER</option>
-                  <option value="PRODUCTION_MANAGER">PRODUCTION_MANAGER</option>
-                  <option value="FINANCE_APPROVER">FINANCE_APPROVER</option>
-                  <option value="ORG_ADMIN">ORG_ADMIN</option>
+                  <option value="PREPRESS_DESIGNER">Prepress & Layout</option>
+                  <option value="PRODUCTION_MANAGER">Production Manager</option>
+                  <option value="FINANCE_APPROVER">Finance Approver</option>
+                  <option value="ORG_ADMIN">Organization Admin</option>
                 </select>
                 <button
                   type="submit"
@@ -4240,8 +4335,14 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                         Loading organization members from Control Plane...
                       </td>
                     </tr>
+                  ) : orgMembers.filter((m) => m.status !== 'SUSPENDED').length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center font-technical text-zinc-500">
+                        No additional team members invited. Invite colleagues to delegate prepress or finance approvals.
+                      </td>
+                    </tr>
                   ) : (
-                    orgMembers.map((mem) => (
+                    orgMembers.filter((m) => m.status !== 'SUSPENDED').map((mem) => (
                       <tr key={mem.memberId} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
                         <td className="py-3 px-4">
                           <div className="font-bold text-zinc-900 dark:text-zinc-100">{mem.fullName}</div>
@@ -4260,10 +4361,10 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                             }
                             className="px-2.5 py-1 rounded-lg bg-zinc-50 dark:bg-[#0a0b0d] border border-zinc-300 dark:border-[#2d323b] text-[10px] font-technical font-bold text-zinc-900 dark:text-zinc-100 disabled:opacity-50"
                           >
-                            <option value="ORG_ADMIN">ORG_ADMIN</option>
-                            <option value="PRODUCTION_MANAGER">PRODUCTION_MANAGER</option>
-                            <option value="FINANCE_APPROVER">FINANCE_APPROVER</option>
-                            <option value="PREPRESS_DESIGNER">PREPRESS_DESIGNER</option>
+                            <option value="ORG_ADMIN">Organization Admin</option>
+                            <option value="PRODUCTION_MANAGER">Production Manager</option>
+                            <option value="FINANCE_APPROVER">Finance Approver</option>
+                            <option value="PREPRESS_DESIGNER">Prepress & Layout</option>
                           </select>
                         </td>
                         <td className="py-3 px-4">
@@ -4274,7 +4375,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                                 : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
                             }`}
                           >
-                            {mem.status}
+                            {mem.status === 'ACTIVE' ? 'Active' : mem.status === 'INVITED' ? 'Invited' : mem.status === 'SUSPENDED' ? 'Suspended' : mem.status}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-right">
@@ -4300,6 +4401,30 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
       )}
     </div>
   );
+
+  if (!userEmail && !userId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-zinc-900 text-white font-technical">
+        <div className="max-w-md w-full p-8 rounded-2xl bg-zinc-800 border border-red-500/50 text-center space-y-4 shadow-2xl">
+          <div className="w-12 h-12 rounded-full bg-red-500/20 border border-red-500 flex items-center justify-center mx-auto text-red-400 font-bold text-xl">
+            🔒
+          </div>
+          <h2 className="text-lg font-black uppercase tracking-wider text-red-400">Authentication Required</h2>
+          <p className="text-xs text-zinc-400 leading-relaxed">
+            The B2B publisher portal and order management require an active client session or verified publisher credentials.
+          </p>
+          <div className="pt-2">
+            <a
+              href="/?auth=login"
+              className="inline-block w-full py-3 rounded-xl bg-[#dc2626] hover:bg-[#b91c1c] text-white text-xs font-black uppercase tracking-wider transition-all"
+            >
+              Sign In / Access Portal
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isFullPage) {
     return hubSurface;

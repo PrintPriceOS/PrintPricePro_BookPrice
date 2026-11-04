@@ -22,6 +22,7 @@ import {
   ShieldCheckIcon,
   SparklesIcon,
 } from '@heroicons/react/24/outline';
+import { formatStatusLabel } from '../lib/statusFormatters';
 
 
 /**
@@ -651,8 +652,8 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
       default:
         return {
           label: isExperimentalReferenceResult
-            ? 'EXPERIMENTAL_DISABLED · PROFILE_REQUIRES_PRINTHOUSE_TECH_APPROVAL'
-            : errorCode || 'Manufacturing release blocked',
+            ? 'Engineering Review · Technical Approval Required'
+            : formatStatusLabel(errorCode) || 'Manufacturing Release Blocked',
           className:
             'bg-corporate-accent/15 border-corporate-accent/50 text-corporate-accent',
         };
@@ -829,7 +830,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
                 Invalid Book Format or Dimensions
               </p>
               <span className="px-2 py-0.5 rounded-md bg-corporate-elevated border border-corporate-border text-[9px] font-technical font-bold text-corporate-text uppercase">
-                Code: {errorCode || 'INVALID_BOOK_DIMENSIONS'}
+                {formatStatusLabel(errorCode || 'INVALID_BOOK_DIMENSIONS')}
               </span>
             </div>
             <p className="text-xs text-corporate-text-secondary leading-relaxed">
@@ -839,30 +840,39 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
         </div>
       )}
 
-      {/* STATE 2: CALIPER VERIFICATION REQUIRED (Governance Gate) */}
+      {/* STATE 2: CALIPER VERIFICATION REQUIRED (Governance Gate - Compact Banner) */}
       {panelStatus === 'CALIPER_VERIFICATION_REQUIRED' && (
         <div
           data-testid="spine-caliper-required-banner"
-          className="rounded-xl border border-corporate-accent/40 bg-corporate-secondary p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+          className="rounded-xl border border-corporate-accent/40 bg-corporate-secondary p-3 sm:p-3.5 flex flex-col lg:flex-row lg:items-center justify-between gap-3 shadow-sm transition-all"
         >
-          <div className="flex items-start gap-3 min-w-0">
-            <ExclamationTriangleIcon className="w-5 h-5 text-corporate-accent shrink-0 mt-0.5" />
-            <div className="space-y-1 min-w-0">
+          <div className="flex items-start gap-2.5 min-w-0 flex-1">
+            <ExclamationTriangleIcon className="w-4 h-4 text-corporate-accent shrink-0 mt-0.5" />
+            <div className="space-y-1 min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <p className="text-xs font-technical font-black uppercase tracking-wider text-corporate-text">
-                  Physical Paper Caliper (µm) Required for Spine Geometry
+                <p className="text-xs font-technical font-black uppercase tracking-wider text-corporate-text truncate">
+                  Certified Paper Thickness (Caliper) Required
                 </p>
-                <span className="px-2 py-0.5 rounded-md bg-corporate-elevated border border-corporate-border text-[9px] font-technical font-bold text-corporate-muted uppercase">
-                  Code: {errorCode || 'CALIPER_VERIFICATION_REQUIRED'}
+                <span className="px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-[9px] font-technical font-bold text-amber-400 uppercase shrink-0">
+                  Action Required
                 </span>
               </div>
-              <p className="text-xs text-corporate-text-secondary leading-relaxed">
-                {presentText(errorMessage)}
+              <p className="text-[11px] text-corporate-text-secondary leading-snug">
+                Exact spine geometry and cover templates require certified paper with measured physical caliper.
               </p>
-              <p className="text-[10px] font-technical text-corporate-muted">
-                Current Interior Spec: <strong className="text-corporate-text">{readiness.caliperTelemetry.interiorPaperName}</strong> ·{' '}
-                {readiness.trimDimensionsMm.trimWidthMm ?? '—'} × {readiness.trimDimensionsMm.trimHeightMm ?? '—'} mm · {formData.interior_pages} pages
-              </p>
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                <span className="px-2 py-0.5 rounded bg-corporate-primary/70 border border-corporate-border text-[9px] font-technical text-corporate-text font-bold">
+                  {readiness.caliperTelemetry.interiorPaperName}
+                </span>
+                <span className="text-corporate-border text-[9px]">·</span>
+                <span className="px-2 py-0.5 rounded bg-corporate-primary/70 border border-corporate-border text-[9px] font-technical text-corporate-muted">
+                  {readiness.trimDimensionsMm.trimWidthMm ?? '—'} × {readiness.trimDimensionsMm.trimHeightMm ?? '—'} mm
+                </span>
+                <span className="text-corporate-border text-[9px]">·</span>
+                <span className="px-2 py-0.5 rounded bg-corporate-primary/70 border border-corporate-border text-[9px] font-technical text-corporate-muted">
+                  {formData.interior_pages} pp
+                </span>
+              </div>
             </div>
           </div>
 
@@ -871,14 +881,10 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
               type="button"
               data-testid="spine-switch-to-catalog-btn"
               onClick={onSwitchInteriorToAdvancedCatalog}
-              className="px-4 py-2.5 rounded-xl bg-corporate-accent hover:bg-corporate-hover text-white text-[10px] font-technical font-black uppercase tracking-wider shrink-0 flex items-center justify-center gap-1.5 shadow-sm transition-all"
+              className="w-full lg:w-auto px-4 py-2 rounded-xl bg-corporate-accent hover:bg-corporate-hover text-white text-xs font-technical font-black uppercase tracking-wider shrink-0 flex items-center justify-center gap-2 shadow-sm transition-all"
             >
               <SparklesIcon className="w-3.5 h-3.5" />
-              <span>
-                {formData.paper_mode_interior === 'advanced'
-                  ? 'Select a catalog paper with known thickness'
-                  : 'Select a catalog paper with known thickness'}
-              </span>
+              <span>Select Certified Paper</span>
             </button>
           )}
         </div>
@@ -897,7 +903,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
                 Hardcover Profile Parameters Required
               </p>
               <span className="px-2 py-0.5 rounded-md bg-corporate-elevated border border-corporate-border text-[9px] font-technical font-bold text-corporate-muted uppercase">
-                Code: {errorCode || 'HARDCOVER_PROFILE_PARAMETERS_REQUIRED'}
+                {formatStatusLabel(errorCode || 'HARDCOVER_PROFILE_PARAMETERS_REQUIRED')}
               </span>
             </div>
             <p className="text-xs text-corporate-text-secondary leading-relaxed">
@@ -984,11 +990,11 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
                       : 'Manufacturing release blocked by Control Plane governance'}
                 </p>
                 <span className="px-2 py-0.5 rounded-md bg-corporate-elevated border border-corporate-border text-[9px] font-technical font-bold text-corporate-text uppercase">
-                  {errorCode}
+                  {formatStatusLabel(errorCode)}
                 </span>
                 {spineResult?.operationalStatus && (
                   <span className="px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/40 text-[9px] font-technical font-bold text-amber-500 uppercase">
-                    {spineResult.operationalStatus}
+                    {formatStatusLabel(spineResult.operationalStatus)}
                   </span>
                 )}
               </div>
@@ -997,8 +1003,8 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
               </p>
               {isExperimentalReferenceResult && (
                 <p className="text-[11px] font-technical text-amber-500 font-bold leading-relaxed">
-                  Profile <code className="text-corporate-text">{presentProfileLabel(spineResult?.fullProfileKey)}</code> is marked{' '}
-                  <code className="text-corporate-text">EXPERIMENTAL_DISABLED</code> (<code className="text-corporate-text">PROFILE_REQUIRES_PRINTHOUSE_TECH_APPROVAL</code>). Below is the non-productive reference-model geometry returned by the PrintPrice OS Control Plane. For an active <code className="text-corporate-text">MATH_VALIDATED_ACTIVE</code> softcover calculation, switch binding below.
+                  Profile <code className="text-corporate-text">{presentProfileLabel(spineResult?.fullProfileKey)}</code> is under{' '}
+                  <code className="text-corporate-text">{formatStatusLabel('EXPERIMENTAL_DISABLED')}</code> (<code className="text-corporate-text">{formatStatusLabel('PROFILE_REQUIRES_PRINTHOUSE_TECH_APPROVAL')}</code>). Below is the non-productive reference-model geometry returned by the PrintPrice OS Control Plane. For an active <code className="text-corporate-text">Verified Valid</code> softcover calculation, switch binding below.
                 </p>
               )}
             </div>
@@ -1078,7 +1084,7 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
               </span>
               <span className="text-corporate-text-secondary">
                 Profile: <strong className="text-corporate-text">{presentProfileLabel(spineResult.fullProfileKey)}</strong> · Status:{' '}
-                <strong className="text-amber-500">{spineResult.operationalStatus}</strong>
+                <strong className="text-amber-500">{formatStatusLabel(spineResult.operationalStatus)}</strong>
               </span>
             </div>
           )}
@@ -1224,8 +1230,8 @@ export const BookSpineGeometryPanel: React.FC<BookSpineGeometryPanelProps> = ({
               <div className="text-[11px] leading-relaxed min-w-0">
                 <span className="font-technical font-black uppercase tracking-wider text-corporate-text block">
                   Manufacturing Release Governance ({presentCertificationTier(spineResult.certificationTier)} ·{' '}
-                  {spineResult.operationalStatus} ·{' '}
-                  {spineResult.manufacturingValidation?.status}):
+                  {formatStatusLabel(spineResult.operationalStatus)} ·{' '}
+                  {formatStatusLabel(spineResult.manufacturingValidation?.status)}):
                 </span>
                 <span className="text-corporate-text-secondary">
                   {isExperimentalReferenceResult

@@ -214,18 +214,18 @@ export const PrinthouseQueue: React.FC = () => {
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-1.5">
                         <div className={`w-2 h-2 rounded-full ${job.preflight_status === 'PASSED' ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                        <span className="text-[10px] font-bold text-slate-600 dark:text-zinc-300">PREFLIGHT: {job.preflight_status}</span>
+                        <span className="text-[10px] font-bold text-slate-600 dark:text-zinc-300">PREFLIGHT: {job.preflight_status === 'PASSED' ? 'Passed' : job.preflight_status === 'FAILED' ? 'Failed' : job.preflight_status}</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <div className={`w-2 h-2 rounded-full ${job.payment_status === 'PAID' ? 'bg-green-500' : 'bg-corporate-accent'}`}></div>
-                        <span className="text-[10px] font-bold text-slate-600 dark:text-zinc-300">PAY: {job.payment_status}</span>
+                        <span className="text-[10px] font-bold text-slate-600 dark:text-zinc-300">PAY: {job.payment_status === 'PAID' ? 'Paid' : job.payment_status === 'AWAITING_PAYMENT' ? 'Awaiting Payment' : job.payment_status}</span>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <span className={getStatusBadgeClass(job.production_queue_status)}>
                       {getStatusIcon(job.production_queue_status)}
-                      {job.production_queue_status}
+                      {{'QUEUED': 'Queued', 'REVIEWING': 'Reviewing', 'ACCEPTED': 'Accepted', 'REJECTED': 'Rejected', 'IN_PREPRESS': 'In Prepress', 'IN_PRODUCTION': 'In Production', 'BINDING': 'Binding & Finishing', 'PALLETIZATION': 'Palletization', 'COMPLETED': 'Completed', 'SHIPPED': 'Shipped'}[job.production_queue_status] || job.production_queue_status}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-xs text-slate-500 dark:text-zinc-400">

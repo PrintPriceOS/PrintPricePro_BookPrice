@@ -1445,15 +1445,62 @@ const App: React.FC = () => {
         currentView={currentView}
         onViewChange={(view) => {
           handleClosePortalRoute();
-          if (ENABLE_PUBLIC_CONSOLE) setCurrentView(view);
+          const role = String(user?.role || '').toUpperCase();
+          const canAccessConsole =
+            ENABLE_PUBLIC_CONSOLE ||
+            role.includes('ADMIN') ||
+            role.includes('PRINT') ||
+            role.includes('PREPRESS') ||
+            role.includes('PRODUCTION') ||
+            role === 'SUPER_ADMIN' ||
+            role === 'PRINTHOUSE_ADMIN' ||
+            role === 'ORG_ADMIN';
+
+          if (view === 'printhouse' && !canAccessConsole && !user) {
+            setAuthModalOpen(true);
+            return;
+          }
+          setCurrentView(view);
         }}
       />
 
       {showMyOrders || portalRoute.isPortalRoute ? (
+        !user ? (
+          <div className="min-h-[70vh] flex items-center justify-center p-6 bg-zinc-950 font-technical">
+            <div className="max-w-md w-full p-8 rounded-2xl bg-zinc-900 border border-zinc-800 text-center space-y-4 shadow-2xl">
+              <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto text-red-500 font-bold text-lg">
+                🔒
+              </div>
+              <h2 className="text-base font-black uppercase tracking-wider text-zinc-100">
+                Authentication Required
+              </h2>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                To view order history and manage editorial assets, please sign in to PrintPrice OS.
+              </p>
+              <div className="pt-2 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAuthModalOpen(true)}
+                  className="w-full py-2.5 rounded-xl bg-[#dc2626] hover:bg-[#b91c1c] text-white text-xs font-black uppercase tracking-wider transition-all"
+                >
+                  Sign In / Log In
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClosePortalRoute}
+                  className="w-full py-2.5 rounded-xl border border-zinc-700 bg-transparent hover:bg-zinc-800 text-zinc-300 text-xs font-bold uppercase transition-all"
+                >
+                  Return to Calculator
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
         <CustomerPortalPage
           userId={user?.user_id}
           userEmail={user?.email}
           userName={user?.name}
+          userRole={user?.role}
           initialTab={portalRoute.tab}
           initialOrderId={portalRoute.trackingOrderId}
           initialAssetIntakeOrderId={portalRoute.assetIntakeOrderId}
@@ -1473,6 +1520,7 @@ const App: React.FC = () => {
             });
           }}
         />
+        )
       ) : (
       <main className="flex-1 w-full mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6 md:py-8 max-w-[1400px] pb-24 lg:pb-12">
         {remediationMatch ? (
@@ -1656,7 +1704,30 @@ const App: React.FC = () => {
           </>
         ) : (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-             {ENABLE_PUBLIC_CONSOLE ? <PrinthouseQueue /> : <div className="p-12 text-center text-corporate-muted uppercase font-technical text-xs tracking-widest">Access Denied</div>}
+             {(ENABLE_PUBLIC_CONSOLE || (user && ['ADMIN', 'SUPER_ADMIN', 'PRINTHOUSE_ADMIN', 'PRINT_HOUSE', 'PRODUCTION_MANAGER', 'ORG_ADMIN'].some(r => String(user.role || '').toUpperCase().includes(r)))) ? (
+               <PrinthouseQueue />
+             ) : (
+               <div className="min-h-[50vh] flex flex-col items-center justify-center p-8 bg-zinc-950 rounded-2xl border border-zinc-800 text-center space-y-4 font-technical">
+                 <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500 font-bold text-lg">
+                   🔒
+                 </div>
+                 <h3 className="text-sm font-black uppercase tracking-wider text-zinc-100">
+                   Printhouse Production Console Restricted
+                 </h3>
+                 <p className="text-xs text-zinc-400 max-w-md leading-relaxed">
+                   {user ? 'Your authenticated role does not have Printhouse or Production dispatch clearance.' : 'Please sign in with a Printhouse or Administrator account to access the shopfloor queue.'}
+                 </p>
+                 {!user && (
+                   <button
+                     type="button"
+                     onClick={() => setAuthModalOpen(true)}
+                     className="px-5 py-2.5 rounded-xl bg-[#dc2626] hover:bg-[#b91c1c] text-white text-xs font-black uppercase tracking-wider transition-all"
+                   >
+                     Sign In as Printhouse / Admin
+                   </button>
+                 )}
+               </div>
+             )}
           </div>
         )}
       </main>

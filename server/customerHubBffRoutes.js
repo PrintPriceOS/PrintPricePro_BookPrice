@@ -27,11 +27,11 @@ const localHubFallbackOrders = new Map();
 let localHubProfileFallback = null;
 
 function shouldSeedDemoOrders(email) {
-    if (process.env.PPOS_SEED_DEMO_ORDERS === 'false' || process.env.PPOS_SEED_DEMO_ORDERS === '0') return false;
-    if (process.env.PPOS_SEED_DEMO_ORDERS === 'true' || process.env.PPOS_SEED_DEMO_ORDERS === '1') return true;
-    const clean = String(email || '').toLowerCase().trim();
-    const demoEmails = new Set(['publisher@printprice.pro', 'admin@printprice.pro', 'demo@printprice.pro', 'editorial@printprice.pro']);
-    return !clean || demoEmails.has(clean) || process.env.NODE_ENV === 'test';
+    if (process.env.PPOS_SEED_DEMO_ORDERS === 'true' || process.env.PPOS_SEED_DEMO_ORDERS === '1') {
+        const clean = String(email || '').toLowerCase().trim();
+        return clean.startsWith('demo') || clean.includes('demo');
+    }
+    return false;
 }
 
 function ensureLocalHubSeed(email = 'publisher@printprice.pro') {
@@ -96,7 +96,7 @@ function ensureLocalHubSeed(email = 'publisher@printprice.pro') {
             },
             preflight: {
                 status: 'PASSED',
-                approvedForPress: true,
+                approvedForPress: !hasZeroByteFiles,
                 inspectionId: 'PF-2026-082',
                 files: [
                     {
@@ -293,12 +293,31 @@ function registerCustomerHubBffRoutes(app, deps) {
         upload
     } = deps;
 
+    function requireCustomerAuth(req, res, next) {
+        const identity = resolveRequestIdentity ? resolveRequestIdentity(req) : null;
+        if (!identity || !identity.user) {
+            return res.status(401).json({
+                ok: false,
+                error: {
+                    code: 'AUTHENTICATION_REQUIRED',
+                    message: 'Valid session or bearer token required.'
+                }
+            });
+        }
+        req.authenticatedCustomer = identity.user;
+        next();
+    }
+
+    // Protect all /api/customer/* and /api/admin/* endpoints
+    app.use('/api/customer', requireCustomerAuth);
+    app.use('/api/admin', requireCustomerAuth);
+
     function buildCustomerHubHeaders(req) {
         const identity = resolveRequestIdentity ? resolveRequestIdentity(req) : {};
-        const email = req.query?.email || req.body?.email || identity.user?.email || 'publisher@printprice.pro';
-        const customerId = req.query?.customerId || req.body?.customerId || identity.user?.id || null;
+        const email = identity.user?.email || null;
+        const customerId = identity.user?.id || null;
         const sessionId = identity.sessionId || null;
-        const tenantId = identity.user?.tenant_id || 'tenant-default';
+        const tenantId = identity.user?.tenantId || identity.user?.tenant_id || (identity.user ? `tenant-${identity.user.id}` : null);
 
         let authHeaders = {};
         try {
@@ -337,11 +356,14 @@ function registerCustomerHubBffRoutes(app, deps) {
         if (b2bEmail) authHeaders['x-b2b-email'] = String(b2bEmail).trim();
         if (b2bOrgId) authHeaders['x-b2b-org-id'] = String(b2bOrgId).trim();
 
-        return { authHeaders, identity, email, customerId, sessionId, tenantId, b2bRole: authHeaders['x-b2b-role'] || 'ORG_ADMIN' };
+        return { authHeaders, identity, email, customerId, sessionId, tenantId, b2bRole: authHeaders['x-b2b-role'] || (identity.user?.role === 'ADMIN' ? 'ORG_ADMIN' : (identity.user ? 'PREPRESS_DESIGNER' : null)) };
     }
 
     function checkLocalBffRbac(req, allowedRoles, errorCode, message) {
-        const rawRole = String(req.headers['x-b2b-role'] || req.query?.b2bRole || req.body?.b2bRole || 'ORG_ADMIN').trim().toUpperCase();
+        const identity = resolveRequestIdentity ? resolveRequestIdentity(req) : null;
+        if (!identity?.user) return { allowed: false, status: 401, payload: { ok: false, error: 'AUTHENTICATION_REQUIRED', message: 'Authentication required.' } };
+        const userRole = identity.user.role === 'ADMIN' ? 'ORG_ADMIN' : 'PREPRESS_DESIGNER';
+        const rawRole = String(req.headers['x-b2b-role'] || req.query?.b2bRole || req.body?.b2bRole || userRole).trim().toUpperCase();
         const validRoles = ['ORG_ADMIN', 'PRODUCTION_MANAGER', 'FINANCE_APPROVER', 'PREPRESS_DESIGNER'];
         const role = validRoles.includes(rawRole) ? rawRole : 'ORG_ADMIN';
         if (!allowedRoles.includes(role)) {
@@ -365,13 +387,16 @@ function registerCustomerHubBffRoutes(app, deps) {
         const copies = Number(specs.copies || 1000);
         const total = Number(ord.totals?.total ?? ord.totalPriceEur ?? ord.offer_price ?? 0);
         const unit = Number(ord.totals?.unitPrice ?? ord.unitPriceEur ?? (copies > 0 ? (total / copies).toFixed(2) : 0));
-        const approvedFiles = (ord.preflight?.files || ord.approvedFiles || []).map(f => ({
+        const rawFiles = ord.preflight?.files || ord.approvedFiles || [];
+        const hasZeroByteFiles = rawFiles.some(f => (Number(f.sizeBytes ?? f.size ?? 0) === 0) || (!f.checksumSha256 && !f.sha256));
+        const approvedFiles = rawFiles.map(f => ({
             kind: f.role || f.kind || 'INTERIOR_PDF',
             role: f.role || f.kind || 'INTERIOR_PDF',
             fileId: f.fileId,
             filename: f.filename,
             sha256: f.checksumSha256 || f.sha256 || '',
-            status: f.status || 'PASSED',
+            sizeBytes: Number(f.sizeBytes ?? f.size ?? 0),
+            status: (Number(f.sizeBytes ?? f.size ?? 0) === 0 || !(f.checksumSha256 || f.sha256)) ? 'REQUIRED' : (f.status || 'PASSED'),
             preflightJobId: f.preflightJobId || null,
             preflightReport: f.preflightReport || null
         }));
@@ -391,7 +416,7 @@ function registerCustomerHubBffRoutes(app, deps) {
         const calcSpineMm = Number(specs.calculatedSpineMm || ((pages / 2) * (gsm / 1000) * 1.3 + 0.6).toFixed(2));
         const preflightReport = ord.preflightReport || ord.preflight?.report || {
             inspectionId: ord.preflight?.inspectionId || `PF-${String(ord.orderId).slice(-6).toUpperCase()}`,
-            status: ord.preflight?.status || 'PASSED',
+            status: hasZeroByteFiles ? 'ASSETS_PENDING_UPLOAD' : (ord.preflight?.status || 'PASSED'),
             colorSpaces: ['CMYK'],
             iccProfile: isCoated ? 'ISO Coated v2 300% (FOGRA39)' : 'PSO Uncoated ISO12647 (FOGRA47)',
             resolutionDpi: { minDpi: 300, effectiveDpi: 320, requiredMinDpi: 300, status: 'PASS' },
@@ -419,7 +444,7 @@ function registerCustomerHubBffRoutes(app, deps) {
             title: ord.title || ord.bookTitle || specs.title || `Editorial Edition ${ord.orderId}`,
             specsSummary: ord.specsSummary || `${specs.book_size || 'A5'}, ${specs.interior_pages || 192} pp, ${String(specs.paper_type_interior || 'Offset').toUpperCase()} ${specs.paper_weight_interior || 90}g, ${specs.binding_method || 'PUR Paperback'}`,
             approvedFiles: isFilesRequired && approvedFiles.length === 0 ? [] : approvedFiles,
-            preflightBypassEligible: !isFilesRequired && approvedFiles.length >= 2,
+            preflightBypassEligible: !isFilesRequired && approvedFiles.length >= 2 && !hasZeroByteFiles && approvedFiles.every(f => f.sizeBytes > 0 && f.sha256),
             offer_print_house: ord.printhouseName || ord.offer_print_house || 'EuroGraf Industrial Press B1',
             offer_price: total,
             totalPriceEur: total,
@@ -449,9 +474,11 @@ function registerCustomerHubBffRoutes(app, deps) {
             }
         } catch (_) {}
 
-        const orders = Array.from(localHubFallbackOrders.values())
-            .map(normalizeBffOrder)
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        const orders = shouldSeedDemoOrders(email)
+            ? Array.from(localHubFallbackOrders.values())
+                .map(normalizeBffOrder)
+                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            : [];
         return res.status(200).json({ ok: true, count: orders.length, orders });
     });
 
@@ -479,7 +506,7 @@ function registerCustomerHubBffRoutes(app, deps) {
             }
         }
 
-        const sourceOrder = localHubFallbackOrders.get(orderId) || Array.from(localHubFallbackOrders.values())[0];
+        const sourceOrder = localHubFallbackOrders.get(orderId);
         if (!sourceOrder) {
             return res.status(404).json({ ok: false, error: 'SOURCE_ORDER_NOT_FOUND' });
         }
@@ -587,8 +614,13 @@ function registerCustomerHubBffRoutes(app, deps) {
             }
         } catch (_) {}
 
-        const order = localHubFallbackOrders.get(orderId) || Array.from(localHubFallbackOrders.values())[0];
-        const statusUpper = String(order?.status || 'IN_PRODUCTION').toUpperCase();
+        const order = localHubFallbackOrders.get(orderId);
+        if (!order) {
+            return res.status(404).json({ ok: false, error: 'ORDER_NOT_FOUND', message: `Order '${orderId}' not found.` });
+        }
+        const rawStatus = String(order?.status || 'AWAITING_PAYMENT').toUpperCase();
+        const hasPassedPreflight = Boolean(order?.preflight?.status === 'PASSED' && order?.preflight?.approvedForPress);
+        const statusUpper = rawStatus;
         const prodStage = String(order?.productionStage || '').toUpperCase();
         const isDelivered = statusUpper === 'DELIVERED' || prodStage === 'DELIVERED';
         const isShipped = isDelivered || ['SHIPPED', 'IN_TRANSIT'].includes(statusUpper) || prodStage.includes('TRANSIT') || prodStage.includes('STAGE_05');
@@ -596,7 +628,13 @@ function registerCustomerHubBffRoutes(app, deps) {
         const shipmentId = order?.shipment?.shipmentId || `SHP-2026-${String(orderId).replace(/[^0-9]/g, '').slice(-4) || '9901'}`;
         const trackingNumber = order?.shipment?.tracking_number || order?.shipment?.trackingNumber || `DACHSER-EU-${String(orderId).replace(/[^A-Za-z0-9]/g, '').slice(-6).toUpperCase()}88`;
         const carrierName = order?.shipment?.carrier || order?.shipment?.carrierName || 'Dachser European Logistics B2B';
-        const stageStatus = (step) => isDelivered ? 'COMPLETED' : activeStageIndex > step ? 'COMPLETED' : activeStageIndex === step ? 'IN_PROGRESS' : 'PENDING';
+        const isPaidOrConfirmed = order?.paymentStatus === 'PAID' || order?.paymentStatus === 'CONFIRMED';
+        const stageStatus = (step) => {
+            if (step === 1) return hasPassedPreflight ? 'COMPLETED' : 'PENDING';
+            if (!isPaidOrConfirmed) return 'PENDING';
+            if (isDelivered) return 'COMPLETED';
+            return activeStageIndex > step ? 'COMPLETED' : activeStageIndex === step ? 'IN_PROGRESS' : 'PENDING';
+        };
         const stages = [
             { step: 1, stepNumber: 1, key: 'PREFLIGHT_APPROVED', stageKey: 'PREFLIGHT_APPROVED', label: 'Stage 01: Preflight Approved', subtitle: 'PDF/X-4 · 3.0mm Bleed · Validated Spine', status: 'COMPLETED', timestamp: order.createdAt, description: 'Master PDF files validated with zero geometric blocks.' },
             { step: 2, stepNumber: 2, key: 'ON_PRESS_PRINTING', stageKey: 'ON_PRESS_PRINTING', label: 'Stage 02: On Press (Plates & Print Run)', subtitle: order.printhouseName, status: stageStatus(2), timestamp: activeStageIndex >= 2 ? order.updatedAt : null, description: 'Signature imposition with creep compensation and industrial press run.' },
@@ -612,8 +650,8 @@ function registerCustomerHubBffRoutes(app, deps) {
             title: order.title,
             bookTitle: order.title || order.bookTitle,
             isbn: order.isbn,
-            customerStatus: isDelivered ? 'DELIVERED' : isShipped ? 'IN_TRANSIT' : 'IN_PRODUCTION',
-            overallStatus: isDelivered ? 'DELIVERED' : isShipped ? 'IN_TRANSIT' : 'IN_PRODUCTION',
+            customerStatus: isDelivered ? 'DELIVERED' : isShipped ? 'IN_TRANSIT' : (!isPaidOrConfirmed ? 'AWAITING_PAYMENT' : 'IN_PRODUCTION'),
+            overallStatus: isDelivered ? 'DELIVERED' : isShipped ? 'IN_TRANSIT' : (!isPaidOrConfirmed ? 'AWAITING_PAYMENT' : 'IN_PRODUCTION'),
             activeStageIndex,
             currentStageIndex: activeStageIndex,
             stages,
@@ -680,17 +718,17 @@ function registerCustomerHubBffRoutes(app, deps) {
         if (!localHubProfileFallback) {
             localHubProfileFallback = {
                 fiscal: {
-                    legalEntityName: 'Penguin Random House Publishing Group S.A.U.',
-                    taxIdVat: 'ESB08214819',
-                    viesValidated: true,
-                    country: 'ES',
-                    fiscalAddress: '47-49 Travessera de Gracia Ave',
-                    postalCode: '08021',
-                    city: 'Barcelona',
-                    billingEmail: email || 'billing@penguinrandomhouse.eu',
-                    dir3Code: 'EA0038591',
-                    leitwegId: '04011000-1234512345-06',
-                    peppolEndpoint: '0088:8412345000018',
+                    legalEntityName: '',
+                    taxIdVat: '',
+                    viesValidated: false,
+                    country: '',
+                    fiscalAddress: '',
+                    postalCode: '',
+                    city: '',
+                    billingEmail: email || '',
+                    dir3Code: null,
+                    leitwegId: null,
+                    peppolEndpoint: null,
                     preferredEInvoiceFormat: 'FACTURAE_3_2_2'
                 },
                 addresses: [
@@ -798,13 +836,16 @@ function registerCustomerHubBffRoutes(app, deps) {
             req,
             ['ORG_ADMIN', 'FINANCE_APPROVER'],
             'FORBIDDEN_RBAC_FINANCE_RIGHTS_REQUIRED',
-            'Gestión reservada a departamento financiero. Se requiere rol FINANCE_APPROVER u ORG_ADMIN.'
+            'Action restricted to Finance department. Requires FINANCE_APPROVER or ORG_ADMIN role.'
         );
         if (!rbacCheck.allowed) {
             return res.status(403).json(rbacCheck.payload);
         }
 
-        const order = localHubFallbackOrders.get(orderId) || Array.from(localHubFallbackOrders.values())[0];
+        const order = localHubFallbackOrders.get(orderId);
+        if (!order) {
+            return res.status(404).json({ ok: false, error: 'ORDER_NOT_FOUND', message: `Order '${orderId}' not found.` });
+        }
         const paymentMethod = req.body?.paymentMethod || 'BANK_TRANSFER_B2B';
         const settlementModality = req.body?.settlementModality || order?.settlementModality || 'MODALITY_A_ESCROW_MOR';
         const totalAmountEur = Number(order?.totals?.total || 3078.40);
@@ -920,7 +961,7 @@ function registerCustomerHubBffRoutes(app, deps) {
             req,
             ['ORG_ADMIN', 'FINANCE_APPROVER'],
             'FORBIDDEN_RBAC_FINANCE_RIGHTS_REQUIRED',
-            'Gestión reservada a departamento financiero. Se requiere rol FINANCE_APPROVER u ORG_ADMIN.'
+            'Action restricted to Finance department. Requires FINANCE_APPROVER or ORG_ADMIN role.'
         );
         if (!rbacCheck.allowed) {
             return res.status(403).json(rbacCheck.payload);
@@ -975,7 +1016,10 @@ function registerCustomerHubBffRoutes(app, deps) {
             }
         } catch (_) {}
 
-        const order = localHubFallbackOrders.get(orderId) || Array.from(localHubFallbackOrders.values())[0];
+        const order = localHubFallbackOrders.get(orderId);
+        if (!order) {
+            return res.status(404).json({ ok: false, error: 'ORDER_NOT_FOUND', message: `Order '${orderId}' not found.` });
+        }
         const invNum = order?.invoice?.invoiceNumber || `INV-2026-${String(orderId).slice(-4)}`;
         const subtotal = Number(order?.totals?.subtotal || 3120);
         const packaging = Number(order?.totals?.packaging || 95);
@@ -1129,7 +1173,7 @@ startxref
             req,
             ['ORG_ADMIN', 'PRODUCTION_MANAGER', 'PREPRESS_DESIGNER'],
             'FORBIDDEN_RBAC_ASSET_UPLOAD_RIGHTS_REQUIRED',
-            'La ingesta de activos PDF/X-4 requiere rol PREPRESS_DESIGNER, PRODUCTION_MANAGER u ORG_ADMIN.'
+            'PDF/X-4 production asset intake requires PREPRESS_DESIGNER, PRODUCTION_MANAGER or ORG_ADMIN role.'
         );
         if (!rbacCheck.allowed) {
             return res.status(403).json(rbacCheck.payload);
@@ -1272,7 +1316,7 @@ startxref
             req,
             ['ORG_ADMIN', 'PRODUCTION_MANAGER', 'PREPRESS_DESIGNER'],
             'FORBIDDEN_RBAC_ASSET_UPLOAD_RIGHTS_REQUIRED',
-            'La ingesta de activos PDF/X-4 requiere rol PREPRESS_DESIGNER, PRODUCTION_MANAGER u ORG_ADMIN.'
+            'PDF/X-4 production asset intake requires PREPRESS_DESIGNER, PRODUCTION_MANAGER or ORG_ADMIN role.'
         );
         if (!rbacCheck.allowed) {
             return res.status(403).json(rbacCheck.payload);
@@ -1350,7 +1394,10 @@ startxref
             }
         } catch (_) {}
 
-        const order = localHubFallbackOrders.get(orderId) || Array.from(localHubFallbackOrders.values())[0];
+        const order = localHubFallbackOrders.get(orderId);
+        if (!order) {
+            return res.status(404).json({ ok: false, error: 'ORDER_NOT_FOUND', message: `Order '${orderId}' not found.` });
+        }
         const rawStage = String(req.body?.stage || req.body?.status || '').toUpperCase();
         let nextStep = Number(req.body?.step || req.body?.activeStageIndex || order?.activeStageIndex || 2);
         let nextStageKey = order?.productionStage || 'ON_PRESS_PRINTING';
@@ -1578,6 +1625,63 @@ startxref
         }
     });
 
+    // ---- 11e. GET /api/customer/orders/:orderId/proforma.pdf (DIN A4 Vector Proforma Invoice PDF) ----
+    app.get('/api/customer/orders/:orderId/proforma.pdf', async (req, res) => {
+        const { orderId } = req.params;
+        const { authHeaders, email } = buildCustomerHubHeaders(req);
+        ensureLocalHubSeed(email);
+
+        try {
+            const cpRes = await axios.get(
+                `${CONTROL_PLANE_BASE_URL}/api/customer/orders/${encodeURIComponent(orderId)}/proforma.pdf`,
+                {
+                    headers: authHeaders,
+                    responseType: 'arraybuffer',
+                    timeout: 12000
+                }
+            );
+            if (cpRes.status === 200 && cpRes.data) {
+                const pdfBuf = Buffer.from(cpRes.data);
+                res.setHeader('Content-Type', 'application/pdf');
+                res.setHeader(
+                    'Content-Disposition',
+                    `inline; filename="Proforma_${encodeURIComponent(orderId)}.pdf"`
+                );
+                res.setHeader('Content-Length', String(pdfBuf.length));
+                return res.status(200).send(pdfBuf);
+            }
+        } catch (err) {
+            // Local fallback generation if CP unreachable or in standalone mode
+            try {
+                const localOrder = localHubFallbackOrders.get(orderId) || {
+                    orderId,
+                    bookTitle: 'Editorial Book Production',
+                    totalPriceEur: 3200,
+                    created_at: new Date().toISOString()
+                };
+                const { generateProformaInvoicePdf } = require('./src/api/services/publisher/proformaInvoicePdfService');
+                const result = generateProformaInvoicePdf(localOrder, {
+                    orderId,
+                    fiscalProfile: localHubProfileFallback?.fiscal || {},
+                    customerEmail: email
+                });
+                res.setHeader('Content-Type', 'application/pdf');
+                res.setHeader(
+                    'Content-Disposition',
+                    `inline; filename="Proforma_${encodeURIComponent(orderId)}.pdf"`
+                );
+                res.setHeader('Content-Length', String(result.buffer.length));
+                return res.status(200).send(result.buffer);
+            } catch (fallbackErr) {
+                return res.status(err.response?.status || 502).json({
+                    ok: false,
+                    error: 'PROFORMA_PDF_PROXY_FAILED',
+                    message: err.message || fallbackErr.message
+                });
+            }
+        }
+    });
+
     // ---- 11d. GET & POST /api/customer/orders/:orderId/notifications (Transactional SMTP Outbox & Resend) ----
     app.get('/api/customer/orders/:orderId/notifications', async (req, res) => {
         const { orderId } = req.params;
@@ -1626,6 +1730,16 @@ startxref
         ensureLocalHubSeed(email);
 
         try {
+            const cpCustRes = await axios.get(
+                `${CONTROL_PLANE_BASE_URL}/api/customer/operations/summary`,
+                { headers: authHeaders, timeout: 8000 }
+            );
+            if (cpCustRes.status === 200 && cpCustRes.data?.ok) {
+                return res.status(200).json(cpCustRes.data);
+            }
+        } catch (_) {}
+
+        try {
             const cpRes = await axios.get(
                 `${CONTROL_PLANE_BASE_URL}/api/admin/operations/telemetry-summary`,
                 { headers: authHeaders, timeout: 8000 }
@@ -1633,47 +1747,38 @@ startxref
             if (cpRes.status === 200 && cpRes.data?.ok) {
                 return res.status(200).json(cpRes.data);
             }
-        } catch (_) {
-            try {
-                const cpCustRes = await axios.get(
-                    `${CONTROL_PLANE_BASE_URL}/api/customer/operations/summary`,
-                    { headers: authHeaders, timeout: 8000 }
-                );
-                if (cpCustRes.status === 200 && cpCustRes.data?.ok) {
-                    return res.status(200).json(cpCustRes.data);
-                }
-            } catch (_err2) {}
-        }
+        } catch (_err2) {}
 
-        // Deterministic local fallback if Control Plane is offline
+        const isDemo = shouldSeedDemoOrders(email);
+        // Clean-slate deterministic local fallback if Control Plane is offline
         return res.status(200).json({
             ok: true,
             source: 'BFF_LOCAL_FALLBACK',
             generatedAt: new Date().toISOString(),
             tenantId: 'tenant-default',
             kpis: {
-                custodiedEscrowEur: 41050.0,
-                releasedEscrowEur: 4900.0,
-                platformFeeMorEur: 2297.5,
-                activePlantOrdersCount: 4,
-                totalOrdersCount: 5,
-                preflightSuccessRatePct: 83.33,
-                diskUsageBytes: 184549376,
-                diskUsageMb: 176.0,
-                diskUsageGb: 0.17,
-                totalBinaryAssetsCount: 12
+                custodiedEscrowEur: isDemo ? 41050.0 : 0.0,
+                releasedEscrowEur: isDemo ? 4900.0 : 0.0,
+                platformFeeMorEur: isDemo ? 2297.5 : 0.0,
+                activePlantOrdersCount: isDemo ? 4 : 0,
+                totalOrdersCount: isDemo ? 5 : 0,
+                preflightSuccessRatePct: 100.0,
+                diskUsageBytes: 0,
+                diskUsageMb: 0.0,
+                diskUsageGb: 0.0,
+                totalBinaryAssetsCount: 0
             },
             funnel: {
-                totalOrders: 5,
-                activeInPlant: 4,
-                completedDelivered: 1,
+                totalOrders: isDemo ? 5 : 0,
+                activeInPlant: isDemo ? 4 : 0,
+                completedDelivered: isDemo ? 1 : 0,
                 stages: [
                     {
                         stageCode: 'STAGE_01_PREFLIGHT',
                         stageNumber: 1,
                         shortLabel: 'Stage 01: Preflight',
                         label: 'Stage 01: Preflight & 3D Imprimatur',
-                        description: 'Ingesta PDF/X-4, validación de lomo/sangrado y firma criptográfica SHA-256.',
+                        description: 'PDF/X-4 asset intake, bleed/spine verification, and SHA-256 cryptographic sign-off.',
                         count: 1,
                         percentage: 20,
                         copiesTotal: 1200,
@@ -1684,7 +1789,7 @@ startxref
                         stageNumber: 2,
                         shortLabel: 'Stage 02: On Press',
                         label: 'Stage 02: CTP & Offset/Digital Press',
-                        description: 'Filmación de planchas CTP, imposición de pliegos y tirada en máquina con control ΔE.',
+                        description: 'CTP plate imaging, signature imposition, and press run with automated ΔE colorimetry.',
                         count: 1,
                         percentage: 20,
                         copiesTotal: 1500,
@@ -1694,8 +1799,8 @@ startxref
                         stageCode: 'STAGE_03_BINDING',
                         stageNumber: 3,
                         shortLabel: 'Stage 03: Binding',
-                        label: 'Stage 03: Plegado & Encuadernación PUR/Cartoné',
-                        description: 'Alzado de signaturas, fresado PUR o cosido hilo, colocación de tapas y guillotinado trilateral.',
+                        label: 'Stage 03: Folding & Binding (PUR / Hardcover)',
+                        description: 'Signature gathering, PUR milling or section sewing, case-in / casing-in, and 3-knife trimming.',
                         count: 1,
                         percentage: 20,
                         copiesTotal: 1000,
@@ -1705,8 +1810,8 @@ startxref
                         stageCode: 'STAGE_04_PALLETIZATION',
                         stageNumber: 4,
                         shortLabel: 'Stage 04: Palletization',
-                        label: 'Stage 04: Encajado FEFCO & Paletizado EPAL',
-                        description: 'Retractilado, encajado FEFCO 0201, paletizado europeo EPAL y etiquetado GS1-128 (SSCC-18).',
+                        label: 'Stage 04: FEFCO Packaging & EPAL Palletization',
+                        description: 'Shrink wrapping, FEFCO 0201 boxing, EPAL Euro-pallet stacking, and GS1-128 (SSCC-18) labeling.',
                         count: 1,
                         percentage: 20,
                         copiesTotal: 2000,
@@ -1716,8 +1821,8 @@ startxref
                         stageCode: 'STAGE_05_DELIVERED_POD',
                         stageNumber: 5,
                         shortLabel: 'Stage 05: Delivered & POD',
-                        label: 'Stage 05: Expedición & POD Firmado',
-                        description: 'Tránsito logístico B2B, descarga en muelle editorial, firma de albarán CMR/POD y liberación Escrow.',
+                        label: 'Stage 05: Dispatch & Signed POD',
+                        description: 'B2B freight transit, publisher dock unloading, signed CMR/POD capture, and Escrow release.',
                         count: 1,
                         percentage: 20,
                         copiesTotal: 800,
@@ -1745,11 +1850,11 @@ startxref
                 failedCount: 1,
                 firstPassSuccessRatioPct: 83.33,
                 incidentMatrix: [
-                    { code: 'BLEED_DEFICIT', label: 'Sangrado Perimetral Insuficiente (< 3.0 mm)', standardRef: 'ISO 12647-2 / Mirror Bleed', severity: 'WARNING', count: 2, autoFixable: true },
-                    { code: 'TAC_EXCEEDED', label: 'Cobertura Total de Tinta Excedida (TAC > 300%)', standardRef: 'FOGRA39 / ISO Coated v2', severity: 'WARNING', count: 2, autoFixable: true },
-                    { code: 'SPINE_MISMATCH', label: 'Desviación Geométrica de Lomo (|Δ| > 1.0 mm)', standardRef: 'PHASE-11A Parametric Spine', severity: 'CRITICAL', count: 1, autoFixable: true },
-                    { code: 'LOW_DPI', label: 'Resolución de Imagen Continua Baja (< 300 DPI)', standardRef: 'PDF/X-4 Effective DPI', severity: 'WARNING', count: 1, autoFixable: false },
-                    { code: 'UNEMBEDDED_FONTS', label: 'Tipografías sin Incrustar en Diccionario PDF', standardRef: 'ISO 15930-7 (PDF/X-4)', severity: 'CRITICAL', count: 0, autoFixable: false }
+                    { code: 'BLEED_DEFICIT', label: 'Insufficient Perimeter Bleed (< 3.0 mm)', standardRef: 'ISO 12647-2 / Mirror Bleed', severity: 'WARNING', count: 2, autoFixable: true },
+                    { code: 'TAC_EXCEEDED', label: 'Total Area Coverage Exceeded (TAC > 300%)', standardRef: 'FOGRA39 / ISO Coated v2', severity: 'WARNING', count: 2, autoFixable: true },
+                    { code: 'SPINE_MISMATCH', label: 'Spine Geometry Discrepancy (|Δ| > 1.0 mm)', standardRef: 'PHASE-11A Parametric Spine', severity: 'CRITICAL', count: 1, autoFixable: true },
+                    { code: 'LOW_DPI', label: 'Low Raster Image Resolution (< 300 DPI)', standardRef: 'PDF/X-4 Effective DPI', severity: 'WARNING', count: 1, autoFixable: false },
+                    { code: 'UNEMBEDDED_FONTS', label: 'Unembedded Fonts in PDF Dictionary', standardRef: 'ISO 15930-7 (PDF/X-4)', severity: 'CRITICAL', count: 0, autoFixable: false }
                 ]
             },
             storageIo: {
@@ -1888,51 +1993,10 @@ startxref
     app.post('/api/customer/storage/backup/run', handleStorageBackupRunBff);
 
     // ---- 11g. B2B Multi-User Organization & Editorial RBAC Matrix BFF Proxies (Phase 16 - Option 3) ----
-    let localB2bMembersFallback = [
-        {
-            memberId: 'MEM_2026_0001',
-            organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
-            email: 'publisher@printprice.pro',
-            fullName: 'Carlos Mendoza (Director Editorial & Org Admin)',
-            role: 'ORG_ADMIN',
-            status: 'ACTIVE',
-            createdAt: '2026-01-10T09:00:00.000Z',
-            updatedAt: '2026-11-01T08:00:00.000Z'
-        },
-        {
-            memberId: 'MEM_2026_0002',
-            organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
-            email: 'production@printprice.pro',
-            fullName: 'Elena Vargas (Jefa de Producción Editorial)',
-            role: 'PRODUCTION_MANAGER',
-            status: 'ACTIVE',
-            createdAt: '2026-01-12T10:30:00.000Z',
-            updatedAt: '2026-11-01T08:00:00.000Z'
-        },
-        {
-            memberId: 'MEM_2026_0003',
-            organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
-            email: 'finance@printprice.pro',
-            fullName: 'Marcos Alarcón (Controller Financiero & Escrow)',
-            role: 'FINANCE_APPROVER',
-            status: 'ACTIVE',
-            createdAt: '2026-01-15T11:15:00.000Z',
-            updatedAt: '2026-11-01T08:00:00.000Z'
-        },
-        {
-            memberId: 'MEM_2026_0004',
-            organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
-            email: 'prepress@printprice.pro',
-            fullName: 'Lucía Serrano (Maquetación & Arte Final PDF/X-4)',
-            role: 'PREPRESS_DESIGNER',
-            status: 'ACTIVE',
-            createdAt: '2026-01-20T14:00:00.000Z',
-            updatedAt: '2026-11-01T08:00:00.000Z'
-        }
-    ];
+    let localB2bMembersFallback = [];
 
     app.get('/api/customer/organization/members', async (req, res) => {
-        const { authHeaders, b2bRole } = buildCustomerHubHeaders(req);
+        const { authHeaders, b2bRole, email } = buildCustomerHubHeaders(req);
         try {
             const cpRes = await axios.get(
                 `${CONTROL_PLANE_BASE_URL}/api/customer/organization/members`,
@@ -1947,7 +2011,16 @@ startxref
             }
         }
 
-        const activeMember = localB2bMembersFallback.find((m) => m.role === b2bRole) || localB2bMembersFallback[0];
+        const includeSuspended = req.query?.includeSuspended === 'true';
+        const visibleMembers = includeSuspended
+            ? localB2bMembersFallback
+            : localB2bMembersFallback.filter((m) => m.status === 'ACTIVE' || m.status === 'INVITED');
+        const activeMember = visibleMembers.find((m) => m.role === b2bRole) || {
+            memberId: 'MEM_ACTIVE_SESSION',
+            email: email || 'publisher@printprice.pro',
+            fullName: 'Primary Account Holder',
+            role: b2bRole
+        };
         return res.status(200).json({
             ok: true,
             organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
@@ -1957,8 +2030,8 @@ startxref
                 fullName: activeMember.fullName,
                 role: b2bRole
             },
-            count: localB2bMembersFallback.length,
-            members: localB2bMembersFallback
+            count: visibleMembers.length,
+            members: visibleMembers
         });
     });
 
@@ -2099,13 +2172,22 @@ startxref
     });
 
     // ---- 12. SPA Route Fallback for Dedicated B2B Portal Views (/portal/* and /order/:orderId/files) ----
-    app.get(['/portal', '/portal/*', '/order/:orderId/files'], (req, res, next) => {
+    const handlePortalSpa = (req, res, next) => {
+        const identity = resolveRequestIdentity ? resolveRequestIdentity(req) : null;
+        if (!identity || !identity.user) {
+            const returnUrl = encodeURIComponent(req.originalUrl || '/portal/orders');
+            return res.redirect(302, `/?auth=login&returnUrl=${returnUrl}`);
+        }
         const distIndex = path.join(__dirname, '..', 'dist', 'index.html');
         if (fs.existsSync(distIndex)) {
             return res.sendFile(distIndex);
         }
         return next();
-    });
+    };
+
+    app.get('/portal', handlePortalSpa);
+    app.get(/^\/portal(\/.*)?$/, handlePortalSpa);
+    app.get('/order/:orderId/files', handlePortalSpa);
 }
 
 module.exports = {

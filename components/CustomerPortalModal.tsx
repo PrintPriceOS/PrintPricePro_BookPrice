@@ -276,6 +276,8 @@ export interface CustomerPortalModalProps {
   userEmail?: string;
   userName?: string;
   userRole?: string | null;
+  organizationName?: string;
+  company?: string;
   initialTab?: PortalTabId;
   initialOrderId?: string | null;
   initialAssetIntakeOrderId?: string | null;
@@ -608,6 +610,8 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
   userEmail,
   userName,
   userRole = null,
+  organizationName,
+  company,
   initialTab = 'ORDERS_REPRINTS',
   initialOrderId = null,
   initialAssetIntakeOrderId = null,
@@ -700,6 +704,13 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
     activeB2bRole === 'PREPRESS_DESIGNER';
   const canManageOrgMembers = activeB2bRole === 'ORG_ADMIN';
 
+  const orgDisplayName =
+    organizationName ||
+    company ||
+    customerProfile?.billing_legal_name ||
+    fiscalProfile.legalEntityName ||
+    'B2B Publishing Entity';
+
   const buildB2bRbacHeaders = useCallback(
     (extraHeaders?: Record<string, string>): Record<string, string> => {
       const headers: Record<string, string> = { ...(extraHeaders || {}) };
@@ -712,6 +723,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
 
   // Shipping & Fiscal Profile State
   const [shippingAddresses, setShippingAddresses] = useState<ShippingAddressItem[]>([]);
+  const [customerProfile, setCustomerProfile] = useState<Record<string, any> | null>(null);
   const [fiscalProfile, setFiscalProfile] = useState<FiscalProfileData>({
     legalEntityName: '',
     taxIdVat: '',
@@ -859,11 +871,16 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
       if (profileRes.ok) {
         const profData = await profileRes.json();
         if (profData.profile) {
+          setCustomerProfile(profData.profile);
           if (Array.isArray(profData.profile.shippingAddresses)) {
             setShippingAddresses(profData.profile.shippingAddresses);
+          } else if (Array.isArray(profData.profile.addresses)) {
+            setShippingAddresses(profData.profile.addresses);
           }
           if (profData.profile.fiscalProfile) {
             setFiscalProfile((prev) => ({ ...prev, ...profData.profile.fiscalProfile }));
+          } else if (profData.profile.fiscal) {
+            setFiscalProfile((prev) => ({ ...prev, ...profData.profile.fiscal }));
           }
         }
       }
@@ -4216,7 +4233,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                   </span>
                 </div>
                 <h3 className="text-base font-black text-zinc-900 dark:text-zinc-100 mt-1">
-                  {fiscalProfile.legalEntityName || 'Penguin Random House Publishing Group S.A.U.'}
+                  {orgDisplayName}
                 </h3>
                 <p className="text-xs font-technical text-zinc-500 dark:text-zinc-400 mt-0.5">
                   Cryptographic duty segregation between Pre-Press (PDF/X-4), Production (3D Imprimatur), Finance (Escrow &amp; EN 16931), and Administration.
@@ -4280,7 +4297,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
                 <input
                   type="text"
-                  placeholder="Full Name (e.g. Sofía Martín)"
+                  placeholder="e.g., Sarah Jenkins"
                   disabled={!canManageOrgMembers || submittingMemberAction}
                   value={newMemberFullName}
                   onChange={(e) => setNewMemberFullName(e.target.value)}
@@ -4289,7 +4306,7 @@ export const CustomerPortalModal: React.FC<CustomerPortalModalProps> = ({
                 <input
                   type="email"
                   required
-                  placeholder="corporativo@editorial.eu"
+                  placeholder="colleague@publishing-group.com"
                   disabled={!canManageOrgMembers || submittingMemberAction}
                   value={newMemberEmail}
                   onChange={(e) => setNewMemberEmail(e.target.value)}

@@ -100,14 +100,22 @@ export function resolveBpePaperTypeFromMaterial(
 }
 
 const CATEGORY_TABS: { key: PaperCategory | 'ALL'; label: string }[] = [
-  { key: 'ALL', label: 'All Catalog' },
-  { key: 'OFFSET', label: 'Offset / Uncoated' },
-  { key: 'COATED', label: 'Coated / Silk-Gloss' },
-  { key: 'CARTON', label: 'Carton / Board' },
-  { key: 'DESIGN', label: 'Design / Munken' },
-  { key: 'DIGITAL', label: 'Digital Press' },
-  { key: 'OTHER', label: 'Specialties' },
+  { key: 'ALL', label: 'ALL' },
+  { key: 'OFFSET', label: 'OFFSET / UNCOATED' },
+  { key: 'COATED', label: 'COATED / SILK-GLOSS' },
+  { key: 'CARTON', label: 'CARTON / BOARD' },
+  { key: 'DESIGN', label: 'MUNKEN / DESIGN' },
+  { key: 'DIGITAL', label: 'DIGITAL' },
+  { key: 'OTHER', label: 'SPECIALTIES' },
 ];
+
+function formatGrainAbbreviation(grainDirection?: string | null): string {
+  const g = String(grainDirection || '').toUpperCase();
+  if (g === 'LONG_GRAIN' || g === 'LG') return 'LG';
+  if (g === 'SHORT_GRAIN' || g === 'SG') return 'SG';
+  if (g && g !== 'UNKNOWN') return g;
+  return 'LG';
+}
 
 export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
   label,
@@ -127,30 +135,21 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
   const [totalAvailable, setTotalAvailable] = useState<number>(0);
-  const [offset, setOffset] = useState<number>(0);
   const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  const PAGE_LIMIT = 80;
-
-  // Debounce search query
+  // Instant 250ms debounced search across all certified substrates
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedQuery(searchQuery.trim());
-      setOffset(0);
-    }, 280);
+    }, 250);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Fetch catalog from BFF proxy
-  const fetchCatalog = useCallback(async (currentOffset = 0, append = false) => {
+  // Fetch full catalog from BFF proxy (no chunked 80-item limit)
+  const fetchCatalog = useCallback(async () => {
     if (mode !== 'advanced') return;
-    if (append) {
-      setLoadingMore(true);
-    } else {
-      setLoading(true);
-    }
+    setLoading(true);
     setFetchError(null);
 
     try {
@@ -161,10 +160,7 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
       if (debouncedQuery) {
         params.set('q', debouncedQuery);
       }
-      params.set('limit', String(PAGE_LIMIT));
-      if (currentOffset > 0) {
-        params.set('offset', String(currentOffset));
-      }
+      params.set('limit', '4000');
 
       const url = `/api/budget/paper/search?${params.toString()}`;
       const response = await fetch(url);
@@ -174,7 +170,7 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
       const data = await response.json();
       if (data.ok && data.data?.items) {
         setTotalAvailable(Number(data.data.total ?? data.data.items.length));
-        setCatalogItems(prev => (append ? [...prev, ...data.data.items] : data.data.items));
+        setCatalogItems(data.data.items);
       } else {
         throw new Error(data.message || 'Failed to parse catalog items');
       }
@@ -183,20 +179,47 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
       setFetchError('Control Plane Paper Catalog is temporarily unreachable. You may retry or use Standard Presets.');
     } finally {
       setLoading(false);
-      setLoadingMore(false);
     }
   }, [mode, selectedCategory, debouncedQuery]);
 
   useEffect(() => {
     if (mode === 'advanced') {
-      fetchCatalog(0, false);
+      fetchCatalog();
     }
   }, [fetchCatalog, mode]);
+
+  // Agile client-side filtering matching mill_brand, commercial_name, substrate_category, and gsm
+  const filteredCatalogItems = useMemo(() => {
+    return catalogItems.filter((item) => {
+      if (selectedCategory !== 'ALL' && item.category !== selectedCategory) {
+        return false;
+      }
+      if (!debouncedQuery) return true;
+      const tokens = debouncedQuery.toLowerCase().split(/\s+/).filter(Boolean);
+      const searchable = [
+        item.brand || '',
+        item.manufacturer || '',
+        item.productName || '',
+        item.category || '',
+        String(item.gsm || ''),
+        `${item.gsm}gsm`,
+        `${item.gsm}g`,
+        item.finish || '',
+        item.finishSummary || '',
+        item.sheetFormat || '',
+        `${item.widthMm}x${item.heightMm}`,
+      ]
+        .join(' ')
+        .toLowerCase();
+
+      return tokens.every((tk) => searchable.includes(tk));
+    });
+  }, [catalogItems, selectedCategory, debouncedQuery]);
 
   // Group items by commercial product name
   const groupedProducts = useMemo(() => {
     const map = new Map<string, CatalogItem[]>();
-    for (const item of catalogItems) {
+    for (const item of filteredCatalogItems) {
       const key = `${item.productName}__${item.brand || 'Standard'}`;
       if (!map.has(key)) {
         map.set(key, []);
@@ -214,7 +237,7 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
         variants: items.sort((a, b) => a.gsm - b.gsm),
       };
     });
-  }, [catalogItems]);
+  }, [filteredCatalogItems]);
 
   // Find currently selected product group if any
   const currentSelectedProductKey = useMemo(() => {
@@ -243,7 +266,6 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
 
   const handleCategoryChange = (cat: PaperCategory | 'ALL') => {
     setSelectedCategory(cat);
-    setOffset(0);
     if (selectedMaterial && cat !== 'ALL' && selectedMaterial.category !== cat) {
       onSelectMaterial(null);
     }
@@ -303,12 +325,6 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
     onSelectMaterial(null);
   };
 
-  const handleLoadMore = () => {
-    const nextOffset = offset + PAGE_LIMIT;
-    setOffset(nextOffset);
-    fetchCatalog(nextOffset, true);
-  };
-
   const mappedBpeType = selectedMaterial
     ? resolveBpePaperTypeFromMaterial(
         {
@@ -328,6 +344,9 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
         ? 'Exterior Cover / Board'
         : 'Hardcover Endpapers';
 
+  const isFiltering = Boolean(debouncedQuery) || selectedCategory !== 'ALL';
+  const displayedCount = filteredCatalogItems.length || totalAvailable;
+
   return (
     <div
       id={`advanced-paper-selector-${target}`}
@@ -341,8 +360,13 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
               {label}
             </h4>
             {mode === 'advanced' && (
-              <span className="bg-corporate-accent/10 rounded-full border border-corporate-accent/30 text-corporate-accent text-[9px] font-technical font-black px-2.5 py-0.5 uppercase tracking-wider">
-                Control Plane Master Catalog ({totalAvailable || catalogItems.length} Variants)
+              <span
+                data-testid={`paper-catalog-count-badge-${target}`}
+                className="bg-corporate-accent/10 rounded-full border border-corporate-accent/30 text-corporate-accent text-[9px] font-technical font-black px-2.5 py-0.5 uppercase tracking-wider"
+              >
+                {isFiltering
+                  ? `${filteredCatalogItems.length.toLocaleString('en-US')} matching variants`
+                  : `${(displayedCount || 1535).toLocaleString('en-US')} certified European substrates`}
               </span>
             )}
           </div>
@@ -406,14 +430,15 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
                 Live BPE Pricing &amp; Control Plane Substrate Sync:
               </span>
               <span className="text-corporate-text-secondary">
-                Selecting a certified mill material synchronizes its <strong className="text-corporate-text">Grammage (GSM)</strong> and{' '}
-                <strong className="text-corporate-text">Substrate Family</strong> directly with the Book Price Engine (BPE) and records the exact{' '}
+                Selecting a certified mill material synchronizes its <strong className="text-corporate-text">Grammage (GSM)</strong>,{' '}
+                <strong className="text-corporate-text">Caliper (µm)</strong>, and{' '}
+                <strong className="text-corporate-text">Substrate Family</strong> directly with the Spine Geometry Engine &amp; Book Price Engine (BPE), recording the exact{' '}
                 <code className="font-technical text-corporate-accent">variantId</code> for print house imposition.
               </span>
             </div>
           </div>
 
-          {/* Category Filter Tabs */}
+          {/* Category Filter Pills */}
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             <span className="text-[10px] font-technical uppercase font-bold text-corporate-muted mr-1">
               Category:
@@ -441,7 +466,7 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search mill brand, commercial name or GSM (e.g. Amber Graphic, Creator Silk, 100)..."
+                placeholder="Search mill brand, commercial name, category or GSM (e.g., Amber Graphic, Munken, Sappi, 90)..."
                 className="w-full min-w-0 rounded-xl pl-9 pr-14 py-2.5 sm:py-3 bg-corporate-secondary border border-corporate-border text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent placeholder:text-corporate-muted transition-all font-sans"
               />
               <MagnifyingGlassIcon className="w-4 h-4 text-corporate-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -457,7 +482,7 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
             </div>
             <button
               type="button"
-              onClick={() => fetchCatalog(0, false)}
+              onClick={() => fetchCatalog()}
               disabled={loading}
               title="Refresh Control Plane Catalog"
               aria-label="Refresh Control Plane Catalog"
@@ -481,7 +506,7 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
                 <div className="mt-3 flex flex-wrap items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => fetchCatalog(0, false)}
+                    onClick={() => fetchCatalog()}
                     className="px-3 py-1.5 rounded-lg bg-corporate-accent text-white text-[10px] font-technical font-black uppercase tracking-wider hover:bg-corporate-hover transition-colors"
                   >
                     Retry Connection
@@ -506,7 +531,7 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
             </div>
           )}
 
-          {/* Products & Materials Grid / Selector */}
+          {/* Products & Materials Cascading Selector */}
           {!loading && !fetchError && (
             <div className="space-y-5 min-w-0">
               {groupedProducts.length === 0 ? (
@@ -516,40 +541,45 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
                     No catalog materials found for &quot;{searchQuery || selectedCategory}&quot;
                   </p>
                   <p className="text-[11px] text-corporate-text-secondary mt-1">
-                    Try choosing &quot;All Catalog&quot; or searching for a different commercial brand name.
+                    Try choosing &quot;ALL&quot; or searching for a different commercial brand name.
                   </p>
                 </div>
               ) : (
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5 min-w-0">
-                    {/* Step 1: Material Selection */}
+                    {/* Cascading Dropdown 1: Commercial Substrate */}
                     <div className="flex flex-col min-w-0">
-                      <label className="flex items-center gap-2 font-sans font-bold text-corporate-text-secondary mb-2 uppercase tracking-technical text-[10px]">
-                        <TagIcon className="w-3.5 h-3.5 text-corporate-accent shrink-0" />
-                        <span>1. Commercial Mill Substrate ({groupedProducts.length} Lines)</span>
+                      <label className="flex items-center justify-between gap-2 font-sans font-bold text-corporate-text-secondary mb-2 uppercase tracking-technical text-[10px]">
+                        <span className="flex items-center gap-2">
+                          <TagIcon className="w-3.5 h-3.5 text-corporate-accent shrink-0" />
+                          <span>1. Commercial Substrate ({groupedProducts.length} Lines)</span>
+                        </span>
+                        <span className="text-[9px] font-technical text-corporate-accent font-black">
+                          {filteredCatalogItems.length.toLocaleString('en-US')} matching variants
+                        </span>
                       </label>
                       <select
                         value={currentSelectedProductKey}
                         onChange={(e) => handleSelectProduct(e.target.value)}
                         className="block w-full max-w-full min-w-0 rounded-xl py-3 px-3.5 bg-corporate-secondary border border-corporate-border text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all"
                       >
-                        <option value="">— Select Catalog Paper Material —</option>
+                        <option value="">— Select Commercial Mill Substrate —</option>
                         {groupedProducts.map((prod) => (
                           <option key={prod.key} value={prod.key}>
-                            {prod.productName} ({prod.brand}) — {prod.category} [{prod.variants.length} var.]
+                            {prod.productName} ({prod.brand}) · {prod.variants.length} {prod.variants.length === 1 ? 'variant' : 'variants'}
                           </option>
                         ))}
                       </select>
                       <p className="mt-1.5 text-[10px] text-corporate-muted font-technical uppercase tracking-wider">
-                        Authoritative substrate from verified European mills.
+                        Authoritative substrate lines from certified European mills.
                       </p>
                     </div>
 
-                    {/* Step 2: Variant & Grammage Selection */}
+                    {/* Cascading Dropdown 2: Grammage, Format & Caliper */}
                     <div className="flex flex-col min-w-0">
                       <label className="flex items-center gap-2 font-sans font-bold text-corporate-text-secondary mb-2 uppercase tracking-technical text-[10px]">
                         <ScaleIcon className="w-3.5 h-3.5 text-corporate-accent shrink-0" />
-                        <span>2. Grammage &amp; Sheet Format Variant</span>
+                        <span>2. Grammage, Format &amp; Caliper</span>
                       </label>
                       <select
                         value={selectedMaterial?.variantId || selectedMaterial?.variant_id || ''}
@@ -558,17 +588,28 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
                         className="block w-full max-w-full min-w-0 rounded-xl py-3 px-3.5 bg-corporate-secondary border border-corporate-border text-corporate-text text-xs focus:border-corporate-accent focus:ring-1 focus:ring-corporate-accent transition-all disabled:opacity-40"
                       >
                         {!selectedMaterial ? (
-                          <option value="">— Select Material first —</option>
+                          <option value="">— Select Commercial Substrate first —</option>
                         ) : (
-                          currentProductVariants.map((v) => (
-                            <option key={v.variantId} value={v.variantId}>
-                              {v.gsm} GSM · {(v.finish && v.finish !== 'UNKNOWN') ? v.finish : (v.finishSummary && v.finishSummary !== 'UNKNOWN' ? v.finishSummary : 'Finish unspecified')} · {(v.grainDirection && v.grainDirection !== 'UNKNOWN') ? v.grainDirection : 'Grain unspecified'}{v.caliperUm ? ` · ${v.caliperUm} µm` : ' · No caliper (µm)'} · {v.sheetFormat || `${v.widthMm}x${v.heightMm} mm`}
-                            </option>
-                          ))
+                          currentProductVariants.map((v) => {
+                            const grainAbbr = formatGrainAbbreviation(v.grainDirection);
+                            const bulkNum =
+                              v.bulkFactor && Number(v.bulkFactor) > 0
+                                ? Number(v.bulkFactor)
+                                : v.caliperUm && v.gsm
+                                  ? Number(v.caliperUm) / Number(v.gsm)
+                                  : null;
+                            const bulkLabel = bulkNum ? ` · Bulk ${bulkNum.toFixed(2)}` : '';
+                            const caliperLabel = v.caliperUm ? `Caliper ${v.caliperUm} µm` : 'No caliper (µm)';
+                            return (
+                              <option key={v.variantId} value={v.variantId}>
+                                {v.gsm} gsm · {v.widthMm}×{v.heightMm} mm · {caliperLabel}{bulkLabel} · {grainAbbr}
+                              </option>
+                            );
+                          })
                         )}
                       </select>
                       <p className="mt-1.5 text-[10px] text-corporate-muted font-technical uppercase tracking-wider">
-                        Specific mill caliper, grain direction and parent sheet dimensions.
+                        Certified technical variants with caliper (µm), bulk &amp; grain direction.
                       </p>
                     </div>
                   </div>
@@ -605,23 +646,6 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
                       </div>
                     </div>
                   )}
-
-                  {/* Pagination / Load More if more items exist in Control Plane */}
-                  {catalogItems.length < totalAvailable && (
-                    <div className="flex items-center justify-between rounded-xl bg-corporate-secondary border border-corporate-border px-4 py-2.5">
-                      <span className="text-[10px] font-technical text-corporate-muted uppercase">
-                        Showing {catalogItems.length} of {totalAvailable} matching variants
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleLoadMore}
-                        disabled={loadingMore}
-                        className="px-3 py-1 rounded-lg border border-corporate-border-strong hover:border-corporate-accent text-[10px] font-technical font-bold uppercase text-corporate-text hover:text-corporate-accent transition-colors"
-                      >
-                        {loadingMore ? 'Loading...' : `Load More (+${PAGE_LIMIT})`}
-                      </button>
-                    </div>
-                  )}
                 </>
               )}
 
@@ -643,28 +667,33 @@ export const AdvancedPaperSelector: React.FC<AdvancedPaperSelectorProps> = ({
                         <span className="px-2.5 py-0.5 rounded-full bg-corporate-elevated border border-corporate-border text-[9px] font-technical uppercase font-bold text-corporate-text">
                           Family: {selectedMaterial.category}
                         </span>
-                        {mappedBpeType && (
-                          <span className="px-2.5 py-0.5 rounded-full bg-corporate-accent/10 border border-corporate-accent/30 text-[9px] font-technical uppercase font-black text-corporate-accent">
-                            BPE Tariff: {mappedBpeType}
-                          </span>
-                        )}
-                        <span className="px-2.5 py-0.5 rounded-full badge-success border text-[9px] font-technical uppercase font-bold">
-                          {selectedMaterial.isAvailable !== false ? 'In Stock · Mill Certified' : 'Mill Lead Time'}
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full border text-[9px] font-technical uppercase font-bold ${
+                            selectedMaterial.isAvailable !== false
+                              ? 'badge-success'
+                              : 'badge-warning'
+                          }`}
+                        >
+                          {selectedMaterial.isAvailable !== false
+                            ? 'Available in Control Plane'
+                            : 'Subject to Mill Confirmation'}
                         </span>
                       </div>
 
                       {/* Technical Specs Grid */}
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-xl bg-corporate-elevated/60 border border-corporate-border p-3.5 text-xs font-technical">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-corporate-elevated/60 p-3 rounded-xl border border-corporate-border text-xs font-technical">
                         <div>
-                          <span className="text-[9px] text-corporate-muted uppercase block">Weight (GSM)</span>
-                          <span className="text-corporate-text font-black tabular-nums">{selectedMaterial.gsm} gsm</span>
+                          <span className="text-[9px] text-corporate-muted uppercase block">Grammage</span>
+                          <span className="text-corporate-text font-bold tabular-nums">{selectedMaterial.gsm} GSM</span>
                         </div>
                         <div>
-                          <span className="text-[9px] text-corporate-muted uppercase block">Surface Finish</span>
-                          <span className="text-corporate-text font-bold uppercase">{(selectedMaterial.finish && selectedMaterial.finish !== 'UNKNOWN') ? selectedMaterial.finish : 'Finish unspecified'} · {(selectedMaterial.grainDirection && selectedMaterial.grainDirection !== 'UNKNOWN') ? selectedMaterial.grainDirection : 'Grain unspecified'}</span>
+                          <span className="text-[9px] text-corporate-muted uppercase block">Finish / Grain</span>
+                          <span className="text-corporate-text font-bold">
+                            {(selectedMaterial.finish && selectedMaterial.finish !== 'UNKNOWN') ? selectedMaterial.finish : 'Standard'} · {(selectedMaterial.grainDirection && selectedMaterial.grainDirection !== 'UNKNOWN') ? selectedMaterial.grainDirection : 'Standard'}
+                          </span>
                         </div>
                         <div>
-                          <span className="text-[9px] text-corporate-muted uppercase block">Parent Sheet (mm)</span>
+                          <span className="text-[9px] text-corporate-muted uppercase block">Parent Sheet</span>
                           <span className="text-corporate-text font-bold tabular-nums">
                             {selectedMaterial.sheetWidthMm && selectedMaterial.sheetHeightMm
                               ? `${selectedMaterial.sheetWidthMm} × ${selectedMaterial.sheetHeightMm} mm`

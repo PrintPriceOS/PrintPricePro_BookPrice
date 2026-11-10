@@ -414,6 +414,8 @@ const App: React.FC = () => {
             user_id: data.user.user_id,
             role: data.user.role,
             tenant_id: data.user.tenant_id || null,
+            organizationName: data.user.organizationName || data.user.organization_name || data.user.company || undefined,
+            company: data.user.company || data.user.organizationName || undefined,
           });
         }
       })
@@ -577,7 +579,7 @@ const App: React.FC = () => {
 
     if (!Number.isFinite(currentCaliper) || currentCaliper <= 0) {
       try {
-        const res = await fetch('/api/budget/paper/search?q=' + encodeURIComponent(String(targetGsm)) + '&gsm=' + encodeURIComponent(String(targetGsm)) + '&limit=80');
+        const res = await fetch('/api/budget/paper/search?q=' + encodeURIComponent(String(targetGsm)) + '&gsm=' + encodeURIComponent(String(targetGsm)) + '&limit=4000');
         if (res.ok) {
           const data = await res.json();
           let items: CatalogItem[] = data?.data?.items || [];
@@ -585,7 +587,7 @@ const App: React.FC = () => {
             (v) => v.caliperUm != null && Number(v.caliperUm) > 0
           );
           if (withCaliper.length === 0) {
-            const fallbackRes = await fetch('/api/budget/paper/search?limit=80');
+            const fallbackRes = await fetch('/api/budget/paper/search?limit=4000');
             if (fallbackRes.ok) {
               const fallbackData = await fallbackRes.json();
               items = fallbackData?.data?.items || [];
@@ -1501,6 +1503,8 @@ const App: React.FC = () => {
           userEmail={user?.email}
           userName={user?.name}
           userRole={user?.role}
+          organizationName={user?.organizationName}
+          company={user?.company}
           initialTab={portalRoute.tab}
           initialOrderId={portalRoute.trackingOrderId}
           initialAssetIntakeOrderId={portalRoute.assetIntakeOrderId}

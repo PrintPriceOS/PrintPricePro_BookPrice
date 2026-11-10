@@ -2023,7 +2023,7 @@ startxref
         };
         return res.status(200).json({
             ok: true,
-            organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
+            organizationId: 'ORG_B2B_PUBLISHING_ENTITY',
             actor: {
                 memberId: activeMember.memberId,
                 email: activeMember.email,
@@ -2068,7 +2068,7 @@ startxref
         }
         const newMember = {
             memberId: `MEM_2026_${Math.floor(1000 + Math.random() * 9000)}`,
-            organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
+            organizationId: 'ORG_B2B_PUBLISHING_ENTITY',
             email,
             fullName: String(req.body?.fullName || email.split('@')[0]),
             role: String(req.body?.role || 'PREPRESS_DESIGNER').toUpperCase(),
@@ -2079,7 +2079,7 @@ startxref
         localB2bMembersFallback.push(newMember);
         return res.status(201).json({
             ok: true,
-            organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
+            organizationId: 'ORG_B2B_PUBLISHING_ENTITY',
             member: newMember,
             members: localB2bMembersFallback
         });
@@ -2122,7 +2122,7 @@ startxref
         };
         return res.status(200).json({
             ok: true,
-            organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
+            organizationId: 'ORG_B2B_PUBLISHING_ENTITY',
             member: localB2bMembersFallback[idx],
             members: localB2bMembersFallback
         });
@@ -2164,7 +2164,7 @@ startxref
         };
         return res.status(200).json({
             ok: true,
-            organizationId: 'ORG_PENGUIN_RANDOM_HOUSE_EU',
+            organizationId: 'ORG_B2B_PUBLISHING_ENTITY',
             revokedMemberId: memberId,
             member: localB2bMembersFallback[idx],
             members: localB2bMembersFallback

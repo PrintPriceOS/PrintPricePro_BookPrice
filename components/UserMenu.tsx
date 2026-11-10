@@ -78,6 +78,8 @@ interface AuthUser {
   user_id?: string | number;
   role?: string;
   tenant_id?: string | null;
+  organizationName?: string;
+  company?: string;
 }
 
 const AuthModal: React.FC<{ onClose: () => void; onLoginSuccess: (user: AuthUser) => void }> = ({ onClose, onLoginSuccess }) => {
@@ -135,6 +137,8 @@ const AuthModal: React.FC<{ onClose: () => void; onLoginSuccess: (user: AuthUser
         user_id: data?.user_id ?? data?.user?.id ?? data?.id,
         role: data?.role ?? data?.user?.role,
         tenant_id: data?.tenant_id ?? data?.user?.tenant_id ?? null,
+        organizationName: data?.organizationName ?? data?.user?.organizationName ?? data?.user?.organization_name ?? data?.company ?? data?.user?.company,
+        company: data?.company ?? data?.user?.company ?? data?.organizationName ?? data?.user?.organizationName,
       });
       onClose();
     } catch {
@@ -546,6 +550,9 @@ const UserMenu: React.FC<UserMenuProps> = ({ user, onOpenModal, onLogout, onNavi
           userId={user?.user_id}
           userEmail={user?.email}
           userName={user?.name}
+          userRole={user?.role}
+          organizationName={user?.organizationName}
+          company={user?.company}
           initialTab={portalTab}
           onClose={() => setShowOrders(false)}
         />

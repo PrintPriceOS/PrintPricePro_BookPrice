@@ -2489,7 +2489,9 @@ app.get('/api/auth/session', (req, res) => {
             name: identity.user.name || null,
             role: identity.user.role,
             tenant_id: identity.tenantId,
-            printhouse_id: identity.user.printhouseId || null
+            printhouse_id: identity.user.printhouseId || null,
+            organizationName: identity.user.organizationName || identity.user.organization_name || identity.user.company || null,
+            company: identity.user.company || identity.user.organizationName || null
         }
     });
 });

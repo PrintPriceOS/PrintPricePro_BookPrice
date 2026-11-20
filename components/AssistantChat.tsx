@@ -6,6 +6,7 @@ import {
 } from '../constants';
 import { InitialBookPricePayload, BookPriceResponse, BookPriceOffer } from '../types';
 import { PaperAirplaneIcon } from '@heroicons/react/24/solid';
+import { DotChatAvatar, DotChatState } from './mascot';
 import { t } from '../i18n/en';
 import { normaliseApiResponse } from '../lib/normaliseApiResponse';
 
@@ -85,6 +86,14 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const dotState: DotChatState = loading
+    ? 'thinking'
+    : input.trim().length > 0
+      ? 'listening'
+      : offers?.offers?.length
+        ? 'success'
+        : 'idle';
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -472,7 +481,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
         <div className="bg-corporate-elevated/70 px-4 sm:px-8 py-3 sm:py-4 flex items-center justify-between gap-3 border-b border-corporate-border relative z-10">
           <div className="min-w-0">
             <div className="flex items-center gap-2.5">
-              <span className="w-2 h-2 rounded-full bg-corporate-accent shrink-0" />
+              <DotChatAvatar size={20} state={dotState} title="Dot · PrintPrice AI Assistant" />
               <h2 className="text-xs font-sans font-black tracking-wider sm:tracking-monolith text-corporate-text uppercase truncate">
                 PrintPrice OS · AI Specification Assistant
               </h2>
@@ -499,8 +508,13 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
           {messages.map((m) => (
             <div
               key={m.id}
-              className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} min-w-0`}
+              className={`flex gap-2.5 sm:gap-3.5 ${m.role === 'user' ? 'justify-end' : 'justify-start items-start'} min-w-0`}
             >
+              {m.role !== 'user' && (
+                <div className="shrink-0 mt-1">
+                  <DotChatAvatar size={26} state="idle" title="Dot · PrintPrice AI Assistant" />
+                </div>
+              )}
               <div
                 className={`max-w-[92%] sm:max-w-[80%] min-w-0 transition-all duration-300 ${
                   m.role === 'user'
@@ -651,7 +665,18 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
 
         {/* Input */}
         <div className="px-3.5 sm:px-8 py-2.5 sm:py-3.5 bg-corporate-secondary border-t border-corporate-border flex items-center gap-2.5 sm:gap-4 relative z-10">
+          <div
+            className="shrink-0 flex items-center justify-center cursor-pointer transition-transform hover:scale-105 active:scale-95"
+            onClick={() => {
+              const textareaEl = document.getElementById('budget-chat-textarea');
+              textareaEl?.focus();
+            }}
+            title="Dot · PrintPrice AI Assistant"
+          >
+            <DotChatAvatar size={38} state={dotState} />
+          </div>
           <textarea
+            id="budget-chat-textarea"
             rows={1}
             value={input}
             onChange={(e) => setInput(e.target.value)}

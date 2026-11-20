@@ -2329,14 +2329,38 @@ ${JSON.stringify(ui_state || {})}`;
     };
 
     try {
-        const model = process.env.GEMINI_MODEL || 'gemini-flash-lite-latest';
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+        const candidateModels = [
+            process.env.GEMINI_MODEL || 'gemini-flash-lite-latest',
+            'gemini-flash-lite-latest',
+            'gemini-3.8-flash',
+            'gemini-flash-latest'
+        ];
+        const models = Array.from(new Set(candidateModels));
 
-        console.log(`[PPP_AI_CHAT] session=${req.signedCookies?.pp_session_id || 'anonymous'} model=${model}`);
-        const response = await axios.post(geminiUrl, geminiPayload, {
-            headers: { 'Content-Type': 'application/json' },
-            timeout: 30000
-        });
+        let response = null;
+        let lastErr = null;
+
+        for (const model of models) {
+            try {
+                const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+                console.log(`[PPP_AI_CHAT] session=${req.signedCookies?.pp_session_id || 'anonymous'} trying model=${model}`);
+                response = await axios.post(geminiUrl, geminiPayload, {
+                    headers: { 'Content-Type': 'application/json' },
+                    timeout: 12000
+                });
+                if (response?.data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+                    break;
+                }
+            } catch (err) {
+                lastErr = err;
+                console.warn(`[PPP_AI_CHAT_RETRY] model=${model} status=${err.response?.status} err=${err.message}`);
+                await new Promise(r => setTimeout(r, 300));
+            }
+        }
+
+        if (!response?.data) {
+            throw lastErr || new Error("All AI models unavailable");
+        }
 
         const text =
             response.data?.candidates?.[0]?.content?.parts?.[0]?.text ||
@@ -2489,9 +2513,7 @@ app.get('/api/auth/session', (req, res) => {
             name: identity.user.name || null,
             role: identity.user.role,
             tenant_id: identity.tenantId,
-            printhouse_id: identity.user.printhouseId || null,
-            organizationName: identity.user.organizationName || identity.user.organization_name || identity.user.company || null,
-            company: identity.user.company || identity.user.organizationName || null
+            printhouse_id: identity.user.printhouseId || null
         }
     });
 });
@@ -2732,29 +2754,8 @@ async function resolveSpineBffTenantContext(req, res) {
 
 app.get('/api/budget/spine/profiles', async (req, res) => {
     try {
-        let ctx = null;
-        const identity = resolveRequestIdentity(req);
-        if (identity.authError === 'INVALID_TOKEN') {
-            return res.status(401).json({
-                ok: false,
-                error: {
-                    code: 'UNAUTHORIZED',
-                    message: 'Invalid, expired, or manipulated authentication token.'
-                }
-            });
-        }
-        if (identity.tenantId) {
-            ctx = await resolveSpineBffTenantContext(req, res);
-            if (!ctx) return;
-        }
-
-        // Allow guest / public configurator sessions to view canonical spine profiles
-        const effectiveHeaders = ctx ? ctx.headers : buildSpineControlPlaneHeaders({
-            tenantId: 'ppos-production',
-            printhouseId: null,
-            userId: 'guest-session',
-            sessionId: identity.sessionId || 'guest-session'
-        });
+        const ctx = await resolveSpineBffTenantContext(req, res);
+        if (!ctx) return;
 
         const params = new URLSearchParams();
         if (req.query.includeExperimental) {
@@ -2762,7 +2763,7 @@ app.get('/api/budget/spine/profiles', async (req, res) => {
         }
         const qs = params.toString();
         const cpUrl = `${CONTROL_PLANE_BASE_URL}/api/v1/spine/profiles${qs ? `?${qs}` : ''}`;
-        const response = await axios.get(cpUrl, { headers: effectiveHeaders, timeout: 8000 });
+        const response = await axios.get(cpUrl, { headers: ctx.headers, timeout: 8000 });
         return res.status(response.status || 200).json(response.data);
     } catch (err) {
         if (isControlPlaneSpineUnavailableError(err)) {

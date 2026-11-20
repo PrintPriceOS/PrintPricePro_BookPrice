@@ -697,7 +697,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({
             className="w-11 h-11 shrink-0 rounded-xl flex items-center justify-center bg-corporate-accent text-white hover:bg-corporate-hover transition-all duration-200 disabled:opacity-40 group shadow-sm"
           >
             {loading ? (
-              <span className="w-4 h-4 border-2 border-white border-b-transparent animate-spin" />
+              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
             ) : (
               <PaperAirplaneIcon className="h-4 w-4 transform -rotate-45 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
             )}
